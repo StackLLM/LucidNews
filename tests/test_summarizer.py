@@ -481,3 +481,25 @@ def test_generate_summary_preserves_normal_http_links():
     assert "[Important Item 1](https://example.com/items/1)" in result
     assert "[Discussion](https://example.com/discuss?id=1#comments)" in result
     assert 'href="https://docs.example.com/path?q=one&amp;lang=en"' in result
+
+
+def test_generate_summary_flags_unconfirmed_items_and_localizes_reliability():
+    from src.reliability import ReliabilityAssessment
+
+    summarizer = DailySummarizer()
+    confirmed = _make_item(1)
+    confirmed.processing.reliability = ReliabilityAssessment(
+        label="confirmed", source_tier="official", source_domain="example.com"
+    )
+    rumor = _make_item(2)
+    rumor.processing.reliability = ReliabilityAssessment(
+        label="rumor", source_tier="community", source_domain="x.com"
+    )
+
+    en = _run_async(summarizer.generate_summary([confirmed, rumor], "2026-10-05", 2))
+    fr = _run_async(summarizer.generate_summary([rumor], "2026-10-05", 1, language="fr"))
+
+    assert "**Reliability**: Confirmed · official source" in en
+    assert "**Reliability**: ⚠️ Rumor — speculation or leak, not a confirmed fact · community source" in en
+    assert "**Fiabilité**: ⚠️ Rumeur" in fr
+    assert fr.startswith("# LucidNews Quotidien - 2026-10-05")

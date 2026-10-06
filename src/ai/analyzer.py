@@ -17,6 +17,7 @@ from .utils import parse_json_response
 from ..models import ContentAnalysis, ContentItem
 from ..processing.content import select_content, split_content
 from ..processing.profiles import ProfileRegistry
+from ..reliability.assess import ReliabilityPolicy, assess_item
 
 DEFAULT_THROTTLE_SEC = 0.0
 
@@ -28,11 +29,13 @@ class ContentAnalyzer:
         ai_client: AIClient,
         profiles: ProfileRegistry,
         console: Optional[Console] = None,
+        reliability_policy: Optional[ReliabilityPolicy] = None,
     ):
         self.client = ai_client
         self.profiles = profiles
         self.classifier = ContentClassifier(ai_client, profiles)
         self.console = console or Console(stderr=True)
+        self.reliability_policy = reliability_policy or ReliabilityPolicy()
 
     @staticmethod
     def _parse_json_response(response: str) -> Optional[dict]:
@@ -71,6 +74,8 @@ class ContentAnalyzer:
                             reason="Analysis failed",
                             summary=item.title,
                         )
+                if item.processing:
+                    item.processing.reliability = assess_item(item, self.reliability_policy)
                 if throttle_sec > 0 and index < len(items) - 1:
                     await asyncio.sleep(throttle_sec)
             progress.advance(progress_task)

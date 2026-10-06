@@ -7,7 +7,9 @@ from typing import Dict, List, Optional
 from urllib.parse import quote, urlsplit
 
 from .localization import normalize_language
+from ..i18n import format_timestamp, messages
 from ..models import ContentItem
+from ..reliability import UNCONFIRMED_LABELS, ReliabilityAssessment
 
 
 _CJK = r"[\u4e00-\u9fff\u3400-\u4dbf]"
@@ -49,50 +51,6 @@ def _pangu(text: str) -> str:
     return text
 
 
-LABELS = {
-    "en": {
-        "header": "LucidNews Daily",
-        "source": "Source",
-        "background": "Background",
-        "discussion": "Discussion",
-        "references": "References",
-        "tags": "Tags",
-        "selected_items": "From {total} items, {selected} important content pieces were selected",
-        "empty_analyzed": "Analyzed {total} items, but none met the importance threshold.",
-        "empty_body": (
-            "No significant developments today. This might indicate:\n"
-            "- A quiet day in your tracked sources\n"
-            "- The AI score threshold is too high\n"
-            "- Your information sources need expansion\n\n"
-            "Consider:\n"
-            "1. Lowering the configured profile threshold\n"
-            "2. Adding more diverse information sources\n"
-            "3. Checking if the AI model is working correctly\n"
-        ),
-    },
-    "zh": {
-        "header": "LucidNews 每日速递",
-        "source": "来源",
-        "background": "背景",
-        "discussion": "社区讨论",
-        "references": "参考链接",
-        "tags": "标签",
-        "selected_items": "从 {total} 条内容中筛选出 {selected} 条重要资讯。",
-        "empty_analyzed": "已分析 {total} 条内容，但没有达到重要性阈值的条目。",
-        "empty_body": (
-            "今日暂无重要动态，可能原因：\n"
-            "- 今天关注的信息源较平静\n"
-            "- AI 评分阈值设置过高\n"
-            "- 信息源种类有待扩充\n\n"
-            "建议：\n"
-            "1. 降低当前 Profile 的过滤阈值\n"
-            "2. 添加更多多样化的信息源\n"
-            "3. 检查 AI 模型是否正常工作\n"
-        ),
-    },
-}
-
-
 @dataclass(frozen=True)
 class SummaryItemView:
     item: ContentItem
@@ -115,6 +73,18 @@ class SummaryGroupView:
 class DailySummaryView:
     groups: List[SummaryGroupView]
     item_count: int
+
+
+def _reliability_line(
+    assessment: Optional[ReliabilityAssessment], labels: Dict[str, str]
+) -> str:
+    """Reader-facing reliability statement; unconfirmed items are flagged explicitly."""
+    if assessment is None:
+        return ""
+    label = labels[f"label_{assessment.label.value}"]
+    tier = labels[f"tier_{assessment.source_tier.value}"]
+    marker = "\u26a0\ufe0f " if assessment.label in UNCONFIRMED_LABELS else ""
+    return f"**{labels['reliability']}**: {marker}{label} \u00b7 {tier}"
 
 
 class DailySummarizer:
@@ -229,7 +199,7 @@ class DailySummarizer:
         Returns:
             str: Markdown formatted summary
         """
-        labels = LABELS.get(language, LABELS["en"])
+        labels = messages(language)
 
         if not items:
             return self._generate_empty_summary(date, total_fetched, labels)
@@ -283,22 +253,15 @@ class DailySummarizer:
         language: str = "en",
     ) -> str:
         """Generate a compact overview for multi-message webhook delivery."""
-        labels = LABELS.get(language, LABELS["en"])
+        labels = messages(language)
         if not items:
             return self._generate_empty_summary(date, total_fetched, labels)
 
-        if language == "zh":
-            header = (
-                f"# {labels['header']} - {date}\n\n"
-                f"> 从 {total_fetched} 条内容中筛选出 {len(items)} 条重要资讯。\n\n"
-                "下面会按内容逐条发送详情，你可以只看感兴趣的标题。\n\n"
-            )
-        else:
-            header = (
-                f"# {labels['header']} - {date}\n\n"
-                f"> Selected {len(items)} important items from {total_fetched} fetched items.\n\n"
-                "Details will be sent item by item so you can read only the topics you care about.\n\n"
-            )
+        header = (
+            f"# {labels['header']} - {date}\n\n"
+            f"> {labels['overview_selected'].format(selected=len(items), total=total_fetched)}\n\n"
+            f"{labels['overview_details']}\n\n"
+        )
 
         sections = []
         view = self.build_view(items, language)
@@ -332,8 +295,8 @@ class DailySummarizer:
         score: float | str | None = None,
     ) -> str:
         """Generate one item message for multi-message webhook delivery."""
-        labels = LABELS.get(language, LABELS["en"])
-        prefix = f"第 {index}/{total} 条\n\n" if language == "zh" else f"Item {index}/{total}\n\n"
+        labels = messages(language)
+        prefix = labels["item_prefix"].format(index=index, total=total) + "\n\n"
         return normalize_language(
             prefix
             + self._format_item(
@@ -402,14 +365,7 @@ class DailySummarizer:
         else:
             source_parts.append(_escape_markdown(item.author or "unknown"))
         if item.published_at:
-            if language == "zh":
-                source_parts.append(
-                    f"{item.published_at.month}月{item.published_at.day}日 "
-                    f"{item.published_at:%H:%M}"
-                )
-            else:
-                day = item.published_at.strftime("%d").lstrip("0")
-                source_parts.append(item.published_at.strftime(f"%b {day}, %H:%M"))
+            source_parts.append(format_timestamp(item.published_at, language))
         source_line = " \u00b7 ".join(source_parts)  # ·
 
         discussion_url = meta.get("discussion_url")
@@ -424,6 +380,11 @@ class DailySummarizer:
             f'<a id="{anchor_id or f"item-{index}"}"></a>',
             f"{'#' * heading_level} {title_link} \u2b50\ufe0f {score}/10",  # ⭐️
         ]
+        reliability_line = _reliability_line(
+            item.processing.reliability if item.processing else None, labels
+        )
+        if reliability_line:
+            lines.extend(["", reliability_line])
         if summary.strip():
             lines.extend(["", summary])
         if primary_content.strip():

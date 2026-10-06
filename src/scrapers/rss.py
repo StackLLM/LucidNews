@@ -124,6 +124,7 @@ class RSSScraper(BaseScraper):
                     metadata={
                         "feed_name": source.name,
                         "category": source.category,
+                        **({"source_trust": source.trust.value} if source.trust else {}),
                         "tags": [tag.term for tag in entry.get("tags", [])],
                     },
                 )

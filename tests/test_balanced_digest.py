@@ -369,3 +369,18 @@ def test_run_balances_after_twitter_reanalysis(tmp_path, monkeypatch) -> None:
     asyncio.run(orchestrator.run())
 
     assert enriched_ids == ["second"]
+
+
+def test_reliability_exclusions_filter_selected_labels() -> None:
+    from src.models import ReliabilityConfig
+    from src.reliability import ReliabilityAssessment
+
+    orchestrator = make_orchestrator(DigestConfig())
+    orchestrator.config.reliability = ReliabilityConfig(exclude_labels=["rumor"])
+    rumor = make_item("rumor", 9.0, "ai")
+    rumor.processing.reliability = ReliabilityAssessment(label="rumor", source_tier="community")
+    confirmed = make_item("confirmed", 9.0, "ai")
+    confirmed.processing.reliability = ReliabilityAssessment(label="confirmed", source_tier="official")
+
+    assert not orchestrator.passes_profile_filter(rumor)
+    assert orchestrator.passes_profile_filter(confirmed)

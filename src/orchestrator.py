@@ -32,6 +32,7 @@ from .ai.enricher import ContentEnricher, EnrichmentBatchResult
 from .ai.tokens import get_usage_snapshot
 from .processing import ProfileRegistry
 from .processing.tools import ToolRegistry
+from .reliability.assess import ReliabilityPolicy
 
 
 _TRACKING_QUERY_PARAMETERS = {
@@ -209,6 +210,7 @@ class PipelineOrchestrator:
                 for profile in self.profiles.profiles
                 if profile.id not in configured_profiles
             )
+        self.reliability_policy = ReliabilityPolicy.with_overrides(config.reliability.domains)
         self.email_manager = EmailManager(config.email, console=self.console) if config.email else None
         self.webhook_notifier = (
             WebhookNotifier(config.webhook, console=self.console, icons=self.icons)
@@ -784,6 +786,14 @@ class PipelineOrchestrator:
         if score is None:
             # The AI could not score this item; never publish it unreviewed.
             return False
+        reliability_config = getattr(self.config, "reliability", None)
+        reliability = item.processing.reliability
+        if (
+            reliability_config is not None
+            and reliability is not None
+            and reliability.label in reliability_config.exclude_labels
+        ):
+            return False
         profile_id = item.processing.classification.profile
         settings = self.config.processing.profile_settings.get(profile_id)
         effective_threshold = threshold
@@ -964,7 +974,12 @@ class PipelineOrchestrator:
             f"   Re-analyzing {len(expanded)} Twitter items with reply context...\n"
         )
         ai_client = create_ai_client(self.config.ai)
-        analyzer = ContentAnalyzer(ai_client, self.profiles, console=self.console)
+        analyzer = ContentAnalyzer(
+            ai_client,
+            self.profiles,
+            console=self.console,
+            reliability_policy=self.reliability_policy,
+        )
         await analyzer.analyze_batch(expanded)
 
     async def enrich_items(self, items: List[ContentItem]) -> EnrichmentBatchResult:
@@ -1014,7 +1029,12 @@ class PipelineOrchestrator:
         self.console.print(f"{self.icons['ai']} Analyzing content with AI...")
 
         ai_client = create_ai_client(self.config.ai)
-        analyzer = ContentAnalyzer(ai_client, self.profiles, console=self.console)
+        analyzer = ContentAnalyzer(
+            ai_client,
+            self.profiles,
+            console=self.console,
+            reliability_policy=self.reliability_policy,
+        )
 
         return await analyzer.analyze_batch(items)
 

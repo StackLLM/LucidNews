@@ -1,5 +1,6 @@
 """Prompt construction for profile-driven content enrichment."""
 
+from ...i18n import target_language_instruction
 from ...models import ContentItem
 from ...processing.content import select_content, split_content
 from ...processing.profiles import LoadedProfile, ProfileBlock
@@ -12,15 +13,10 @@ GROUNDING_RULES = f"""- Treat the source item as the primary account of what hap
 - Use tool results only as supporting context or fact verification, never as a replacement for the source.
 - {UNTRUSTED_INPUT_RULE}
 - Distinguish source facts, community opinions, and external context.
+- Respect the item's reliability label. When it is `unverified` or `rumor`, never state the main claim as established fact: attribute it ("according to…", "reportedly", "a leak suggests…"), say it is unconfirmed, and keep the title explicitly hedged.
 {EVIDENCE_RULES}
 - Cite only supplied tool result IDs, and only from the block that received those results.
 - History search results are earlier LucidNews summaries, not independent verification. Their dates are digest dates. Use them only for a concrete predecessor, follow-up, or relevant change; sharing a company or broad topic is insufficient. Cite every historical claim to its supplied result ID. Discard all candidates when none helps explain the current item."""
-
-
-def target_language_instruction(language: str) -> str:
-    if language.lower() == "zh":
-        return "Simplified Chinese (language tag `zh`)"
-    return f"language `{language}`"
 
 
 def tool_planning_prompt(blocks: list[ProfileBlock]) -> str:
@@ -163,6 +159,14 @@ def item_context(
         else ""
     )
     comments = parts.comments[:2000] if include_content else ""
+    reliability = item.processing.reliability if item.processing else None
+    reliability_text = (
+        f"{reliability.label.value} (publisher: {reliability.source_tier.value}"
+        f"{', ' + reliability.source_domain if reliability.source_domain else ''}; "
+        f"claim: {reliability.claim_status.value if reliability.claim_status else 'not assessed'})"
+        if reliability
+        else "not assessed"
+    )
     return f"""# Item
 
 Title: {item.title}
@@ -173,6 +177,7 @@ Author: {item.author or "Unknown"}
 Analysis summary: {analysis.summary if analysis else ""}
 Analysis reason: {analysis.reason if analysis else ""}
 Tags: {', '.join(analysis.tags) if analysis else ""}
+Reliability: {reliability_text}
 
 # Source content
 

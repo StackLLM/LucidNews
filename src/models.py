@@ -4,7 +4,15 @@ from datetime import datetime, timezone
 from enum import Enum
 import re
 from typing import Annotated, Literal, Optional, List, Dict, Any, NamedTuple, Union
-from pydantic import BaseModel, ConfigDict, HttpUrl, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, HttpUrl, Field, ValidationError, field_validator, model_validator
+
+from .reliability.models import (
+    ClaimAssessment,
+    ReliabilityAssessment,
+    ReliabilityLabel,
+    SourceTier,
+)
+from .taxonomy import normalize_categories
 
 
 class SourceType(str, Enum):
@@ -60,6 +68,26 @@ class ContentAnalysis(BaseModel):
     reason: str
     summary: str
     tags: List[str] = Field(default_factory=list)
+    categories: List[str] = Field(default_factory=list)
+    claim: Optional[ClaimAssessment] = None
+
+    @field_validator("categories", mode="before")
+    @classmethod
+    def keep_known_categories(cls, value: object) -> List[str]:
+        if not isinstance(value, list):
+            return []
+        return normalize_categories(value)
+
+    @field_validator("claim", mode="before")
+    @classmethod
+    def drop_invalid_claim(cls, value: object) -> object:
+        """An unusable claim block degrades to "not assessed" instead of failing analysis."""
+        if value is None or isinstance(value, ClaimAssessment):
+            return value
+        try:
+            return ClaimAssessment.model_validate(value)
+        except ValidationError:
+            return None
 
 
 class ArtifactSource(BaseModel):
@@ -95,6 +123,7 @@ class ProcessingResult(BaseModel):
 
     classification: ClassificationResult
     analysis: Optional[ContentAnalysis] = None
+    reliability: Optional[ReliabilityAssessment] = None
     artifacts: Dict[str, ContentArtifact] = Field(default_factory=dict)
 
 
@@ -277,6 +306,7 @@ class RSSSourceConfig(BaseModel):
     category: Optional[str] = None
     content_extractor: Optional[str] = None
     profile: ProfileRoute = None
+    trust: Optional[SourceTier] = None  # pin the publisher tier for this feed's items
 
 
 class RedditSubredditConfig(BaseModel):
@@ -584,6 +614,15 @@ class DigestConfig(BaseModel):
         return value
 
 
+class ReliabilityConfig(BaseModel):
+    """Source trust registry overrides and digest reliability policy."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    domains: Dict[str, SourceTier] = Field(default_factory=dict)
+    exclude_labels: List[ReliabilityLabel] = Field(default_factory=list)
+
+
 class Config(BaseModel):
     """Main configuration model."""
 
@@ -594,6 +633,7 @@ class Config(BaseModel):
     collection: CollectionConfig = Field(default_factory=CollectionConfig)
     digest: DigestConfig = Field(default_factory=DigestConfig)
     processing: ProcessingConfig = Field(default_factory=ProcessingConfig)
+    reliability: ReliabilityConfig = Field(default_factory=ReliabilityConfig)
     display: DisplayConfig = Field(default_factory=DisplayConfig)
     extractors: Dict[str, ExtractorConfig] = Field(default_factory=dict)
     email: Optional[EmailConfig] = None
