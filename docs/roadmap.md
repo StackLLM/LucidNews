@@ -14,7 +14,7 @@ Priorités, dans cet ordre : **fiabilité → qualité des données → qualité
 
 ## Phase 2 — Qualité et stabilité des données
 
-- **Corroboration** : compter les éditeurs indépendants qui rapportent le même événement (via le dédoublonnage par sujet), et faire monter une affirmation `reported` à « Fiable » quand plusieurs sources reconnues concordent.
+- **Corroboration** *(fait)* : les sites reconnus et indépendants qui rapportent le même événement sont comptés lors du dédoublonnage par sujet et font monter l'étiquette (règles dans `docs/fiabilite.md`). Reste à faire : l'étendre aux news sous le seuil et aux runs précédents, via l'archive.
 - **Santé des sources** *(fait)* : historique par source dans l'archive (statut, erreur, news collectées et retenues), classement `dead` / `failing` / `silent` / `noisy` / `healthy`, alerte en fin de run et commande `lucidnews-sources`. Reste à faire : score de qualité par source utilisé dans la sélection.
 - **Archive d'items** *(fait)* : runs et news analysées stockés dans SQLite ; les analyses de news inchangées sont réutilisées. Ouvre la voie à l'envoi hebdomadaire, aux statistiques et à la reprise.
 - **Robustesse IA** *(fait)* : nouvelle tentative en fin d'étape pour l'analyse et l'enrichissement, puis reprise des news non notées aux runs suivants depuis l'archive. Reste à faire : budget de tokens par run.

@@ -163,7 +163,8 @@ def item_context(
     reliability_text = (
         f"{reliability.label.value} (publisher: {reliability.source_tier.value}"
         f"{', ' + reliability.source_domain if reliability.source_domain else ''}; "
-        f"claim: {reliability.claim_status.value if reliability.claim_status else 'not assessed'})"
+        f"claim: {reliability.claim_status.value if reliability.claim_status else 'not assessed'}"
+        f"{'; corroborated by ' + ', '.join(reliability.corroborated_by) if reliability.corroborated_by else ''})"
         if reliability
         else "not assessed"
     )

@@ -33,6 +33,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Only show these statuses (repeatable)",
     )
     parser.add_argument("--json", action="store_true", help="Print JSON instead of a table")
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Include sources that are no longer configured",
+    )
     add_data_dir_arguments(parser)
     args = parser.parse_args(argv)
     console = Console()
@@ -54,9 +59,11 @@ def main(argv: list[str] | None = None) -> int:
 
     since = datetime.now(timezone.utc) - timedelta(days=args.days)
     report = assess_health(ItemArchive(archive_path).source_run_rows(since))
+    never_seen = sorted(set(configured) - {health.source_key for health in report})
+    if configured and not args.all:
+        report = [health for health in report if health.source_key in configured]
     if args.status:
         report = [health for health in report if health.status.value in args.status]
-    never_seen = sorted(set(configured) - {health.source_key for health in report})
 
     if args.json:
         print(

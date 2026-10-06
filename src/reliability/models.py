@@ -53,6 +53,8 @@ class ReliabilityAssessment(BaseModel):
     source_tier: SourceTier
     source_domain: str = ""
     claim_status: Optional[ClaimStatus] = None
+    # Independent official/reputable publishers reporting the same event.
+    corroborated_by: List[str] = Field(default_factory=list)
     reasons: List[str] = Field(default_factory=list)
 
     @property

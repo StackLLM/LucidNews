@@ -495,10 +495,15 @@ class PipelineOrchestrator:
         except Exception as exc:
             logger.warning("Source health check failed: %s", exc)
             return
+        try:
+            configured = set(configured_source_keys(self.config))
+        except Exception:
+            configured = set()
         flagged = [
             health
             for health in assess_health(rows)
             if health.status in (HealthStatus.DEAD, HealthStatus.FAILING)
+            and (not configured or health.source_key in configured)
         ]
         if not flagged:
             return
@@ -867,6 +872,11 @@ class PipelineOrchestrator:
                 if dup_idx == primary_idx:
                     continue
                 dup = items[dup_idx]
+                # Keep the duplicate's URLs: independent reports corroborate the primary.
+                corroborating = primary.metadata.setdefault("corroborating_urls", [])
+                for url in [str(dup.url), *(dup.metadata.get("corroborating_urls") or [])]:
+                    if url != str(primary.url) and url not in corroborating:
+                        corroborating.append(url)
                 # Merge comments/content from the duplicate into the primary
                 if dup.content:
                     if not primary.content or dup.content not in primary.content:
@@ -940,6 +950,7 @@ class PipelineOrchestrator:
                 reverse=True,
             )
         topic_dedup_removed = len(threshold_items) - len(deduped_items)
+        self._apply_corroboration(deduped_items)
 
         if log and topic_dedup_removed:
             self.console.print(
@@ -1032,6 +1043,13 @@ class PipelineOrchestrator:
         if effective_threshold is None:
             return True
         return score >= effective_threshold
+
+    def _apply_corroboration(self, items: List[ContentItem]) -> None:
+        """Re-assess reliability of items that absorbed reports from other publishers."""
+        policy = getattr(self, "reliability_policy", None) or ReliabilityPolicy()
+        for item in items:
+            if item.processing and item.metadata.get("corroborating_urls"):
+                item.processing.reliability = assess_item(item, policy)
 
     def apply_balanced_digest(
         self,

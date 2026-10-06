@@ -84,7 +84,10 @@ def _reliability_line(
     label = labels[f"label_{assessment.label.value}"]
     tier = labels[f"tier_{assessment.source_tier.value}"]
     marker = "\u26a0\ufe0f " if assessment.label in UNCONFIRMED_LABELS else ""
-    return f"**{labels['reliability']}**: {marker}{label} \u00b7 {tier}"
+    line = f"**{labels['reliability']}**: {marker}{label} \u00b7 {tier}"
+    if assessment.corroborated_by:
+        line += " \u00b7 " + labels["corroborated"].format(count=len(assessment.corroborated_by))
+    return line
 
 
 class DailySummarizer:

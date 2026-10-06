@@ -195,3 +195,29 @@ def test_sources_cli_prints_json_report(tmp_path, capsys) -> None:
     assert payload["sources"][0]["source"] == "rss/A"
     assert payload["sources"][0]["status"] == "failing"
     assert sources_main(["--data-dir", str(tmp_path / "missing")]) == 1
+
+
+def test_removed_sources_are_hidden_unless_requested(tmp_path, capsys) -> None:
+    (tmp_path / "config.json").write_text(
+        json.dumps(
+            {
+                "ai": {"provider": "openai", "model": "m", "api_key_env": "K"},
+                "sources": {"rss": [{"name": "Kept", "url": "https://kept.example/feed"}], "hackernews": {"enabled": False}},
+            }
+        )
+    )
+    archive = ItemArchive(tmp_path / "archive.sqlite3")
+    run_id = archive.start_run(datetime.now(timezone.utc))
+    archive.record_source_runs(
+        run_id,
+        [
+            SourceRunOutcome("rss/Kept", "rss", "success", fetched_count=1),
+            SourceRunOutcome("rss/Removed", "rss", "failure", error="404"),
+        ],
+    )
+    archive.finish_run(run_id, "success")
+
+    sources_main(["--data-dir", str(tmp_path), "--json"])
+    assert [s["source"] for s in json.loads(capsys.readouterr().out)["sources"]] == ["rss/Kept"]
+    sources_main(["--data-dir", str(tmp_path), "--json", "--all"])
+    assert {s["source"] for s in json.loads(capsys.readouterr().out)["sources"]} == {"rss/Kept", "rss/Removed"}

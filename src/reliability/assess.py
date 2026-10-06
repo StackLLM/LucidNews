@@ -1,5 +1,10 @@
 """Combine publisher trust and claim verification into a reliability label.
 
+Corroboration: when topic deduplication merges several reports of the same
+event, their URLs are kept in ``metadata["corroborating_urls"]``. Each distinct
+official or reputable site among them (other than the primary's own site) counts
+as an independent corroboration.
+
 The source tier is computed deterministically from the item's primary URL (the
 page the news links to, not the channel it was discovered on: a Hacker News post
 linking to a GitHub release is judged on the release). The claim status comes
@@ -10,7 +15,7 @@ and a rumor is always labelled as a rumor, whatever the source.
 
 import re
 from dataclasses import dataclass, field
-from typing import Mapping, Optional
+from typing import List, Mapping, Optional, Sequence, Tuple
 from urllib.parse import urlsplit
 
 from ..models import ContentItem
@@ -58,10 +63,45 @@ def normalize_domain(value: str) -> str:
     return value.removeprefix("www.").rstrip(".")
 
 
+_SECOND_LEVEL_LABELS = {"co", "com", "org", "net", "gov", "ac", "edu", "gouv"}
+
+
+def site_of(domain: str) -> str:
+    """Registrable site of a host: ``blog.example.co.uk`` -> ``example.co.uk``."""
+    labels = normalize_domain(domain).split(".")
+    if len(labels) >= 3 and len(labels[-1]) == 2 and labels[-2] in _SECOND_LEVEL_LABELS:
+        return ".".join(labels[-3:])
+    return ".".join(labels[-2:])
+
+
+def tier_for_url(url: str, policy: ReliabilityPolicy) -> tuple[SourceTier, str]:
+    parsed = urlsplit(url)
+    domain = normalize_domain(parsed.hostname or "")
+    if domain == "github.com" and _GITHUB_RELEASE_PATH.match(parsed.path):
+        return SourceTier.OFFICIAL, domain
+    return policy.tier_for_domain(domain), domain
+
+
+def independent_corroboration(
+    item: ContentItem, policy: ReliabilityPolicy
+) -> List[Tuple[str, SourceTier]]:
+    """Distinct official/reputable sites, other than the item's own, reporting the same event."""
+    seen = {site_of(urlsplit(str(item.url)).hostname or "")}
+    result: List[Tuple[str, SourceTier]] = []
+    for url in item.metadata.get("corroborating_urls") or []:
+        tier, domain = tier_for_url(str(url), policy)
+        site = site_of(domain)
+        if not domain or site in seen:
+            continue
+        if tier in (SourceTier.OFFICIAL, SourceTier.REPUTABLE):
+            seen.add(site)
+            result.append((domain, tier))
+    return result
+
+
 def source_tier_for(item: ContentItem, policy: ReliabilityPolicy) -> tuple[SourceTier, str, str]:
     """Return (tier, domain, reason) for an item's primary URL."""
-    parsed = urlsplit(str(item.url))
-    domain = normalize_domain(parsed.hostname or "")
+    domain = normalize_domain(urlsplit(str(item.url)).hostname or "")
 
     pinned = item.metadata.get("source_trust")
     if pinned:
@@ -70,20 +110,36 @@ def source_tier_for(item: ContentItem, policy: ReliabilityPolicy) -> tuple[Sourc
         except ValueError:
             pass
 
-    if domain == "github.com" and _GITHUB_RELEASE_PATH.match(parsed.path):
-        return SourceTier.OFFICIAL, domain, "release published in the project's own repository"
-
-    tier = policy.tier_for_domain(domain)
+    tier, domain = tier_for_url(str(item.url), policy)
+    if tier is SourceTier.OFFICIAL and domain == "github.com":
+        return tier, domain, "release published in the project's own repository"
     if tier is SourceTier.UNKNOWN:
         return tier, domain, f"{domain or 'unknown host'} is not in the trust registry"
     return tier, domain, f"{domain} is registered as {tier.value}"
 
 
-def combine(tier: SourceTier, claim: Optional[ClaimStatus]) -> ReliabilityLabel:
+def combine(
+    tier: SourceTier,
+    claim: Optional[ClaimStatus],
+    corroboration: Sequence[SourceTier] = (),
+) -> ReliabilityLabel:
     if claim is ClaimStatus.RUMOR:
+        # Several outlets repeating a rumor do not confirm it.
         return ReliabilityLabel.RUMOR
+    if SourceTier.OFFICIAL in corroboration:
+        # The party concerned published it too.
+        return ReliabilityLabel.CONFIRMED
     if claim is ClaimStatus.UNVERIFIED:
+        if len(corroboration) >= 2:
+            return ReliabilityLabel.RELIABLE
         return ReliabilityLabel.UNVERIFIED
+    base = _combine_single(tier, claim)
+    if base is ReliabilityLabel.UNVERIFIED and corroboration:
+        return ReliabilityLabel.RELIABLE
+    return base
+
+
+def _combine_single(tier: SourceTier, claim: Optional[ClaimStatus]) -> ReliabilityLabel:
     if tier is SourceTier.OFFICIAL:
         return ReliabilityLabel.CONFIRMED
     if tier is SourceTier.REPUTABLE:
@@ -100,7 +156,12 @@ def assess_item(item: ContentItem, policy: Optional[ReliabilityPolicy] = None) -
     analysis = item.processing.analysis if item.processing else None
     claim = analysis.claim.status if analysis and analysis.claim else None
 
+    corroboration = independent_corroboration(item, policy)
     reasons = [tier_reason]
+    if corroboration:
+        reasons.append(
+            "corroborated by " + ", ".join(f"{domain} ({tier.value})" for domain, tier in corroboration)
+        )
     if claim is None:
         reasons.append("claim status not assessed")
     else:
@@ -108,9 +169,10 @@ def assess_item(item: ContentItem, policy: Optional[ReliabilityPolicy] = None) -
         reasons.append(f"claim {claim.value}" + (f": {evidence}" if evidence else ""))
 
     return ReliabilityAssessment(
-        label=combine(tier, claim),
+        label=combine(tier, claim, [tier for _, tier in corroboration]),
         source_tier=tier,
         source_domain=domain,
         claim_status=claim,
+        corroborated_by=[domain for domain, _ in corroboration],
         reasons=reasons,
     )

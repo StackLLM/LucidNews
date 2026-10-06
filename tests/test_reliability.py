@@ -107,3 +107,56 @@ def test_rss_trust_and_reliability_config_validate() -> None:
 def test_normalize_domain() -> None:
     assert normalize_domain("https://WWW.Example.com:443/path") == "example.com"
     assert normalize_domain("example.com.") == "example.com"
+
+
+from src.reliability.assess import independent_corroboration, site_of
+
+
+def test_site_of_groups_subdomains_and_country_suffixes() -> None:
+    assert site_of("blog.example.com") == "example.com"
+    assert site_of("news.bbc.co.uk") == "bbc.co.uk"
+    assert site_of("www.cert.ssi.gouv.fr") == "ssi.gouv.fr"
+
+
+def test_only_distinct_trusted_sites_count_as_corroboration() -> None:
+    item = make_item("https://news.ycombinator.com/item?id=1")
+    item.metadata["corroborating_urls"] = [
+        "https://arstechnica.com/a",
+        "https://www.arstechnica.com/b",  # same site
+        "https://reddit.com/r/x",  # community
+        "https://unknown.example/c",  # unknown
+        "https://lwn.net/d",
+        "https://news.ycombinator.com/item?id=2",  # same site as primary
+    ]
+
+    assert independent_corroboration(item, ReliabilityPolicy()) == [
+        ("arstechnica.com", SourceTier.REPUTABLE),
+        ("lwn.net", SourceTier.REPUTABLE),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("primary", "claim", "corroborating", "label"),
+    [
+        # community + reported, one reputable outlet also reports it
+        ("https://news.ycombinator.com/x", {"status": "reported"}, ["https://lwn.net/a"], ReliabilityLabel.RELIABLE),
+        # weak claim needs two independent reputable outlets
+        ("https://unknown.example/x", {"status": "unverified"}, ["https://lwn.net/a"], ReliabilityLabel.UNVERIFIED),
+        ("https://unknown.example/x", {"status": "unverified"}, ["https://lwn.net/a", "https://theregister.com/b"], ReliabilityLabel.RELIABLE),
+        # the party concerned published it too
+        ("https://techcrunch.com/x", {"status": "reported"}, ["https://openai.com/index/y"], ReliabilityLabel.CONFIRMED),
+        # a repeated rumor stays a rumor
+        ("https://x.com/leaker", {"status": "rumor"}, ["https://lwn.net/a", "https://openai.com/b"], ReliabilityLabel.RUMOR),
+        # community-only echoes do not help
+        ("https://unknown.example/x", None, ["https://reddit.com/r/a", "https://medium.com/b"], ReliabilityLabel.UNVERIFIED),
+    ],
+)
+def test_corroboration_rules(primary, claim, corroborating, label) -> None:
+    item = make_item(primary, claim)
+    item.metadata["corroborating_urls"] = corroborating
+
+    result = assess_item(item)
+
+    assert result.label is label
+    if label is not ReliabilityLabel.RUMOR and result.corroborated_by:
+        assert any("corroborated by" in reason for reason in result.reasons)

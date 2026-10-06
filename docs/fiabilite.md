@@ -47,7 +47,20 @@ Popularité, votes et commentaires ne comptent pas comme preuve. En cas de doute
 Règles clés :
 
 - Une rumeur reste une rumeur, même sur un domaine officiel.
-- Une source faible ne monte qu'à « Fiable », et seulement si l'IA a trouvé une confirmation explicite dans le contenu.
+- Une source faible ne monte qu'à « Fiable », et seulement si l'IA a trouvé une confirmation explicite dans le contenu, ou si l'information est corroborée (voir ci-dessous).
+
+## 4. Corroboration
+
+Quand le dédoublonnage par sujet fusionne plusieurs articles qui racontent le même événement, les adresses des articles fusionnés sont gardées. Chaque **site différent** du site principal, de niveau `official` ou `reputable`, compte comme une corroboration indépendante. Les sous-domaines d'un même site comptent pour un seul site (`blog.example.com` = `example.com`). Les sources communautaires ou inconnues ne comptent pas.
+
+| Situation | Effet |
+|---|---|
+| Un site **officiel** (l'acteur concerné) rapporte aussi l'événement | → Confirmé |
+| Affirmation `unverified` + au moins **2** sites reconnus | → Fiable |
+| Étiquette « Non vérifié » (source faible) + au moins **1** site reconnu | → Fiable |
+| Affirmation `rumor` | Reste Rumeur, même répétée par plusieurs médias |
+
+Le digest l'affiche, par exemple `Fiable · source communautaire · corroboré par 2 source(s) indépendante(s)`. Le détail (sites concernés) est dans `processing.reliability.corroborated_by` et `reasons`.
 
 ## Effets dans le produit
 
@@ -70,5 +83,5 @@ Règles clés :
 ## Limites connues et évolutions
 
 - La vérification s'appuie sur le contenu collecté. L'IA ne consulte pas d'autres sources pendant l'analyse ; la recherche web n'intervient qu'à l'enrichissement.
-- La corroboration par plusieurs éditeurs indépendants n'est pas encore comptée (voir la [roadmap](roadmap.md)).
+- La corroboration ne porte que sur les news qui ont passé le seuil de score et sur un même run : un article reconnu mal noté, ou publié la veille, n'est pas encore pris en compte (voir la [roadmap](roadmap.md)).
 - Le registre intégré est une base de départ et doit être enrichi au fil de l'usage.

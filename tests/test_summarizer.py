@@ -504,3 +504,19 @@ def test_generate_summary_flags_unconfirmed_items_and_localizes_reliability():
     assert "**Reliability**: ⚠️ Rumor — speculation or leak, not a confirmed fact · community source" in en
     assert "**Fiabilité**: ⚠️ Rumeur" in fr
     assert fr.startswith("# LucidNews Quotidien - 2026-10-05")
+
+
+def test_reliability_line_mentions_corroboration_in_each_language():
+    from src.reliability import ReliabilityAssessment
+
+    summarizer = DailySummarizer()
+    item = _make_item(1)
+    item.processing.reliability = ReliabilityAssessment(
+        label="reliable", source_tier="community", corroborated_by=["lwn.net", "arstechnica.com"]
+    )
+
+    en = _run_async(summarizer.generate_summary([item], "2026-10-06", 1))
+    fr = _run_async(summarizer.generate_summary([item], "2026-10-06", 1, language="fr"))
+
+    assert "Reliable · community source · corroborated by 2 independent source(s)" in en
+    assert "Fiable · source communautaire · corroboré par 2 source(s) indépendante(s)" in fr

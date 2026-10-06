@@ -75,6 +75,7 @@ _EN: Dict[str, str] = {
     "tier_reputable": "reputable source",
     "tier_community": "community source",
     "tier_unknown": "unrecognized source",
+    "corroborated": "corroborated by {count} independent source(s)",
 }
 
 _FR: Dict[str, str] = {
@@ -114,6 +115,7 @@ _FR: Dict[str, str] = {
     "tier_reputable": "source reconnue",
     "tier_community": "source communautaire",
     "tier_unknown": "source non référencée",
+    "corroborated": "corroboré par {count} source(s) indépendante(s)",
 }
 
 _ZH: Dict[str, str] = {
@@ -153,6 +155,7 @@ _ZH: Dict[str, str] = {
     "tier_reputable": "可信来源",
     "tier_community": "社区来源",
     "tier_unknown": "未收录来源",
+    "corroborated": "{count} 个独立来源佐证",
 }
 
 MESSAGES: Dict[str, Dict[str, str]] = {"en": _EN, "fr": _FR, "zh": _ZH}

@@ -384,3 +384,32 @@ def test_reliability_exclusions_filter_selected_labels() -> None:
 
     assert not orchestrator.passes_profile_filter(rumor)
     assert orchestrator.passes_profile_filter(confirmed)
+
+
+def test_topic_dedup_keeps_corroborating_urls_and_upgrades_reliability(monkeypatch) -> None:
+    from src.reliability import ReliabilityAssessment
+    from src.reliability.assess import ReliabilityPolicy
+
+    orchestrator = make_orchestrator(DigestConfig())
+    orchestrator.reliability_policy = ReliabilityPolicy()
+    orchestrator.console = Console(file=__import__("io").StringIO())
+    primary = make_item("primary", 9.0, "ai")
+    primary.url = "https://news.ycombinator.com/item?id=1"
+    primary.processing.reliability = ReliabilityAssessment(label="unverified", source_tier="community")
+    duplicate = make_item("duplicate", 8.0, "ai")
+    duplicate.url = "https://lwn.net/Articles/1/"
+
+    class FakeClient:
+        async def complete(self, system, user):  # type: ignore[no-untyped-def]
+            return '{"duplicates": [[0, 1]]}'
+
+    monkeypatch.setattr("src.orchestrator.create_ai_client", lambda config: FakeClient())
+    orchestrator.config.ai = None
+
+    result = asyncio.run(orchestrator.filter_items([primary, duplicate], apply_balance=False, log=False))
+
+    assert [item.id for item in result.items] == ["primary"]
+    kept = result.items[0]
+    assert kept.metadata["corroborating_urls"] == ["https://lwn.net/Articles/1/"]
+    assert kept.processing.reliability.label.value == "reliable"
+    assert kept.processing.reliability.corroborated_by == ["lwn.net"]
