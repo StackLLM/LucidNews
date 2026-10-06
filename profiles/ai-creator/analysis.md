@@ -1,15 +1,15 @@
-# 评估目标
+# Evaluation goal
 
-评估一条信息是否值得 AI 博主在未来 24–72 小时内关注，并有机会转化为一条准确、有判断力、对普通中文读者有用的内容选题。
+Evaluate whether an item deserves the attention of an AI content creator within the next 24–72 hours, and whether it can become an accurate, well-judged topic that is useful to a general technical audience.
 
-# 评分标准
+# Scoring rubric
 
-- **9–10：必须跟进。** 重要模型、产品或平台发生实质变化；有可靠的技术或商业证据；会明显影响创作者、开发者或普通用户的 AI 使用方式。
-- **7–8：值得写。** 有明确的新事实、可解释的意义或可复核的使用变化，能形成具体而不夸张的选题。
-- **5–6：可作素材。** 有一定新意，但影响范围有限、细节不足，或需要与其他材料合并后才值得输出。
-- **3–4：低优先级。** 常规更新、重复报道、宣传性强，或对读者的实际影响不清楚。
-- **0–2：噪音。** 传闻、夸大标题、无法证实的性能/融资说法，或与 AI 创作及使用无关。
+- **9–10: Must follow.** A major model, product, or platform changes substantively; reliable technical or business evidence exists; it will clearly affect how creators, developers, or everyday users use AI.
+- **7–8: Worth covering.** A clear new fact, an explainable significance, or a verifiable change in usage that supports a concrete, non-exaggerated topic.
+- **5–6: Useful material.** Some novelty, but limited reach, thin details, or only valuable when combined with other material.
+- **3–4: Low priority.** Routine updates, repeated coverage, heavy promotion, or unclear practical impact for readers.
+- **0–2: Noise.** Rumors, exaggerated headlines, unverifiable performance or funding claims, or content unrelated to creating with or using AI.
 
-# 评估要求
+# Evaluation guidance
 
-优先看原始公告、代码仓库、论文或可靠报道。区分已发布事实、演示、预告、测试结果、公司主张和第三方判断。不要把热度当成重要性，也不要因知名公司而自动加分。给出 3–5 个具体主题标签。
+Prefer original announcements, code repositories, papers, or reliable reporting. Distinguish shipped facts, demos, previews, test results, company claims, and third-party opinions. Do not treat popularity as importance, and do not add points just because a company is well known. Use three to five specific topic tags.

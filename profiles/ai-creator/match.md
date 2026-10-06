@@ -1,7 +1,7 @@
-# AI创作者雷达
+# AI Creator Radar
 
-当一条内容对关注 AI 产品、模型能力、开源工具、研究进展、商业化或实际工作流的中文 AI 内容创作者有及时且可验证的价值时，使用此配置。
+Use this profile when an item gives timely, verifiable value to people who create content about AI products, model capabilities, open-source tools, research progress, commercialization, or practical AI workflows.
 
-包括：重要模型或产品发布、关键能力或价格变化、有可复核证据的研究结果、被广泛采用的开源项目、重要行业政策或商业动向，以及能改变用户实际使用 AI 方式的案例。
+Typical items include significant model or product releases, important capability or pricing changes, research results with checkable evidence, widely adopted open-source projects, major industry policy or business moves, and cases that change how people actually use AI.
 
-不包括：只有融资或估值却没有 AI 产品/生态实质的信息、一般性公司宣传、未经核实的传闻、常规小版本更新、纯提示词清单、无证据的趋势预测。
+Do not use this profile for funding or valuation news without substantive AI product or ecosystem content, generic company promotion, unverified rumors, routine minor releases, plain prompt lists, or trend predictions without evidence.

@@ -780,6 +780,10 @@ class PipelineOrchestrator:
     ) -> bool:
         if not item.processing or not item.processing.analysis:
             return False
+        score = item.processing.analysis.score
+        if score is None:
+            # The AI could not score this item; never publish it unreviewed.
+            return False
         profile_id = item.processing.classification.profile
         settings = self.config.processing.profile_settings.get(profile_id)
         effective_threshold = threshold
@@ -787,8 +791,7 @@ class PipelineOrchestrator:
             effective_threshold = settings.threshold
         if effective_threshold is None:
             return True
-        score = item.processing.analysis.score
-        return score is not None and score >= effective_threshold
+        return score >= effective_threshold
 
     def apply_balanced_digest(
         self,

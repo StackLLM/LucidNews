@@ -167,6 +167,16 @@ def test_profile_without_threshold_bypasses_score_filter() -> None:
     assert orchestrator.passes_profile_filter(make_item("item", 1.0, "ai"))
 
 
+def test_unscored_items_never_pass_even_without_threshold() -> None:
+    orchestrator = make_orchestrator(DigestConfig())
+    orchestrator.config.processing.profile_settings = {}
+    item = make_item("item", 5.0, "ai")
+    item.processing.analysis.score = None
+
+    assert not orchestrator.passes_profile_filter(item)
+    assert not orchestrator.passes_profile_filter(item, threshold=0.0)
+
+
 def test_rejects_settings_for_unknown_profile() -> None:
     config = Config(
         ai=AIConfig(

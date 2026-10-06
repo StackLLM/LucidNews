@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from enum import Enum
 import re
 from typing import Annotated, Literal, Optional, List, Dict, Any, NamedTuple, Union
-from pydantic import BaseModel, ConfigDict, HttpUrl, Field, field_validator
+from pydantic import BaseModel, ConfigDict, HttpUrl, Field, field_validator, model_validator
 
 
 class SourceType(str, Enum):
@@ -221,6 +221,25 @@ class GitHubSourceConfig(BaseModel):
     enabled: bool = True
     category: Optional[str] = None
     profile: ProfileRoute = None
+
+    @model_validator(mode="after")
+    def normalize_repo(self) -> "GitHubSourceConfig":
+        """Accept a pasted repository URL or "owner/repo" in ``repo``."""
+        if not self.repo or "/" not in self.repo:
+            return self
+        path = re.sub(r"^(?:https?://)?(?:www\.)?github\.com/", "", self.repo.strip())
+        parts = [part for part in path.removesuffix(".git").split("/") if part]
+        if len(parts) != 2:
+            raise ValueError(
+                f"github repo must be a repository name or owner/repo, got {self.repo!r}"
+            )
+        owner, repo = parts
+        if self.owner and self.owner.lower() != owner.lower():
+            raise ValueError(
+                f"github repo {self.repo!r} does not belong to owner {self.owner!r}"
+            )
+        self.owner, self.repo = owner, repo
+        return self
 
 
 class HackerNewsConfig(BaseModel):

@@ -424,6 +424,18 @@ def test_generate_summary_escapes_untrusted_text_in_all_output_contexts():
     assert "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;" in result
 
 
+def test_generate_summary_renders_apostrophes_without_broken_entities():
+    summarizer = DailySummarizer()
+    item = _make_item(1)
+    item.processing.artifacts = {}
+    item.processing.analysis.summary = "RobCo's 'Robotics-as-a-Service' model"
+
+    result = _run_async(summarizer.generate_summary([item], "2026-04-25", 1))
+
+    assert "&\\#x27;" not in result
+    assert "RobCo&apos;s &apos;Robotics-as-a-Service&apos; model" in result
+
+
 def test_generate_summary_rejects_unsafe_urls_and_quote_injection():
     summarizer = DailySummarizer()
     item = _make_item(1)
