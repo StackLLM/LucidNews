@@ -33,11 +33,18 @@ ENV/
 *.swo
 *~
 
-# Environment variables
+# Environment variables and secrets
 .env
+.env.*
+!.env.example
+*.pem
+*.key
 
 # Data files (keep structure, ignore content)
 data/config.json
+data/config*.json
+!data/config.example.json
+data/*.bak
 data/seen.json
 data/summaries/*.md
 data/subscribers.json
