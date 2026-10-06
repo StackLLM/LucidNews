@@ -11,6 +11,8 @@ from pydantic import ValidationError
 
 from .._file_utils import _atomic_write_text
 from ..models import Config
+from ..newsletter.models import Subscriber
+from ..newsletter.store import SubscriberStore
 
 
 # Matches ${VAR_NAME} in string config values. Names follow env-var rules
@@ -129,33 +131,26 @@ class StorageManager:
 
         return filepath
 
-    def load_subscribers(self) -> list:
-        """Loads the list of email subscribers."""
-        subscribers_path = self.data_dir / "subscribers.json"
-        if not subscribers_path.exists():
-            return []
+    @property
+    def subscribers(self) -> SubscriberStore:
+        """Newsletter subscriber store backed by ``<data_dir>/subscribers.json``."""
+        return SubscriberStore(self.data_dir / "subscribers.json")
 
-        try:
-            with open(subscribers_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except json.JSONDecodeError:
-            return []
+    def load_subscribers(self) -> list[str]:
+        """Return subscriber email addresses."""
+        return [subscriber.email for subscriber in self.subscribers.load()]
 
     def add_subscriber(self, email_addr: str):
-        """Adds a new subscriber email."""
-        subscribers = self.load_subscribers()
-        if email_addr not in subscribers:
-            subscribers.append(email_addr)
-            self._save_subscribers(subscribers)
+        """Adds a new subscriber email with default preferences."""
+        self.subscribers.add(email_addr)
 
     def remove_subscriber(self, email_addr: str):
-        """Removes a subscriber email."""
-        subscribers = self.load_subscribers()
-        if email_addr in subscribers:
-            subscribers.remove(email_addr)
-            self._save_subscribers(subscribers)
+        """Removes a subscriber and their preferences."""
+        self.subscribers.remove(email_addr)
 
     def _save_subscribers(self, subscribers: list):
-        """Helper to save subscribers list."""
-        subscribers_path = self.data_dir / "subscribers.json"
-        _atomic_write_text(subscribers_path, json.dumps(subscribers, indent=2))
+        """Persist subscribers given as Subscriber records or plain email strings."""
+        self.subscribers.save(
+            Subscriber(email=entry) if isinstance(entry, str) else entry
+            for entry in subscribers
+        )

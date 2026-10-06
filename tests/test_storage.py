@@ -226,7 +226,7 @@ def test_save_subscribers_replace_failure_preserves_destination(tmp_path, monkey
     subscribers_path = tmp_path / "subscribers.json"
     subscribers_path.write_text('["old"]', encoding="utf-8")
     with pytest.raises(OSError, match="replace failed"):
-        storage._save_subscribers(["new"])
+        storage._save_subscribers(["new@example.com"])
 
     assert subscribers_path.read_text(encoding="utf-8") == '["old"]'
     assert list(tmp_path.glob(f".{subscribers_path.name}.*.tmp")) == []

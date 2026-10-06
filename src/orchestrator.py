@@ -33,6 +33,8 @@ from .ai.tokens import get_usage_snapshot
 from .processing import ProfileRegistry
 from .processing.tools import ToolRegistry
 from .reliability.assess import ReliabilityPolicy
+from .i18n import messages
+from .newsletter import DeliveryPlan, plan_deliveries
 
 
 _TRACKING_QUERY_PARAMETERS = {
@@ -308,15 +310,6 @@ class PipelineOrchestrator:
                     f"{self.icons['save']} Saved {lang.upper()} summary to: {summary_path}\n"
                 )
 
-                # Send email if configured
-                if self.email_manager and self.config.email and self.config.email.enabled:
-                    self.console.print(
-                        f"{self.icons['email']} Sending {lang.upper()} email summary..."
-                    )
-                    subscribers = self.storage.load_subscribers()
-                    subject = f"LucidNews Summary ({lang.upper()}) - {today}"
-                    self.email_manager.send_daily_summary(summary, subject, subscribers)
-
                 # Send webhook notification if configured
                 if self.webhook_notifier:
                     await self.webhook_notifier.send_daily_summary(
@@ -327,6 +320,9 @@ class PipelineOrchestrator:
                         lang=lang,
                         summarizer=summarizer,
                     )
+
+            if self.email_manager and self.config.email and self.config.email.enabled:
+                await self.send_newsletters(important_items, today, len(all_items))
 
             self.console.print(
                 f"[bold green]{self.icons['success']} "
@@ -360,6 +356,44 @@ class PipelineOrchestrator:
                 )
 
             raise
+
+    async def send_newsletters(
+        self,
+        items: List[ContentItem],
+        date: str,
+        total_fetched: int,
+    ) -> DeliveryPlan:
+        """Render and email one digest per distinct subscriber preference set."""
+        plan = plan_deliveries(
+            self.storage.subscribers.load(), items, self.config.ai.languages
+        )
+        if plan.skipped_weekly:
+            self.console.print(
+                f"[yellow]{self.icons['warning']} Weekly delivery is not available yet; "
+                f"skipped {len(plan.skipped_weekly)} weekly subscriber(s).[/yellow]"
+            )
+        for email_addr, (wanted, used) in plan.language_fallbacks.items():
+            self.console.print(
+                f"[yellow]{self.icons['warning']} No '{wanted}' content this run; "
+                f"sending '{used}' to {email_addr}.[/yellow]"
+            )
+
+        summarizer = DailySummarizer(
+            profile_names=self.profiles.names,
+            profile_order=self.config.digest.profile_order,
+        )
+        for delivery in plan.deliveries:
+            language = delivery.preferences.language
+            summary = await summarizer.generate_summary(
+                delivery.items, date, total_fetched, language=language
+            )
+            subject = messages(language)["email_subject"].format(date=date)
+            self.console.print(
+                f"{self.icons['email']} Sending {language.upper()} digest "
+                f"({len(delivery.items)} items) to {len(delivery.recipients)} subscriber(s)..."
+            )
+            self.email_manager.send_daily_summary(summary, subject, delivery.recipients)
+        return plan
 
     def _determine_time_window(self, force_hours: int = None) -> datetime:
         if force_hours:
