@@ -22,7 +22,7 @@ uv run lucidnews --config /etc/lucidnews/config.json
 uv run lucidnews --data-dir /srv/lucidnews --config /etc/lucidnews/config.json
 ```
 
-When both options are present, configuration is loaded from `--config`, while summaries and subscribers remain under `--data-dir`. Because this logic is identical across all three CLIs, passing the same `-d`/`-c` flags to each one keeps them pointed at the same files — for example, generating a config with `lucidnews-wizard --data-dir /srv/lucidnews`, then running `horizon --data-dir /srv/lucidnews` and testing with `lucidnews-webhook --data-dir /srv/lucidnews`.
+When both options are present, configuration is loaded from `--config`, while summaries and subscribers remain under `--data-dir`. Because this logic is identical across all three CLIs, passing the same `-d`/`-c` flags to each one keeps them pointed at the same files — for example, generating a config with `lucidnews-wizard --data-dir /srv/lucidnews`, then running `lucidnews --data-dir /srv/lucidnews` and testing with `lucidnews-webhook --data-dir /srv/lucidnews`.
 
 Without either flag, all three default to `data/config.json`. To bootstrap a custom location without the wizard, initialize it manually:
 
