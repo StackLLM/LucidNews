@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Literal, Optional
 from urllib.parse import unquote_plus, urlsplit
 import httpx
+import logging
 from rich.console import Console
 
 from .console_icons import get_icons
@@ -32,10 +33,13 @@ from .ai.enricher import ContentEnricher, EnrichmentBatchResult
 from .ai.tokens import get_usage_snapshot
 from .processing import ProfileRegistry
 from .processing.tools import ToolRegistry
-from .reliability.assess import ReliabilityPolicy
+from .reliability.assess import ReliabilityPolicy, assess_item
 from .i18n import messages
 from .newsletter import DeliveryPlan, plan_deliveries
+from .archive import ItemArchive, content_hash
 
+
+logger = logging.getLogger(__name__)
 
 # Identify the collector honestly; some feeds reject the default httpx agent.
 COLLECTOR_USER_AGENT = "Mozilla/5.0 (compatible; LucidNews/1.0; RSS reader)"
@@ -223,6 +227,36 @@ class PipelineOrchestrator:
             else None
         )
         self.last_fetch_report: Optional[FetchReport] = None
+        self.archive: Optional[ItemArchive] = None
+        self.run_id: Optional[str] = None
+
+    def _open_archive(self) -> Optional[ItemArchive]:
+        settings = getattr(self.config, "archive", None)
+        if settings is None or not settings.enabled:
+            return None
+        path = Path(settings.path)
+        try:
+            if not path.is_absolute():
+                path = Path(self.storage.data_dir) / path
+            return ItemArchive(path)
+        except Exception as exc:  # the digest must not depend on the archive
+            logger.warning("Archive disabled for this run (%s): %s", path, exc)
+            self.console.print(f"[yellow]{self.icons['warning']} Archive unavailable: {exc}[/yellow]")
+            return None
+
+    def _archive(self, method: str, *args, **kwargs) -> None:
+        """Best-effort archive write; failures are logged, never raised."""
+        if getattr(self, "archive", None) is None:
+            return
+        if method != "start_run" and getattr(self, "run_id", None) is None:
+            return
+        try:
+            if method == "start_run":
+                self.run_id = self.archive.start_run(*args, **kwargs)
+            else:
+                getattr(self.archive, method)(self.run_id, *args, **kwargs)
+        except Exception as exc:
+            logger.warning("Archive %s failed: %s", method, exc)
 
     async def run(self, force_hours: int = None) -> None:
         """Execute the complete workflow.
@@ -247,6 +281,8 @@ class PipelineOrchestrator:
         try:
             # 1. Determine time window
             since = self._determine_time_window(force_hours)
+            self.archive = self._open_archive()
+            self._archive("start_run", since)
             self.console.print(
                 f"{self.icons['date']} Fetching content since: "
                 f"{since.strftime('%Y-%m-%d %H:%M:%S')}\n"
@@ -263,6 +299,7 @@ class PipelineOrchestrator:
 
             if not all_items:
                 self.console.print("[yellow]No new content found. Exiting.[/yellow]")
+                self._archive("finish_run", "empty", fetch_report=self._fetch_report_dict())
                 return
 
             # 3. Merge cross-source duplicates (same URL from different sources)
@@ -276,6 +313,7 @@ class PipelineOrchestrator:
 
             # 4. Analyze with AI
             analyzed_items = await self.analyze_items(merged_items)
+            self._archive("record_items", analyzed_items)
             self.console.print(
                 f"{self.icons['ai']} Analyzed {len(analyzed_items)} items with AI\n"
             )
@@ -297,6 +335,7 @@ class PipelineOrchestrator:
 
             # 6. Search related stories + enrich with background knowledge (2nd AI pass)
             await self.enrich_items(important_items)
+            self._archive("record_items", important_items, selected=True)
 
             # 7. Generate and save daily summaries for each configured language
             today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -327,6 +366,8 @@ class PipelineOrchestrator:
             if self.email_manager and self.config.email and self.config.email.enabled:
                 await self.send_newsletters(important_items, today, len(all_items))
 
+            self._archive("finish_run", "success", fetch_report=self._fetch_report_dict())
+
             self.console.print(
                 f"[bold green]{self.icons['success']} "
                 "LucidNews completed successfully![/bold green]"
@@ -349,6 +390,12 @@ class PipelineOrchestrator:
         except Exception as e:
             self.console.print(
                 f"[bold red]{self.icons['error']} Error: {e}[/bold red]"
+            )
+            self._archive(
+                "finish_run",
+                "failed",
+                fetch_report=self._fetch_report_dict(),
+                error=str(e),
             )
 
             # Send webhook failure notification if configured
@@ -397,6 +444,42 @@ class PipelineOrchestrator:
             )
             self.email_manager.send_daily_summary(summary, subject, delivery.recipients)
         return plan
+
+    def _fetch_report_dict(self) -> Optional[Dict[str, object]]:
+        report = getattr(self, "last_fetch_report", None)
+        return report.to_dict() if report else None
+
+    def _reuse_archived_analyses(self, items: List[ContentItem]) -> List[ContentItem]:
+        """Restore stored analyses for unchanged items; return the items still to analyze."""
+        archive = getattr(self, "archive", None)
+        if archive is None or not self.config.archive.reuse_analysis:
+            return items
+        try:
+            previous = archive.get_items([item.id for item in items])
+        except Exception as exc:
+            logger.warning("Archive lookup failed, analyzing everything: %s", exc)
+            return items
+
+        remaining = []
+        for item in items:
+            stored = previous.get(item.id)
+            stored_analysis = stored.processing.analysis if stored and stored.processing else None
+            if (
+                stored_analysis is not None
+                and stored_analysis.score is not None
+                and content_hash(stored) == content_hash(item)
+            ):
+                item.processing = stored.processing.model_copy(deep=True)
+                item.processing.artifacts.clear()
+                item.processing.reliability = assess_item(item, self.reliability_policy)
+            else:
+                remaining.append(item)
+        reused = len(items) - len(remaining)
+        if reused:
+            self.console.print(
+                f"   {self.icons['detail']} Reused {reused} analyses from the archive"
+            )
+        return remaining
 
     def _determine_time_window(self, force_hours: int = None) -> datetime:
         if force_hours:
@@ -1067,6 +1150,10 @@ class PipelineOrchestrator:
         """
         self.console.print(f"{self.icons['ai']} Analyzing content with AI...")
 
+        to_analyze = self._reuse_archived_analyses(items)
+        if not to_analyze:
+            return items
+
         ai_client = create_ai_client(self.config.ai)
         analyzer = ContentAnalyzer(
             ai_client,
@@ -1075,7 +1162,8 @@ class PipelineOrchestrator:
             reliability_policy=self.reliability_policy,
         )
 
-        return await analyzer.analyze_batch(items)
+        await analyzer.analyze_batch(to_analyze)
+        return items
 
     async def _generate_summary(
         self,

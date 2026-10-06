@@ -45,6 +45,7 @@ data/config.json
 data/config*.json
 !data/config.example.json
 data/*.bak
+data/*.sqlite3*
 data/seen.json
 data/summaries/*.md
 data/subscribers.json
@@ -68,3 +69,6 @@ logs/*.log
 todo.txt
 .ruff_cache
 .pytest_cache
+
+# Local, not part of the product
+Skills/

@@ -16,7 +16,7 @@ Priorités, dans cet ordre : **fiabilité → qualité des données → qualité
 
 - **Corroboration** : compter les éditeurs indépendants qui rapportent le même événement (via le dédoublonnage par sujet), et faire monter une affirmation `reported` à « Fiable » quand plusieurs sources reconnues concordent.
 - **Santé des sources** : historiser le `FetchReport` (taux d'échec, items par jour, part retenue) pour repérer les flux morts ou bruyants. C'est la base d'un score de qualité par source.
-- **Archive d'items** : stocker les items analysés (SQLite pour commencer), ce qui permet l'envoi hebdomadaire, les statistiques et la reprise après incident.
+- **Archive d'items** *(fait)* : runs et news analysées stockés dans SQLite ; les analyses de news inchangées sont réutilisées. Ouvre la voie à l'envoi hebdomadaire, aux statistiques et à la reprise.
 - **Robustesse IA** : file d'attente et reprise des items en échec plutôt qu'exclusion définitive ; budget de tokens par run.
 - **Évaluation** : jeu d'items annotés à la main pour mesurer la précision du score, des catégories et du statut de vérification à chaque changement de prompt.
 - Enrichir le registre de confiance (éditeurs français, autorités européennes) et `trust` pour les comptes X/Telegram officiels.

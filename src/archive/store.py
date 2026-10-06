@@ -1,0 +1,277 @@
+"""SQLite archive of pipeline runs and processed items.
+
+Every run is recorded with the items it fetched and selected. Items are stored
+as their full ``ContentItem`` JSON plus a few indexed columns, so later stages
+(weekly digests, source health, retries, corroboration) can query history
+without re-fetching or re-analyzing.
+
+The archive is an append/upsert log: an item seen in several runs keeps one row,
+updated with its latest processing state.
+"""
+
+import hashlib
+import json
+import sqlite3
+import uuid
+from contextlib import closing
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Iterable, List, Optional, Sequence
+
+from ..models import ContentItem
+
+SCHEMA_VERSION = 1
+
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS runs (
+    id TEXT PRIMARY KEY,
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    status TEXT NOT NULL,
+    since TEXT NOT NULL,
+    fetched_count INTEGER NOT NULL DEFAULT 0,
+    selected_count INTEGER NOT NULL DEFAULT 0,
+    fetch_report TEXT,
+    error TEXT
+);
+CREATE TABLE IF NOT EXISTS items (
+    id TEXT PRIMARY KEY,
+    url TEXT NOT NULL,
+    source_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    published_at TEXT NOT NULL,
+    first_seen_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL,
+    content_hash TEXT NOT NULL,
+    profile TEXT,
+    score REAL,
+    reliability TEXT,
+    categories TEXT NOT NULL DEFAULT '[]',
+    payload TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS items_published_at ON items (published_at);
+CREATE TABLE IF NOT EXISTS run_items (
+    run_id TEXT NOT NULL REFERENCES runs (id),
+    item_id TEXT NOT NULL REFERENCES items (id),
+    selected INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (run_id, item_id)
+);
+CREATE INDEX IF NOT EXISTS run_items_item ON run_items (item_id);
+"""
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _iso(value: datetime) -> str:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).isoformat()
+
+
+def content_hash(item: ContentItem) -> str:
+    """Fingerprint of what the AI sees, used to decide whether an analysis is reusable."""
+    basis = json.dumps(
+        [item.title, str(item.url), item.content or "", item.profile],
+        ensure_ascii=False,
+    )
+    return hashlib.sha256(basis.encode("utf-8")).hexdigest()
+
+
+@dataclass(frozen=True)
+class RunRecord:
+    id: str
+    started_at: str
+    finished_at: Optional[str]
+    status: str
+    since: str
+    fetched_count: int
+    selected_count: int
+    error: Optional[str]
+
+
+class ItemArchive:
+    """Small synchronous SQLite store; each call opens a short-lived connection."""
+
+    def __init__(self, path: Path):
+        self.path = Path(path)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with closing(self._connect()) as conn, conn:
+            conn.executescript(_SCHEMA)
+            conn.execute(
+                "INSERT OR IGNORE INTO meta (key, value) VALUES ('schema_version', ?)",
+                (str(SCHEMA_VERSION),),
+            )
+
+    def _connect(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(self.path)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        return conn
+
+    # Runs -----------------------------------------------------------------
+
+    def start_run(self, since: datetime) -> str:
+        run_id = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
+        with closing(self._connect()) as conn, conn:
+            conn.execute(
+                "INSERT INTO runs (id, started_at, status, since) VALUES (?, ?, 'running', ?)",
+                (run_id, _now(), _iso(since)),
+            )
+        return run_id
+
+    def finish_run(
+        self,
+        run_id: str,
+        status: str,
+        *,
+        fetch_report: Optional[dict] = None,
+        error: Optional[str] = None,
+    ) -> None:
+        with closing(self._connect()) as conn, conn:
+            conn.execute(
+                """UPDATE runs SET finished_at = ?, status = ?, error = ?,
+                       fetch_report = COALESCE(?, fetch_report),
+                       fetched_count = (SELECT COUNT(*) FROM run_items WHERE run_id = ?),
+                       selected_count = (SELECT COUNT(*) FROM run_items WHERE run_id = ? AND selected = 1)
+                   WHERE id = ?""",
+                (
+                    _now(),
+                    status,
+                    error,
+                    json.dumps(fetch_report) if fetch_report is not None else None,
+                    run_id,
+                    run_id,
+                    run_id,
+                ),
+            )
+
+    def get_run(self, run_id: str) -> Optional[RunRecord]:
+        with closing(self._connect()) as conn:
+            row = conn.execute(
+                """SELECT id, started_at, finished_at, status, since, fetched_count,
+                          selected_count, error FROM runs WHERE id = ?""",
+                (run_id,),
+            ).fetchone()
+        return RunRecord(**dict(row)) if row else None
+
+    def list_runs(self, limit: int = 20) -> List[RunRecord]:
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                """SELECT id, started_at, finished_at, status, since, fetched_count,
+                          selected_count, error FROM runs ORDER BY started_at DESC LIMIT ?""",
+                (limit,),
+            ).fetchall()
+        return [RunRecord(**dict(row)) for row in rows]
+
+    # Items ----------------------------------------------------------------
+
+    def record_items(
+        self,
+        run_id: str,
+        items: Iterable[ContentItem],
+        *,
+        selected: bool = False,
+    ) -> None:
+        """Upsert items with their current processing state and link them to the run."""
+        now = _now()
+        rows = []
+        links = []
+        for item in items:
+            processing = item.processing
+            analysis = processing.analysis if processing else None
+            reliability = processing.reliability if processing else None
+            rows.append(
+                (
+                    item.id,
+                    str(item.url),
+                    item.source_type.value,
+                    item.title,
+                    _iso(item.published_at),
+                    now,
+                    now,
+                    content_hash(item),
+                    processing.classification.profile if processing else None,
+                    analysis.score if analysis else None,
+                    reliability.label.value if reliability else None,
+                    json.dumps(analysis.categories if analysis else []),
+                    item.model_dump_json(),
+                )
+            )
+            links.append((run_id, item.id, int(selected)))
+        if not rows:
+            return
+        with closing(self._connect()) as conn, conn:
+            conn.executemany(
+                """INSERT OR IGNORE INTO items (id, url, source_type, title, published_at,
+                       first_seen_at, last_seen_at, content_hash, profile, score, reliability,
+                       categories, payload)
+                   VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)""",
+                rows,
+            )
+            # Refresh existing rows, but never replace a stored analysis with an
+            # unanalyzed copy of the same content (e.g. a re-fetch before analysis).
+            conn.executemany(
+                """UPDATE items SET
+                       url = ?2, source_type = ?3, title = ?4, published_at = ?5,
+                       last_seen_at = ?7, content_hash = ?8, profile = ?9, score = ?10,
+                       reliability = ?11, categories = ?12, payload = ?13
+                   WHERE id = ?1
+                     AND NOT (?10 IS NULL AND score IS NOT NULL AND content_hash = ?8)""",
+                rows,
+            )
+            conn.executemany(
+                "UPDATE items SET last_seen_at = ?2 WHERE id = ?1",
+                [(row[0], row[6]) for row in rows],
+            )
+            conn.executemany(
+                """INSERT INTO run_items (run_id, item_id, selected) VALUES (?, ?, ?)
+                   ON CONFLICT (run_id, item_id) DO UPDATE SET
+                       selected = MAX(run_items.selected, excluded.selected)""",
+                links,
+            )
+
+    def get_item(self, item_id: str) -> Optional[ContentItem]:
+        with closing(self._connect()) as conn:
+            row = conn.execute("SELECT payload FROM items WHERE id = ?", (item_id,)).fetchone()
+        return ContentItem.model_validate_json(row["payload"]) if row else None
+
+    def get_items(self, item_ids: Sequence[str]) -> dict[str, ContentItem]:
+        if not item_ids:
+            return {}
+        result: dict[str, ContentItem] = {}
+        with closing(self._connect()) as conn:
+            for start in range(0, len(item_ids), 500):
+                chunk = list(item_ids[start : start + 500])
+                placeholders = ",".join("?" * len(chunk))
+                for row in conn.execute(
+                    f"SELECT id, payload FROM items WHERE id IN ({placeholders})", chunk
+                ):
+                    result[row["id"]] = ContentItem.model_validate_json(row["payload"])
+        return result
+
+    def items_between(
+        self,
+        since: datetime,
+        until: Optional[datetime] = None,
+        *,
+        selected_only: bool = False,
+    ) -> List[ContentItem]:
+        """Items published in [since, until), best score first."""
+        query = "SELECT payload FROM items WHERE published_at >= ?"
+        params: list[object] = [_iso(since)]
+        if until is not None:
+            query += " AND published_at < ?"
+            params.append(_iso(until))
+        if selected_only:
+            query += " AND id IN (SELECT item_id FROM run_items WHERE selected = 1)"
+        query += " ORDER BY score IS NULL, score DESC, published_at DESC"
+        with closing(self._connect()) as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [ContentItem.model_validate_json(row["payload"]) for row in rows]

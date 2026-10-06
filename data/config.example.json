@@ -400,6 +400,11 @@
     "domains": {},
     "exclude_labels": []
   },
+  "archive": {
+    "enabled": true,
+    "path": "archive.sqlite3",
+    "reuse_analysis": true
+  },
   "display": {
     "icon_style": "emoji"
   },

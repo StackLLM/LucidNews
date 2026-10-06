@@ -542,6 +542,18 @@ Pulls top star-gain repositories from the [OSS Insight](https://ossinsight.io) p
 
 No API key is required.
 
+## Archive
+
+```json
+{
+  "archive": { "enabled": true, "path": "archive.sqlite3", "reuse_analysis": true }
+}
+```
+
+- `path`: SQLite file; relative paths resolve under the data directory.
+- `reuse_analysis`: reuse the stored analysis of an item that comes back unchanged (same title, URL, content and routing) instead of calling the AI again. Turn it off after changing analysis prompts to force a fresh analysis.
+- Archive failures never stop a run; they are logged as warnings.
+
 ## Reliability
 
 See [fiabilite.md](fiabilite.md) for the model. Configuration:

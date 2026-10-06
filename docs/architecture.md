@@ -45,6 +45,7 @@ LucidNews est une application Python asynchrone en ligne de commande. Elle n'a n
 | `src/reliability/` | Registre de confiance des domaines, règles de combinaison, types |
 | `src/taxonomy.py` | 12 catégories IT, alias, libellés, niveaux d'importance |
 | `src/i18n.py` | Registre des langues, textes fixes du digest, format des dates |
+| `src/archive/` | Archive SQLite des runs et des news ; réutilisation des analyses |
 | `src/newsletter/` | Abonnés, préférences, plans, sélection, plan d'envoi, stockage |
 | `src/services/email.py` | SMTP (envoi) et IMAP (inscription / désinscription par email) |
 | `src/services/webhook.py` | Webhooks génériques et plateformes (Slack, Discord, Feishu/Lark, DingTalk) |
@@ -78,6 +79,7 @@ Fichiers sous `data/` :
 | `presets.json` | Catalogue de sources pour l'assistant | suivi |
 | `summaries/lucidnews-AAAA-MM-JJ-<lang>.md` | Digests produits ; servent aussi d'historique pour l'enrichissement | ignoré |
 | `subscribers.json` | Abonnés newsletter (format versionné) | ignoré |
+| `archive.sqlite3` | Archive des runs et des news traitées (voir plus bas) | ignoré |
 | `mcp-runs/` | Étapes intermédiaires du serveur MCP | ignoré |
 
 ## Configuration
@@ -91,11 +93,28 @@ Toute la configuration est centralisée dans un seul schéma, `Config` (`src/mod
 | `collection` | Fenêtre de temps (`time_window_hours`) |
 | `processing` | Dossier des profils, profil par défaut, seuil et dédoublonnage par profil |
 | `reliability` | Surcharges du registre de domaines, étiquettes à exclure du digest |
+| `archive` | Archive SQLite : activation, chemin, réutilisation des analyses |
 | `digest` | Ordre des sections, quotas par catégorie, plafond d'items |
 | `email`, `webhook` | Distribution |
 | `extractors`, `display` | Extraction de texte intégral, icônes du terminal |
 
 Les secrets ne vont jamais dans ce fichier : il contient des **noms** de variables (`api_key_env`, `password_env`, `url_env`) ou des références `${VAR}`.
+
+## Archive
+
+Chaque run est enregistré dans `data/archive.sqlite3`, une base SQLite (une base de données contenue dans un seul fichier, sans serveur).
+
+| Table | Contenu |
+|---|---|
+| `runs` | Un run : début, fin, statut (`running`, `success`, `empty`, `failed`), fenêtre, nombre de news collectées et retenues, rapport de collecte, erreur |
+| `items` | Une ligne par news (identifiant stable de la source), avec son état le plus récent : JSON complet, score, fiabilité, catégories |
+| `run_items` | Quelles news chaque run a vues et retenues |
+
+Usages :
+
+- **Réutilisation des analyses** : si une news revient inchangée (même titre, URL, contenu et routage), son analyse est reprise au lieu de rappeler l'IA. On peut le désactiver avec `archive.reuse_analysis: false`, par exemple après un changement de consigne.
+- **Historique** : `ItemArchive.items_between(depuis, jusqu_a, selected_only=...)` sert de base à l'envoi hebdomadaire et aux statistiques de sources.
+- L'archive est « au mieux » : si elle est inaccessible, le run continue et produit le digest, avec un avertissement.
 
 ## Points sensibles
 

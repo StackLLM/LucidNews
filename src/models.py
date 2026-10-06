@@ -616,6 +616,17 @@ class DigestConfig(BaseModel):
         return value
 
 
+class ArchiveConfig(BaseModel):
+    """SQLite archive of runs and processed items."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = True
+    path: str = "archive.sqlite3"  # relative paths resolve under the data directory
+    # Reuse a stored analysis when the same item comes back unchanged (saves AI quota).
+    reuse_analysis: bool = True
+
+
 class ReliabilityConfig(BaseModel):
     """Source trust registry overrides and digest reliability policy."""
 
@@ -636,6 +647,7 @@ class Config(BaseModel):
     digest: DigestConfig = Field(default_factory=DigestConfig)
     processing: ProcessingConfig = Field(default_factory=ProcessingConfig)
     reliability: ReliabilityConfig = Field(default_factory=ReliabilityConfig)
+    archive: ArchiveConfig = Field(default_factory=ArchiveConfig)
     display: DisplayConfig = Field(default_factory=DisplayConfig)
     extractors: Dict[str, ExtractorConfig] = Field(default_factory=dict)
     email: Optional[EmailConfig] = None
