@@ -21,7 +21,7 @@ from typing import Iterable, List, Optional, Sequence
 
 from ..models import ContentItem
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -64,6 +64,17 @@ CREATE TABLE IF NOT EXISTS run_items (
 CREATE INDEX IF NOT EXISTS run_items_item ON run_items (item_id);
 """
 
+# Columns added after version 1, applied to existing databases on open.
+_MIGRATIONS = {
+    "items": {
+        "analysis_attempts": "INTEGER NOT NULL DEFAULT 0",  # runs whose analysis failed
+        "last_error": "TEXT",
+    },
+    "runs": {
+        "unscored_count": "INTEGER NOT NULL DEFAULT 0",
+    },
+}
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -94,6 +105,7 @@ class RunRecord:
     fetched_count: int
     selected_count: int
     error: Optional[str]
+    unscored_count: int = 0
 
 
 class ItemArchive:
@@ -104,8 +116,13 @@ class ItemArchive:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with closing(self._connect()) as conn, conn:
             conn.executescript(_SCHEMA)
+            for table, columns in _MIGRATIONS.items():
+                existing = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+                for name, definition in columns.items():
+                    if name not in existing:
+                        conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
             conn.execute(
-                "INSERT OR IGNORE INTO meta (key, value) VALUES ('schema_version', ?)",
+                "INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', ?)",
                 (str(SCHEMA_VERSION),),
             )
 
@@ -139,13 +156,16 @@ class ItemArchive:
                 """UPDATE runs SET finished_at = ?, status = ?, error = ?,
                        fetch_report = COALESCE(?, fetch_report),
                        fetched_count = (SELECT COUNT(*) FROM run_items WHERE run_id = ?),
-                       selected_count = (SELECT COUNT(*) FROM run_items WHERE run_id = ? AND selected = 1)
+                       selected_count = (SELECT COUNT(*) FROM run_items WHERE run_id = ? AND selected = 1),
+                       unscored_count = (SELECT COUNT(*) FROM run_items JOIN items ON items.id = run_items.item_id
+                                         WHERE run_items.run_id = ? AND items.score IS NULL)
                    WHERE id = ?""",
                 (
                     _now(),
                     status,
                     error,
                     json.dumps(fetch_report) if fetch_report is not None else None,
+                    run_id,
                     run_id,
                     run_id,
                     run_id,
@@ -156,7 +176,7 @@ class ItemArchive:
         with closing(self._connect()) as conn:
             row = conn.execute(
                 """SELECT id, started_at, finished_at, status, since, fetched_count,
-                          selected_count, error FROM runs WHERE id = ?""",
+                          selected_count, error, unscored_count FROM runs WHERE id = ?""",
                 (run_id,),
             ).fetchone()
         return RunRecord(**dict(row)) if row else None
@@ -165,7 +185,7 @@ class ItemArchive:
         with closing(self._connect()) as conn:
             rows = conn.execute(
                 """SELECT id, started_at, finished_at, status, since, fetched_count,
-                          selected_count, error FROM runs ORDER BY started_at DESC LIMIT ?""",
+                          selected_count, error, unscored_count FROM runs ORDER BY started_at DESC LIMIT ?""",
                 (limit,),
             ).fetchall()
         return [RunRecord(**dict(row)) for row in rows]
@@ -183,6 +203,7 @@ class ItemArchive:
         now = _now()
         rows = []
         links = []
+        outcomes = []
         for item in items:
             processing = item.processing
             analysis = processing.analysis if processing else None
@@ -205,6 +226,9 @@ class ItemArchive:
                 )
             )
             links.append((run_id, item.id, int(selected)))
+            if analysis is not None:
+                failed = analysis.score is None
+                outcomes.append((item.id, int(failed), analysis.reason if failed else None))
         if not rows:
             return
         with closing(self._connect()) as conn, conn:
@@ -229,6 +253,12 @@ class ItemArchive:
             conn.executemany(
                 "UPDATE items SET last_seen_at = ?2 WHERE id = ?1",
                 [(row[0], row[6]) for row in rows],
+            )
+            # Count failed analysis attempts; a successful analysis clears the error.
+            conn.executemany(
+                """UPDATE items SET analysis_attempts = analysis_attempts + ?2, last_error = ?3
+                   WHERE id = ?1""",
+                outcomes,
             )
             conn.executemany(
                 """INSERT INTO run_items (run_id, item_id, selected) VALUES (?, ?, ?)
@@ -255,6 +285,36 @@ class ItemArchive:
                 ):
                     result[row["id"]] = ContentItem.model_validate_json(row["payload"])
         return result
+
+    def pending_items(
+        self,
+        *,
+        first_seen_after: datetime,
+        max_attempts: int,
+        exclude_ids: Iterable[str] = (),
+    ) -> List[ContentItem]:
+        """Items whose analysis failed and that still have retries left, oldest first."""
+        excluded = set(exclude_ids)
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                """SELECT id, payload FROM items
+                   WHERE score IS NULL AND analysis_attempts BETWEEN 1 AND ?
+                     AND first_seen_at >= ?
+                   ORDER BY first_seen_at""",
+                (max_attempts - 1, _iso(first_seen_after)),
+            ).fetchall()
+        return [
+            ContentItem.model_validate_json(row["payload"])
+            for row in rows
+            if row["id"] not in excluded
+        ]
+
+    def item_attempts(self, item_id: str) -> tuple[int, Optional[str]]:
+        with closing(self._connect()) as conn:
+            row = conn.execute(
+                "SELECT analysis_attempts, last_error FROM items WHERE id = ?", (item_id,)
+            ).fetchone()
+        return (row["analysis_attempts"], row["last_error"]) if row else (0, None)
 
     def items_between(
         self,

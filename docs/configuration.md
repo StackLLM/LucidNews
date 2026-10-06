@@ -292,6 +292,12 @@ model); a full run needs roughly two calls per fetched item plus enrichment
 calls per selected item and language, so use a paid tier or a model with a
 larger quota for production.
 
+### Failed-item retry
+
+`ai.failed_retry_delay_sec` (default `30`): items whose analysis or enrichment
+failed are retried once at the end of that stage after this pause, which lets a
+per-minute quota reset. Set it to `null` to disable the in-run retry.
+
 ### AI throttling
 
 If your model has a strict per-minute request cap, you can also slow the scorer down in the active config file:
@@ -551,6 +557,7 @@ No API key is required.
 ```
 
 - `path`: SQLite file; relative paths resolve under the data directory.
+- `retry_failed_analysis`, `retry_window_hours`, `max_analysis_attempts`: an item the AI failed to score is kept as pending and retried in later runs (even outside the time window) while it was first seen less than `retry_window_hours` ago and has failed fewer than `max_analysis_attempts` runs.
 - `reuse_analysis`: reuse the stored analysis of an item that comes back unchanged (same title, URL, content and routing) instead of calling the AI again. Turn it off after changing analysis prompts to force a fresh analysis.
 - Archive failures never stop a run; they are logged as warnings.
 

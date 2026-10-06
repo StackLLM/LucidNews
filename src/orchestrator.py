@@ -311,6 +311,8 @@ class PipelineOrchestrator:
                     f"→ {len(merged_items)} unique items\n"
                 )
 
+            merged_items = self._add_pending_retries(merged_items)
+
             # 4. Analyze with AI
             analyzed_items = await self.analyze_items(merged_items)
             self._archive("record_items", analyzed_items)
@@ -480,6 +482,40 @@ class PipelineOrchestrator:
                 f"   {self.icons['detail']} Reused {reused} analyses from the archive"
             )
         return remaining
+
+    def _add_pending_retries(self, items: List[ContentItem]) -> List[ContentItem]:
+        """Append archived items whose analysis failed in a previous run."""
+        archive = getattr(self, "archive", None)
+        settings = getattr(self.config, "archive", None)
+        if archive is None or settings is None or not settings.retry_failed_analysis:
+            return items
+        try:
+            pending = archive.pending_items(
+                first_seen_after=datetime.now(timezone.utc)
+                - timedelta(hours=settings.retry_window_hours),
+                max_attempts=settings.max_analysis_attempts,
+                exclude_ids=[item.id for item in items],
+            )
+        except Exception as exc:
+            logger.warning("Could not load pending retries from the archive: %s", exc)
+            return items
+        if pending:
+            self.console.print(
+                f"{self.icons['detail']} Retrying {len(pending)} item(s) whose analysis "
+                "failed in a previous run\n"
+            )
+        return items + pending
+
+    async def _pause_before_retry(self, count: int, stage: str) -> bool:
+        delay = getattr(self.config.ai, "failed_retry_delay_sec", None)
+        if delay is None or count == 0:
+            return False
+        self.console.print(
+            f"[yellow]{self.icons['warning']} {count} item(s) failed {stage}; "
+            f"retrying once in {delay:g}s...[/yellow]"
+        )
+        await asyncio.sleep(delay)
+        return True
 
     def _determine_time_window(self, force_hours: int = None) -> datetime:
         if force_hours:
@@ -1128,6 +1164,13 @@ class PipelineOrchestrator:
             tools=ToolRegistry(self.storage.summaries_dir),
         )
         result = await enricher.enrich_batch(items)
+        failed = [item for item in items if item.id in result.failures]
+        if await self._pause_before_retry(len(failed), "enrichment"):
+            retry = await enricher.enrich_batch(failed)
+            result = EnrichmentBatchResult(
+                succeeded_ids=result.succeeded_ids + retry.succeeded_ids,
+                failures=retry.failures,
+            )
         self.console.print(
             f"   Enriched {result.succeeded_count}/{len(items)} items"
         )
@@ -1163,7 +1206,23 @@ class PipelineOrchestrator:
         )
 
         await analyzer.analyze_batch(to_analyze)
+
+        failed = [item for item in to_analyze if self._is_unscored(item)]
+        if await self._pause_before_retry(len(failed), "analysis"):
+            await analyzer.analyze_batch(failed)
+
+        unscored = sum(self._is_unscored(item) for item in items)
+        if unscored:
+            self.console.print(
+                f"[yellow]{self.icons['warning']} {unscored} item(s) could not be scored "
+                "and are left out of this digest[/yellow]"
+            )
         return items
+
+    @staticmethod
+    def _is_unscored(item: ContentItem) -> bool:
+        analysis = item.processing.analysis if item.processing else None
+        return analysis is None or analysis.score is None
 
     async def _generate_summary(
         self,

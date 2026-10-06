@@ -224,6 +224,9 @@ class AIConfig(BaseModel):
     throttle_sec: float = 0.0
     # Provider quota, e.g. 5 for Gemini free tier on gemini-2.5-flash. None = unlimited.
     max_requests_per_minute: Optional[int] = Field(default=None, gt=0)
+    # Items whose analysis or enrichment failed are retried once at the end of the
+    # stage after this pause (lets per-minute quotas reset). None disables it.
+    failed_retry_delay_sec: Optional[float] = Field(default=30.0, ge=0)
     analysis_concurrency: int = 1
     enrichment_concurrency: int = 1
     languages: List[str] = Field(default_factory=lambda: ["en"])
@@ -625,6 +628,10 @@ class ArchiveConfig(BaseModel):
     path: str = "archive.sqlite3"  # relative paths resolve under the data directory
     # Reuse a stored analysis when the same item comes back unchanged (saves AI quota).
     reuse_analysis: bool = True
+    # Items whose analysis failed are retried in later runs, even outside the window.
+    retry_failed_analysis: bool = True
+    retry_window_hours: int = Field(default=48, gt=0)
+    max_analysis_attempts: int = Field(default=3, ge=1)
 
 
 class ReliabilityConfig(BaseModel):

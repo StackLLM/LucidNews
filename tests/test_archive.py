@@ -163,3 +163,57 @@ def test_unanalyzed_copy_never_overwrites_a_stored_analysis(tmp_path) -> None:
     archive.record_items(second, [make_item("a", content="changed")])  # new content wins
     assert archive.get_item("a").processing is None
     assert archive.get_run(second) is not None
+
+
+def failed_item(item_id: str, **kwargs) -> ContentItem:
+    item = make_item(item_id, score=8.0, **kwargs)
+    item.processing.analysis = ContentAnalysis(score=None, reason="Analysis failed", summary="s")
+    return item
+
+
+def test_failed_analyses_are_counted_and_offered_for_retry(tmp_path) -> None:
+    archive = ItemArchive(tmp_path / "archive.sqlite3")
+    for _ in range(2):
+        run_id = archive.start_run(NOW)
+        archive.record_items(run_id, [failed_item("flaky"), make_item("ok", score=7.0)])
+        archive.finish_run(run_id, "success")
+
+    assert archive.item_attempts("flaky") == (2, "Analysis failed")
+    assert archive.get_run(run_id).unscored_count == 1
+    window = datetime.now(timezone.utc) - timedelta(hours=1)
+    assert [i.id for i in archive.pending_items(first_seen_after=window, max_attempts=3)] == ["flaky"]
+    assert archive.pending_items(first_seen_after=window, max_attempts=2) == []
+    assert archive.pending_items(first_seen_after=window, max_attempts=3, exclude_ids=["flaky"]) == []
+
+    run_id = archive.start_run(NOW)
+    archive.record_items(run_id, [make_item("flaky", score=6.0)])
+    assert archive.item_attempts("flaky") == (2, None)
+    assert archive.pending_items(first_seen_after=window, max_attempts=3) == []
+
+
+def test_version_1_archive_is_migrated_in_place(tmp_path) -> None:
+    import sqlite3
+
+    from src.archive.store import _SCHEMA
+
+    path = tmp_path / "archive.sqlite3"
+    with sqlite3.connect(path) as conn:
+        conn.executescript(_SCHEMA)  # v1 tables, no migration columns
+    archive = ItemArchive(path)
+    run_id = archive.start_run(NOW)
+    archive.record_items(run_id, [failed_item("a")])
+    archive.finish_run(run_id, "success")
+
+    assert archive.item_attempts("a") == (1, "Analysis failed")
+    assert archive.get_run(run_id).unscored_count == 1
+
+
+def test_pending_retries_are_appended_to_the_batch(tmp_path) -> None:
+    archive = ItemArchive(tmp_path / "archive.sqlite3")
+    run_id = archive.start_run(NOW)
+    archive.record_items(run_id, [failed_item("old-fail"), failed_item("refetched")])
+    orchestrator = make_orchestrator(archive)
+
+    batch = orchestrator._add_pending_retries([make_item("refetched"), make_item("new")])
+
+    assert [item.id for item in batch] == ["refetched", "new", "old-fail"]

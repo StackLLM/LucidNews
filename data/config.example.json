@@ -11,7 +11,8 @@
     "languages": [
       "en",
       "fr"
-    ]
+    ],
+    "failed_retry_delay_sec": 30
   },
   "sources": {
     "github": [
@@ -403,7 +404,10 @@
   "archive": {
     "enabled": true,
     "path": "archive.sqlite3",
-    "reuse_analysis": true
+    "reuse_analysis": true,
+    "retry_failed_analysis": true,
+    "retry_window_hours": 48,
+    "max_analysis_attempts": 3
   },
   "display": {
     "icon_style": "emoji"

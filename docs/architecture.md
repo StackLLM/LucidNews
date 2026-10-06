@@ -114,6 +114,7 @@ Usages :
 
 - **Réutilisation des analyses** : si une news revient inchangée (même titre, URL, contenu et routage), son analyse est reprise au lieu de rappeler l'IA. On peut le désactiver avec `archive.reuse_analysis: false`, par exemple après un changement de consigne.
 - **Historique** : `ItemArchive.items_between(depuis, jusqu_a, selected_only=...)` sert de base à l'envoi hebdomadaire et aux statistiques de sources.
+- **Reprise des échecs** : une news que l'IA n'a pas pu noter est d'abord retentée une fois en fin d'analyse, après une pause (`ai.failed_retry_delay_sec`). Si elle échoue encore, elle reste « en attente » dans l'archive et est reprise aux runs suivants, dans la limite de `archive.max_analysis_attempts` runs et de `archive.retry_window_hours` heures. L'enrichissement raté est aussi retenté une fois. Chaque run garde le nombre de news restées non notées (`unscored_count`).
 - L'archive est « au mieux » : si elle est inaccessible, le run continue et produit le digest, avec un avertissement.
 
 ## Points sensibles
