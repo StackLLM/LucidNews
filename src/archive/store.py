@@ -20,8 +20,9 @@ from pathlib import Path
 from typing import Iterable, List, Optional, Sequence
 
 from ..models import ContentItem
+from ..source_health import SourceRunOutcome
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -62,6 +63,17 @@ CREATE TABLE IF NOT EXISTS run_items (
     PRIMARY KEY (run_id, item_id)
 );
 CREATE INDEX IF NOT EXISTS run_items_item ON run_items (item_id);
+CREATE TABLE IF NOT EXISTS source_runs (
+    run_id TEXT NOT NULL REFERENCES runs (id),
+    source_key TEXT NOT NULL,
+    source_type TEXT NOT NULL,
+    status TEXT NOT NULL,
+    fetched_count INTEGER NOT NULL DEFAULT 0,
+    selected_count INTEGER NOT NULL DEFAULT 0,
+    error TEXT,
+    PRIMARY KEY (run_id, source_key)
+);
+CREATE INDEX IF NOT EXISTS source_runs_key ON source_runs (source_key);
 """
 
 # Columns added after version 1, applied to existing databases on open.
@@ -285,6 +297,44 @@ class ItemArchive:
                 ):
                     result[row["id"]] = ContentItem.model_validate_json(row["payload"])
         return result
+
+    # Source health ---------------------------------------------------------
+
+    def record_source_runs(self, run_id: str, outcomes: Iterable[SourceRunOutcome]) -> None:
+        rows = [
+            (
+                run_id,
+                outcome.source_key,
+                outcome.source_type,
+                outcome.status,
+                outcome.fetched_count,
+                outcome.selected_count,
+                outcome.error,
+            )
+            for outcome in outcomes
+        ]
+        if not rows:
+            return
+        with closing(self._connect()) as conn, conn:
+            conn.executemany(
+                """INSERT OR REPLACE INTO source_runs (run_id, source_key, source_type, status,
+                       fetched_count, selected_count, error)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                rows,
+            )
+
+    def source_run_rows(self, since: datetime) -> List[dict]:
+        """Per-source outcomes of finished runs started since ``since``, newest first."""
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                """SELECT s.source_key, s.source_type, s.status, s.fetched_count,
+                          s.selected_count, s.error, r.started_at
+                   FROM source_runs s JOIN runs r ON r.id = s.run_id
+                   WHERE r.started_at >= ? AND r.status != 'running'
+                   ORDER BY r.started_at DESC""",
+                (_iso(since),),
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def pending_items(
         self,

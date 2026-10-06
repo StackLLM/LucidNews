@@ -38,6 +38,7 @@ lucidnews = "src.main:main"
 lucidnews-mcp = "src.mcp.server:main"
 lucidnews-wizard = "src.setup.wizard:main"
 lucidnews-webhook = "src.services.webhook_cli:main"
+lucidnews-sources = "src.sources_cli:main"
 
 [build-system]
 requires = ["hatchling"]

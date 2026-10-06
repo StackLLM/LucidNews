@@ -9,6 +9,38 @@
 
 Le **canal** (Hacker News, Reddit…) sert à découvrir une information. La **fiabilité** est évaluée sur l'URL principale : un post Hacker News qui pointe vers une release GitHub est jugé sur la release (voir [fiabilite.md](fiabilite.md)).
 
+## Santé des sources
+
+Chaque source configurée reçoit un **identifiant de source** : `rss/LWN.net`, `github/vllm-project/vllm`, `github/@torvalds`, `reddit/r/devops`, `telegram/@chaine`, `hackernews`…
+
+À chaque run, l'archive garde pour chaque source :
+
+- son statut : `success` (des news), `empty` (aucune news) ou `failure` (erreur) ;
+- l'erreur ;
+- le nombre de news collectées et retenues dans le digest.
+
+Un flux RSS ou un dépôt GitHub en erreur est signalé individuellement, sans bloquer les autres.
+
+Le rapport classe chaque source sur les 14 derniers jours :
+
+| Statut | Règle |
+|---|---|
+| `dead` (morte) | En échec aux 3 derniers runs d'affilée |
+| `failing` (en échec) | En échec à au moins la moitié de ses runs |
+| `silent` (silencieuse) | Joignable, mais aucune news en 5 runs ou plus |
+| `noisy` (bruyante) | Au moins 30 news, et moins de 2 % retenues |
+| `healthy` (saine) | Le reste |
+
+À la fin de chaque run, les sources `dead` et `failing` sont listées dans le terminal. Le rapport complet :
+
+```bash
+uv run lucidnews-sources              # tableau, 14 derniers jours
+uv run lucidnews-sources --days 30 --status dead --status failing
+uv run lucidnews-sources --json       # pour un outil ou un tableau de bord
+```
+
+Les seuils sont des constantes en tête de `src/source_health.py`.
+
 ## Types de sources
 
 | Type | Clé de config | Ce qui est collecté | Prérequis |

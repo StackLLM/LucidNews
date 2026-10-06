@@ -37,6 +37,14 @@ from .reliability.assess import ReliabilityPolicy, assess_item
 from .i18n import messages
 from .newsletter import DeliveryPlan, plan_deliveries
 from .archive import ItemArchive, content_hash
+from .source_health import (
+    SCRAPER_SOURCE_TYPES,
+    HealthStatus,
+    assess_health,
+    build_source_outcomes,
+    configured_source_keys,
+    source_key,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -119,6 +127,8 @@ class SourceFetchOutcome:
     status: Literal["success", "empty", "failure"]
     items: List[ContentItem] = field(default_factory=list)
     error: Optional[str] = None
+    # Sub-sources (e.g. one RSS feed) that failed while the scraper as a whole succeeded.
+    source_errors: Dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, object]:
         result: Dict[str, object] = {
@@ -128,6 +138,8 @@ class SourceFetchOutcome:
         }
         if self.error is not None:
             result["error"] = self.error
+        if self.source_errors:
+            result["source_errors"] = dict(self.source_errors)
         return result
 
 
@@ -290,6 +302,7 @@ class PipelineOrchestrator:
 
             # 2. Fetch content from all sources
             all_items = await self.fetch_all_sources(since)
+            self._fetched_items = all_items
             self.console.print(
                 f"{self.icons['fetched']} Fetched {len(all_items)} items from all sources\n"
             )
@@ -299,7 +312,7 @@ class PipelineOrchestrator:
 
             if not all_items:
                 self.console.print("[yellow]No new content found. Exiting.[/yellow]")
-                self._archive("finish_run", "empty", fetch_report=self._fetch_report_dict())
+                self._finish_archive("empty", all_items, [])
                 return
 
             # 3. Merge cross-source duplicates (same URL from different sources)
@@ -368,7 +381,7 @@ class PipelineOrchestrator:
             if self.email_manager and self.config.email and self.config.email.enabled:
                 await self.send_newsletters(important_items, today, len(all_items))
 
-            self._archive("finish_run", "success", fetch_report=self._fetch_report_dict())
+            self._finish_archive("success", all_items, important_items)
 
             self.console.print(
                 f"[bold green]{self.icons['success']} "
@@ -393,11 +406,8 @@ class PipelineOrchestrator:
             self.console.print(
                 f"[bold red]{self.icons['error']} Error: {e}[/bold red]"
             )
-            self._archive(
-                "finish_run",
-                "failed",
-                fetch_report=self._fetch_report_dict(),
-                error=str(e),
+            self._finish_archive(
+                "failed", getattr(self, "_fetched_items", []), [], error=str(e)
             )
 
             # Send webhook failure notification if configured
@@ -446,6 +456,62 @@ class PipelineOrchestrator:
             )
             self.email_manager.send_daily_summary(summary, subject, delivery.recipients)
         return plan
+
+    def _finish_archive(
+        self,
+        status: str,
+        fetched_items: List[ContentItem],
+        selected_items: List[ContentItem],
+        error: Optional[str] = None,
+    ) -> None:
+        """Record per-source outcomes and the run result, then flag unhealthy sources."""
+        if getattr(self, "archive", None) is None or getattr(self, "run_id", None) is None:
+            return
+        report = getattr(self, "last_fetch_report", None)
+        source_errors: Dict[str, str] = {}
+        failed_types: Dict[str, str] = {}
+        for outcome in report.outcomes if report else []:
+            source_errors.update(outcome.source_errors)
+            if outcome.status == "failure":
+                source_type = SCRAPER_SOURCE_TYPES.get(outcome.source_name, outcome.source_name)
+                failed_types[source_type] = outcome.error or "unknown error"
+        try:
+            configured = configured_source_keys(self.config)
+        except Exception:
+            configured = {}
+        outcomes = build_source_outcomes(
+            configured, fetched_items, selected_items, source_errors, failed_types
+        )
+        self._archive("record_source_runs", outcomes)
+        self._archive(
+            "finish_run", status, fetch_report=self._fetch_report_dict(), error=error
+        )
+        if status != "failed":
+            self._warn_unhealthy_sources()
+
+    def _warn_unhealthy_sources(self, days: int = 14) -> None:
+        try:
+            rows = self.archive.source_run_rows(datetime.now(timezone.utc) - timedelta(days=days))
+        except Exception as exc:
+            logger.warning("Source health check failed: %s", exc)
+            return
+        flagged = [
+            health
+            for health in assess_health(rows)
+            if health.status in (HealthStatus.DEAD, HealthStatus.FAILING)
+        ]
+        if not flagged:
+            return
+        self.console.print(
+            f"\n[yellow]{self.icons['warning']} {len(flagged)} source(s) need attention "
+            f"(last {days} days):[/yellow]"
+        )
+        for health in flagged:
+            self.console.print(
+                f"[yellow]   {self.icons['detail']} {health.source_key}: {health.status.value}, "
+                f"{'; '.join(health.reasons)}[/yellow]"
+            )
+        self.console.print("[dim]   Run `uv run lucidnews-sources` for the full report.[/dim]")
 
     def _fetch_report_dict(self) -> Optional[Dict[str, object]]:
         report = getattr(self, "last_fetch_report", None)
@@ -633,6 +699,11 @@ class PipelineOrchestrator:
             )
 
         self.console.print(f"   Found {len(items)} items from {name}")
+        for item in items:
+            item.metadata.setdefault("source_key", source_key(item))
+        source_errors = dict(getattr(scraper, "source_errors", {}) or {})
+        for key, error in sorted(source_errors.items()):
+            self.console.print(f"[yellow]   {self.icons['warning']} {key}: {error}[/yellow]")
 
         # Show per-sub-source breakdown when there are multiple sub-sources
         sub_counts: Dict[str, int] = defaultdict(int)
@@ -646,6 +717,7 @@ class PipelineOrchestrator:
             source_name=name,
             status="success" if items else "empty",
             items=items,
+            source_errors=source_errors,
         )
 
     @staticmethod

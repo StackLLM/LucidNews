@@ -11,8 +11,9 @@ from email.utils import parsedate_to_datetime
 import httpx
 import feedparser
 
-from .base import BaseScraper
+from .base import BaseScraper, short_error
 from ..extractors import ExtractorRegistry
+from ..source_health import rss_key
 from ..models import ContentItem, SourceType, RSSSourceConfig
 
 logger = logging.getLogger(__name__)
@@ -132,8 +133,10 @@ class RSSScraper(BaseScraper):
 
         except httpx.HTTPError as e:
             logger.warning("Error fetching RSS feed %s: %s", source.name, e)
+            self.source_errors[rss_key(source.name)] = short_error(e)
         except Exception as e:
             logger.warning("Error parsing RSS feed %s: %s", source.name, e)
+            self.source_errors[rss_key(source.name)] = short_error(e)
 
         return items
 

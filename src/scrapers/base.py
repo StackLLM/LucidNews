@@ -8,6 +8,12 @@ import httpx
 from ..models import ContentItem
 
 
+def short_error(exc: Exception) -> str:
+    """First line of an exception, e.g. "HTTPStatusError: Client error '404 Not Found'"."""
+    message = str(exc).splitlines()[0] if str(exc) else ""
+    return f"{type(exc).__name__}: {message}".rstrip(": ")
+
+
 class BaseScraper(ABC):
     """Abstract base class for all scrapers."""
 
@@ -20,6 +26,9 @@ class BaseScraper(ABC):
         """
         self.config = config
         self.client = http_client
+        # Per-sub-source errors ({source key: message}) for sources a scraper
+        # skips instead of failing the whole fetch; see src/source_health.py.
+        self.source_errors: dict[str, str] = {}
 
     @abstractmethod
     async def fetch(self, since: datetime) -> List[ContentItem]:

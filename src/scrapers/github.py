@@ -6,7 +6,8 @@ from datetime import datetime
 from typing import List, Optional
 import httpx
 
-from .base import BaseScraper
+from .base import BaseScraper, short_error
+from ..source_health import github_repo_key, github_user_key
 from ..models import ContentItem, SourceType, GitHubSourceConfig
 
 logger = logging.getLogger(__name__)
@@ -109,6 +110,7 @@ class GitHubScraper(BaseScraper):
 
         except httpx.HTTPError as e:
             logger.warning("Error fetching GitHub events for %s: %s", source.username, e)
+            self.source_errors[github_user_key(source.username)] = short_error(e)
 
         return items
 
@@ -220,5 +222,6 @@ class GitHubScraper(BaseScraper):
 
         except httpx.HTTPError as e:
             logger.warning("Error fetching releases for %s/%s: %s", owner, repo, e)
+            self.source_errors[github_repo_key(owner, repo)] = short_error(e)
 
         return items

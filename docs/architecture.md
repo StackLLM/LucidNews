@@ -46,6 +46,7 @@ LucidNews est une application Python asynchrone en ligne de commande. Elle n'a n
 | `src/taxonomy.py` | 12 catégories IT, alias, libellés, niveaux d'importance |
 | `src/i18n.py` | Registre des langues, textes fixes du digest, format des dates |
 | `src/archive/` | Archive SQLite des runs et des news ; réutilisation des analyses |
+| `src/source_health.py`, `src/sources_cli.py` | Identifiants de source, résultat par run, classement de santé, commande `lucidnews-sources` |
 | `src/newsletter/` | Abonnés, préférences, plans, sélection, plan d'envoi, stockage |
 | `src/services/email.py` | SMTP (envoi) et IMAP (inscription / désinscription par email) |
 | `src/services/webhook.py` | Webhooks génériques et plateformes (Slack, Discord, Feishu/Lark, DingTalk) |
@@ -109,6 +110,7 @@ Chaque run est enregistré dans `data/archive.sqlite3`, une base SQLite (une bas
 | `runs` | Un run : début, fin, statut (`running`, `success`, `empty`, `failed`), fenêtre, nombre de news collectées et retenues, rapport de collecte, erreur |
 | `items` | Une ligne par news (identifiant stable de la source), avec son état le plus récent : JSON complet, score, fiabilité, catégories |
 | `run_items` | Quelles news chaque run a vues et retenues |
+| `source_runs` | Résultat de chaque source à chaque run : statut, erreur, news collectées et retenues |
 
 Usages :
 
