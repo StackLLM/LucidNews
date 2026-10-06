@@ -96,6 +96,7 @@ DEFAULT_DOMAIN_TIERS: dict[str, SourceTier] = {
     "cyber.gouv.fr": OFFICIAL,
     "ssi.gouv.fr": OFFICIAL,
     "europa.eu": OFFICIAL,
+    "nobelprize.org": OFFICIAL,
     # Research
     "arxiv.org": REPUTABLE,
     "acm.org": REPUTABLE,

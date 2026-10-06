@@ -21,9 +21,9 @@ _URL_SAFE_CHARS = ":/?#[]@!$&'*,;=~%+"
 
 def _escape_markdown(value: object) -> str:
     """Render untrusted text literally while retaining its readable content."""
-    # "&#x27;" would have its "#" escaped below and render literally; "&apos;" has no
-    # Markdown-special characters.
-    escaped = html.escape(str(value), quote=True).replace("&#x27;", "&apos;")
+    # Apostrophes stay literal: they are harmless in Markdown text, and an entity would
+    # show up verbatim in plain-text email ("&#x27;" would also get its "#" escaped).
+    escaped = html.escape(str(value), quote=False).replace('"', "&quot;")
     escaped = _MARKDOWN_SPECIAL.sub(r"\\\1", escaped)
     return _MARKDOWN_BLOCK_START.sub(r"\1\\\2", escaped)
 

@@ -433,7 +433,8 @@ def test_generate_summary_renders_apostrophes_without_broken_entities():
     result = _run_async(summarizer.generate_summary([item], "2026-04-25", 1))
 
     assert "&\\#x27;" not in result
-    assert "RobCo&apos;s &apos;Robotics-as-a-Service&apos; model" in result
+    assert "&apos;" not in result
+    assert "RobCo's 'Robotics-as-a-Service' model" in result
 
 
 def test_generate_summary_rejects_unsafe_urls_and_quote_injection():
