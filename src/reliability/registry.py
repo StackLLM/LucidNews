@@ -30,6 +30,9 @@ DEFAULT_DOMAIN_TIERS: dict[str, SourceTier] = {
     # Cloud and platform vendors
     "aws.amazon.com": OFFICIAL,
     "cloud.google.com": OFFICIAL,
+    "cloudblog.withgoogle.com": OFFICIAL,
+    "web.dev": OFFICIAL,
+    "jetbrains.com": OFFICIAL,
     "azure.microsoft.com": OFFICIAL,
     "devblogs.microsoft.com": OFFICIAL,
     "learn.microsoft.com": OFFICIAL,
