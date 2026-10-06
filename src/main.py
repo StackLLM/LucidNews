@@ -1,4 +1,4 @@
-"""CLI entry point for Horizon."""
+"""CLI entry point for LucidNews."""
 
 import argparse
 import asyncio
@@ -13,7 +13,7 @@ from ._cli import add_data_dir_arguments, add_log_level_argument
 from .console_icons import get_icons
 from .logging_config import configure_logging
 from .storage.manager import ConfigError, StorageManager
-from .orchestrator import HorizonOrchestrator
+from .orchestrator import PipelineOrchestrator
 
 
 console = Console(stderr=True)
@@ -21,17 +21,10 @@ console = Console(stderr=True)
 
 def print_banner():
     """Print the application banner."""
-    banner = r"""
-[bold blue]
-  _    _            _
- | |  | |          (_)
- | |__| | ___  _ __ _ ___  ___  _ __
- |  __  |/ _ \| '__| |_  / / _ \| '_ \
- | |  | | (_) | |  | |/ / | (_) | | | |
- |_|  |_|\___/|_|  |_/___| \___/|_| |_|
-[/bold blue]
-[cyan]  AI-Driven Information Aggregation System[/cyan]
-    """
+    banner = (
+        "\n[bold blue]  LucidNews[/bold blue]\n"
+        "[cyan]  Reliable tech intelligence · collect → verify → classify → summarize → deliver[/cyan]\n"
+    )
     console.print(banner)
 
 
@@ -41,7 +34,7 @@ def main():
     print_banner()
     icons = get_icons()
 
-    parser = argparse.ArgumentParser(description="Horizon - AI-Driven Information Aggregation System")
+    parser = argparse.ArgumentParser(description="LucidNews - reliable tech intelligence and newsletter pipeline")
     parser.add_argument("--hours", type=int, help="Force fetch from last N hours")
     add_data_dir_arguments(parser)
     add_log_level_argument(parser)
@@ -84,7 +77,7 @@ def main():
                 )
             if args.config is None and data_dir == Path("data"):
                 console.print(
-                    "Or run [bold cyan]uv run horizon-wizard[/bold cyan] to launch the interactive setup wizard.\n"
+                    "Or run [bold cyan]uv run lucidnews-wizard[/bold cyan] to launch the interactive setup wizard.\n"
                 )
             sys.exit(1)
         except ConfigError as e:
@@ -101,7 +94,7 @@ def main():
         icons = get_icons(config.display.icon_style)
 
         # Create and run orchestrator
-        orchestrator = HorizonOrchestrator(config, storage, console=console)
+        orchestrator = PipelineOrchestrator(config, storage, console=console)
         asyncio.run(orchestrator.run(force_hours=args.hours))
 
     except KeyboardInterrupt:
@@ -111,86 +104,6 @@ def main():
         console.print(f"\n[bold red]{icons['error']} Fatal error: {e}[/bold red]")
         console.print_exception()
         sys.exit(1)
-
-
-def print_config_template():
-    """Print configuration template."""
-    template = """
-{
-  "ai": {
-    "provider": "anthropic",
-    "model": "claude-sonnet-4.5-20250929",
-    "api_key_env": "ANTHROPIC_API_KEY",
-    "temperature": 0.3,
-    "max_tokens": 4096
-  },
-  "display": {
-    "icon_style": "emoji"
-  },
-  "sources": {
-    "github": [
-      {
-        "type": "user_events",
-        "username": "torvalds",
-        "enabled": true,
-        "profile": "tech-news"
-      }
-    ],
-    "hackernews": {
-      "enabled": true,
-      "fetch_top_stories": 30,
-      "min_score": 100,
-      "profile": "tech-news"
-    },
-    "rss": [
-      {
-        "name": "Example Blog",
-        "url": "https://example.com/feed.xml",
-        "enabled": true,
-        "category": "software-engineering",
-        "profile": "auto"
-      }
-    ]
-  },
-  "collection": {
-    "time_window_hours": 24
-  },
-  "digest": {
-    "max_items": null,
-    "profile_order": [
-      "tech-news",
-      "tech-blog",
-      "finance-news"
-    ],
-    "category_groups": {},
-    "default_group": "other",
-    "default_group_limit": null
-  },
-  "processing": {
-    "profiles_dir": "profiles",
-    "default_profile": "tech-news",
-    "profile_settings": {
-      "tech-news": {
-        "threshold": 7.0,
-        "topic_dedup": true
-      },
-      "tech-blog": {
-        "threshold": 4.0,
-        "topic_dedup": false
-      },
-      "finance-news": {
-        "threshold": 7.0,
-        "topic_dedup": true
-      }
-    }
-  }
-}
-
-Also create a .env file with:
-ANTHROPIC_API_KEY=your_api_key_here
-GITHUB_TOKEN=your_github_token_here (optional but recommended)
-"""
-    console.print(template)
 
 
 if __name__ == "__main__":

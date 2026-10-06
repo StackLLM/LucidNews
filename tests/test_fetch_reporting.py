@@ -10,7 +10,7 @@ import pytest
 from rich.console import Console
 
 from src.models import ContentItem, SourceType
-from src.orchestrator import FetchReport, HorizonOrchestrator, SourceFetchOutcome
+from src.orchestrator import FetchReport, PipelineOrchestrator, SourceFetchOutcome
 
 
 SINCE = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -28,12 +28,11 @@ def make_item(item_id: str) -> ContentItem:
     )
 
 
-def make_orchestrator() -> HorizonOrchestrator:
-    orchestrator = object.__new__(HorizonOrchestrator)
+def make_orchestrator() -> PipelineOrchestrator:
+    orchestrator = object.__new__(PipelineOrchestrator)
     orchestrator.console = Console(file=StringIO())
     orchestrator.last_fetch_report = None
     orchestrator.webhook_notifier = None
-    orchestrator.wechat_notifier = None
     return orchestrator
 
 
@@ -45,7 +44,6 @@ def make_sources(**overrides):  # type: ignore[no-untyped-def]
         "reddit": SimpleNamespace(enabled=False),
         "telegram": SimpleNamespace(enabled=False),
         "twitter": None,
-        "openbb": None,
         "ossinsight": SimpleNamespace(enabled=False),
         "gdelt": None,
         "google_news": None,
@@ -115,7 +113,7 @@ def test_partial_failure_keeps_items_and_source_names(monkeypatch) -> None:
     assert source_reports[1]["error"] == "ValueError: unavailable"
 
 
-@pytest.mark.parametrize("channel", ["webhook_notifier", "wechat_notifier"])
+@pytest.mark.parametrize("channel", ["webhook_notifier"])
 def test_native_run_raises_when_every_attempted_source_failed(monkeypatch, channel) -> None:
     orchestrator = make_orchestrator()
     orchestrator.config = SimpleNamespace(  # type: ignore[assignment]

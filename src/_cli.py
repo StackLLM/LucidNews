@@ -1,4 +1,4 @@
-"""Shared CLI argument helpers for Horizon entrypoints."""
+"""Shared CLI argument helpers for LucidNews entrypoints."""
 
 import argparse
 

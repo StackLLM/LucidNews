@@ -1,4 +1,4 @@
-"""Shared logging configuration for Horizon entry points."""
+"""Shared logging configuration for LucidNews entry points."""
 
 import logging
 

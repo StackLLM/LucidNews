@@ -104,7 +104,7 @@ def test_build_config_hackernews_follows_selection_and_count():
     assert default_config.digest.profile_order == [
         "tech-news",
         "tech-blog",
-        "finance-news",
+        "ai-creator",
     ]
 
 
@@ -137,7 +137,6 @@ def test_merge_configs_preserves_all_existing_configuration_and_deduplicates_lis
                     "channels": [{"channel": "updates", "enabled": False, "fetch_limit": 7}],
                 },
                 "twitter": {"enabled": True, "users": ["openai"], "fetch_limit": 4},
-                "openbb": {"enabled": True, "watchlists": [{"name": "tech", "symbols": ["NVDA"]}]},
                 "ossinsight": {"enabled": True, "keywords": ["agent"], "max_items": 8},
                 "gdelt": {"enabled": True, "query": "robotics", "max_records": 13},
                 "google_news": {"enabled": True, "query": "semiconductors", "country": "GB"},
@@ -164,7 +163,7 @@ def test_merge_configs_preserves_all_existing_configuration_and_deduplicates_lis
     assert merged.ai == new.ai
     assert merged.collection == existing.collection
     assert merged.digest == existing.digest
-    for name in ("hackernews", "twitter", "openbb", "ossinsight", "gdelt", "google_news"):
+    for name in ("hackernews", "twitter", "ossinsight", "gdelt", "google_news"):
         assert getattr(merged.sources, name) == getattr(existing.sources, name)
     assert merged.sources.reddit.enabled is False
     assert merged.sources.reddit.fetch_comments == 42
@@ -190,7 +189,7 @@ def test_data_dir_and_config_flags_are_forwarded_to_storage_and_presets(monkeypa
     data_dir = tmp_path / "state"
     data_dir.mkdir()
     (data_dir / "presets.json").touch()
-    config_path = tmp_path / "custom" / "horizon.json"
+    config_path = tmp_path / "custom" / "lucidnews.json"
     storage_calls = []
     load_presets_calls = []
 
@@ -202,7 +201,7 @@ def test_data_dir_and_config_flags_are_forwarded_to_storage_and_presets(monkeypa
     monkeypatch.setattr(wizard, "StorageManager", RecordingStorage)
     monkeypatch.setattr(
         "sys.argv",
-        ["horizon-wizard", "--data-dir", str(data_dir), "--config", str(config_path)],
+        ["lucidnews-wizard", "--data-dir", str(data_dir), "--config", str(config_path)],
     )
 
     with pytest.raises(_StopWizard):
@@ -224,7 +223,7 @@ def test_data_dir_and_config_default_to_data_directory(monkeypatch):
 
     _prepare_main(monkeypatch, load_presets_calls)
     monkeypatch.setattr(wizard, "StorageManager", RecordingStorage)
-    monkeypatch.setattr("sys.argv", ["horizon-wizard"])
+    monkeypatch.setattr("sys.argv", ["lucidnews-wizard"])
 
     with pytest.raises(_StopWizard):
         wizard.main()
@@ -243,7 +242,7 @@ def test_missing_custom_presets_falls_back_to_bundled_file(monkeypatch, tmp_path
     _prepare_main(monkeypatch, load_presets_calls)
     monkeypatch.setattr(wizard, "StorageManager", RecordingStorage)
     monkeypatch.setattr(
-        "sys.argv", ["horizon-wizard", "--data-dir", str(tmp_path / "state")]
+        "sys.argv", ["lucidnews-wizard", "--data-dir", str(tmp_path / "state")]
     )
 
     with pytest.raises(_StopWizard):
@@ -269,7 +268,7 @@ def test_log_level_flag_is_forwarded_to_configure_logging(monkeypatch):
         "configure_logging",
         lambda console, level=None: logging_calls.append(level),
     )
-    monkeypatch.setattr("sys.argv", ["horizon-wizard", "--log-level", "debug"])
+    monkeypatch.setattr("sys.argv", ["lucidnews-wizard", "--log-level", "debug"])
 
     with pytest.raises(_StopWizard):
         wizard.main()

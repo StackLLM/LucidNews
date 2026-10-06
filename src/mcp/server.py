@@ -1,4 +1,4 @@
-"""MCP server entrypoint for Horizon."""
+"""MCP server entrypoint for LucidNews."""
 
 from __future__ import annotations
 
@@ -12,13 +12,13 @@ from rich.console import Console
 
 from .._cli import add_log_level_argument
 from ..logging_config import configure_logging
-from .errors import HorizonMcpError
-from .service import HorizonPipelineService
+from .errors import LucidNewsMcpError
+from .service import PipelineService
 
 
 console = Console(stderr=True)
-mcp = FastMCP(name="horizon-mcp")
-service = HorizonPipelineService(console=console)
+mcp = FastMCP(name="lucidnews-mcp")
+service = PipelineService(console=console)
 
 SERVER_STARTED_AT = datetime.now(timezone.utc).isoformat()
 METRICS: dict[str, Any] = {
@@ -48,12 +48,12 @@ def _ok(tool: str, data: dict[str, Any], duration_ms: float | None = None) -> di
 
 
 def _err(tool: str, error: Exception, duration_ms: float | None = None) -> dict[str, Any]:
-    if isinstance(error, HorizonMcpError):
+    if isinstance(error, LucidNewsMcpError):
         code = error.code
         message = error.message
         details = error.details
     else:
-        code = "HZ_INTERNAL_ERROR"
+        code = "LN_INTERNAL_ERROR"
         message = str(error)
         details = None
 
@@ -134,18 +134,18 @@ def _metrics_snapshot() -> dict[str, Any]:
 
 
 @mcp.tool()
-async def hz_validate_config(
-    horizon_path: str | None = None,
+async def ln_validate_config(
+    project_path: str | None = None,
     config_path: str | None = None,
     sources: list[str] | None = None,
     check_env: bool = True,
 ) -> dict[str, Any]:
-    """Validate Horizon config and required environment variables."""
+    """Validate LucidNews config and required environment variables."""
 
     return await _run_tool(
-        "hz_validate_config",
+        "ln_validate_config",
         lambda: service.validate_config(
-            horizon_path=horizon_path,
+            project_path=project_path,
             config_path=config_path,
             sources=sources,
             check_env=check_env,
@@ -154,21 +154,21 @@ async def hz_validate_config(
 
 
 @mcp.tool()
-async def hz_fetch_items(
+async def ln_fetch_items(
     hours: int = 24,
     run_id: str | None = None,
-    horizon_path: str | None = None,
+    project_path: str | None = None,
     config_path: str | None = None,
     sources: list[str] | None = None,
 ) -> dict[str, Any]:
     """Fetch and deduplicate content into the raw stage."""
 
     return await _run_tool(
-        "hz_fetch_items",
+        "ln_fetch_items",
         lambda: service.fetch_items(
             hours=hours,
             run_id=run_id,
-            horizon_path=horizon_path,
+            project_path=project_path,
             config_path=config_path,
             sources=sources,
         ),
@@ -176,138 +176,138 @@ async def hz_fetch_items(
 
 
 @mcp.tool()
-async def hz_score_items(
+async def ln_score_items(
     run_id: str,
     source_stage: str = "raw",
-    horizon_path: str | None = None,
+    project_path: str | None = None,
     config_path: str | None = None,
 ) -> dict[str, Any]:
     """Score a stage into the scored stage."""
 
     return await _run_tool(
-        "hz_score_items",
+        "ln_score_items",
         lambda: service.score_items(
             run_id=run_id,
             source_stage=source_stage,
-            horizon_path=horizon_path,
+            project_path=project_path,
             config_path=config_path,
         ),
     )
 
 
 @mcp.tool()
-async def hz_filter_items(
+async def ln_filter_items(
     run_id: str,
     threshold: float | None = None,
     source_stage: str = "scored",
     topic_dedup: bool = True,
-    horizon_path: str | None = None,
+    project_path: str | None = None,
     config_path: str | None = None,
 ) -> dict[str, Any]:
     """Filter scored items into the filtered stage."""
 
     return await _run_tool(
-        "hz_filter_items",
+        "ln_filter_items",
         lambda: service.filter_items(
             run_id=run_id,
             threshold=threshold,
             source_stage=source_stage,
             topic_dedup=topic_dedup,
-            horizon_path=horizon_path,
+            project_path=project_path,
             config_path=config_path,
         ),
     )
 
 
 @mcp.tool()
-async def hz_enrich_items(
+async def ln_enrich_items(
     run_id: str,
     source_stage: str = "filtered",
-    horizon_path: str | None = None,
+    project_path: str | None = None,
     config_path: str | None = None,
 ) -> dict[str, Any]:
     """Enrich filtered items into the enriched stage."""
 
     return await _run_tool(
-        "hz_enrich_items",
+        "ln_enrich_items",
         lambda: service.enrich_items(
             run_id=run_id,
             source_stage=source_stage,
-            horizon_path=horizon_path,
+            project_path=project_path,
             config_path=config_path,
         ),
     )
 
 
 @mcp.tool()
-async def hz_generate_summary(
+async def ln_generate_summary(
     run_id: str,
     language: str = "zh",
     source_stage: str | None = None,
-    horizon_path: str | None = None,
+    project_path: str | None = None,
     config_path: str | None = None,
-    save_to_horizon_data: bool = False,
+    save_to_project_data: bool = False,
 ) -> dict[str, Any]:
     """Generate a markdown summary from a stage."""
 
     return await _run_tool(
-        "hz_generate_summary",
+        "ln_generate_summary",
         lambda: service.generate_summary(
             run_id=run_id,
             language=language,
             source_stage=source_stage,
-            horizon_path=horizon_path,
+            project_path=project_path,
             config_path=config_path,
-            save_to_horizon_data=save_to_horizon_data,
+            save_to_project_data=save_to_project_data,
         ),
     )
 
 
 @mcp.tool()
-async def hz_run_pipeline(
+async def ln_run_pipeline(
     hours: int = 24,
     languages: list[str] | None = None,
     threshold: float | None = None,
-    horizon_path: str | None = None,
+    project_path: str | None = None,
     config_path: str | None = None,
     sources: list[str] | None = None,
     enrich: bool = True,
     topic_dedup: bool = True,
-    save_to_horizon_data: bool = False,
+    save_to_project_data: bool = False,
 ) -> dict[str, Any]:
     """Run fetch -> score -> filter -> enrich -> summarize in one call."""
 
     return await _run_tool(
-        "hz_run_pipeline",
+        "ln_run_pipeline",
         lambda: service.run_pipeline(
             hours=hours,
             languages=languages,
             threshold=threshold,
-            horizon_path=horizon_path,
+            project_path=project_path,
             config_path=config_path,
             sources=sources,
             enrich=enrich,
             topic_dedup=topic_dedup,
-            save_to_horizon_data=save_to_horizon_data,
+            save_to_project_data=save_to_project_data,
         ),
     )
 
 
 @mcp.tool()
-def hz_list_runs(limit: int = 20) -> dict[str, Any]:
+def ln_list_runs(limit: int = 20) -> dict[str, Any]:
     """List recent runs and stage states."""
 
     started = perf_counter()
     try:
         data = service.list_runs(limit=limit)
         elapsed_ms = (perf_counter() - started) * 1000
-        _record_metrics("hz_list_runs", ok=True, duration_ms=elapsed_ms)
-        return _ok("hz_list_runs", data, duration_ms=elapsed_ms)
+        _record_metrics("ln_list_runs", ok=True, duration_ms=elapsed_ms)
+        return _ok("ln_list_runs", data, duration_ms=elapsed_ms)
     except Exception as exc:
         elapsed_ms = (perf_counter() - started) * 1000
-        payload = _err("hz_list_runs", exc, duration_ms=elapsed_ms)
+        payload = _err("ln_list_runs", exc, duration_ms=elapsed_ms)
         _record_metrics(
-            "hz_list_runs",
+            "ln_list_runs",
             ok=False,
             duration_ms=elapsed_ms,
             error_code=payload["error"]["code"],
@@ -316,20 +316,20 @@ def hz_list_runs(limit: int = 20) -> dict[str, Any]:
 
 
 @mcp.tool()
-def hz_get_run_meta(run_id: str) -> dict[str, Any]:
+def ln_get_run_meta(run_id: str) -> dict[str, Any]:
     """Read run metadata."""
 
     started = perf_counter()
     try:
         data = service.get_run_meta(run_id)
         elapsed_ms = (perf_counter() - started) * 1000
-        _record_metrics("hz_get_run_meta", ok=True, duration_ms=elapsed_ms)
-        return _ok("hz_get_run_meta", data, duration_ms=elapsed_ms)
+        _record_metrics("ln_get_run_meta", ok=True, duration_ms=elapsed_ms)
+        return _ok("ln_get_run_meta", data, duration_ms=elapsed_ms)
     except Exception as exc:
         elapsed_ms = (perf_counter() - started) * 1000
-        payload = _err("hz_get_run_meta", exc, duration_ms=elapsed_ms)
+        payload = _err("ln_get_run_meta", exc, duration_ms=elapsed_ms)
         _record_metrics(
-            "hz_get_run_meta",
+            "ln_get_run_meta",
             ok=False,
             duration_ms=elapsed_ms,
             error_code=payload["error"]["code"],
@@ -338,20 +338,20 @@ def hz_get_run_meta(run_id: str) -> dict[str, Any]:
 
 
 @mcp.tool()
-def hz_get_run_stage(run_id: str, stage: str, max_items: int = 200) -> dict[str, Any]:
+def ln_get_run_stage(run_id: str, stage: str, max_items: int = 200) -> dict[str, Any]:
     """Read items from a run stage."""
 
     started = perf_counter()
     try:
         data = service.get_run_stage(run_id=run_id, stage=stage, max_items=max_items)
         elapsed_ms = (perf_counter() - started) * 1000
-        _record_metrics("hz_get_run_stage", ok=True, duration_ms=elapsed_ms)
-        return _ok("hz_get_run_stage", data, duration_ms=elapsed_ms)
+        _record_metrics("ln_get_run_stage", ok=True, duration_ms=elapsed_ms)
+        return _ok("ln_get_run_stage", data, duration_ms=elapsed_ms)
     except Exception as exc:
         elapsed_ms = (perf_counter() - started) * 1000
-        payload = _err("hz_get_run_stage", exc, duration_ms=elapsed_ms)
+        payload = _err("ln_get_run_stage", exc, duration_ms=elapsed_ms)
         _record_metrics(
-            "hz_get_run_stage",
+            "ln_get_run_stage",
             ok=False,
             duration_ms=elapsed_ms,
             error_code=payload["error"]["code"],
@@ -360,20 +360,20 @@ def hz_get_run_stage(run_id: str, stage: str, max_items: int = 200) -> dict[str,
 
 
 @mcp.tool()
-def hz_get_run_summary(run_id: str, language: str = "zh") -> dict[str, Any]:
+def ln_get_run_summary(run_id: str, language: str = "zh") -> dict[str, Any]:
     """Read a generated run summary."""
 
     started = perf_counter()
     try:
         data = service.get_run_summary(run_id=run_id, language=language)
         elapsed_ms = (perf_counter() - started) * 1000
-        _record_metrics("hz_get_run_summary", ok=True, duration_ms=elapsed_ms)
-        return _ok("hz_get_run_summary", data, duration_ms=elapsed_ms)
+        _record_metrics("ln_get_run_summary", ok=True, duration_ms=elapsed_ms)
+        return _ok("ln_get_run_summary", data, duration_ms=elapsed_ms)
     except Exception as exc:
         elapsed_ms = (perf_counter() - started) * 1000
-        payload = _err("hz_get_run_summary", exc, duration_ms=elapsed_ms)
+        payload = _err("ln_get_run_summary", exc, duration_ms=elapsed_ms)
         _record_metrics(
-            "hz_get_run_summary",
+            "ln_get_run_summary",
             ok=False,
             duration_ms=elapsed_ms,
             error_code=payload["error"]["code"],
@@ -382,20 +382,20 @@ def hz_get_run_summary(run_id: str, language: str = "zh") -> dict[str, Any]:
 
 
 @mcp.tool()
-def hz_get_metrics() -> dict[str, Any]:
+def ln_get_metrics() -> dict[str, Any]:
     """Read in-memory server metrics."""
 
     started = perf_counter()
     try:
         data = _metrics_snapshot()
         elapsed_ms = (perf_counter() - started) * 1000
-        _record_metrics("hz_get_metrics", ok=True, duration_ms=elapsed_ms)
-        return _ok("hz_get_metrics", data, duration_ms=elapsed_ms)
+        _record_metrics("ln_get_metrics", ok=True, duration_ms=elapsed_ms)
+        return _ok("ln_get_metrics", data, duration_ms=elapsed_ms)
     except Exception as exc:
         elapsed_ms = (perf_counter() - started) * 1000
-        payload = _err("hz_get_metrics", exc, duration_ms=elapsed_ms)
+        payload = _err("ln_get_metrics", exc, duration_ms=elapsed_ms)
         _record_metrics(
-            "hz_get_metrics",
+            "ln_get_metrics",
             ok=False,
             duration_ms=elapsed_ms,
             error_code=payload["error"]["code"],
@@ -404,26 +404,26 @@ def hz_get_metrics() -> dict[str, Any]:
 
 
 @mcp.tool()
-async def hz_send_webhook(
+async def ln_send_webhook(
     date: str,
     language: str = "zh",
     important_items: int = 0,
     all_items: int = 0,
     result: str = "success",
     summary: str = "",
-    horizon_path: str | None = None,
+    project_path: str | None = None,
     config_path: str | None = None,
 ) -> dict[str, Any]:
     """Send a webhook notification with the given variables.
 
     Uses the webhook URL (from environment variable), request_body template,
-    and headers from the Horizon config. Template variables #{date}, #{language},
+    and headers from the LucidNews config. Template variables #{date}, #{language},
     #{important_items}, #{all_items}, #{result}, #{timestamp},
     #{summary} are replaced in the URL and request_body before sending.
     """
 
     return await _run_tool(
-        "hz_send_webhook",
+        "ln_send_webhook",
         lambda: service.send_webhook(
             date=date,
             language=language,
@@ -431,77 +431,77 @@ async def hz_send_webhook(
             all_items=all_items,
             result=result,
             summary=summary,
-            horizon_path=horizon_path,
+            project_path=project_path,
             config_path=config_path,
         ),
     )
 
 
-@mcp.resource("horizon://server/info")
+@mcp.resource("lucidnews://server/info")
 def r_server_info() -> dict[str, Any]:
     """Server metadata resource."""
 
     return {
-        "name": "horizon-mcp",
+        "name": "lucidnews-mcp",
         "started_at": SERVER_STARTED_AT,
         "runs_root": str(service.runs_root.resolve()),
     }
 
 
-@mcp.resource("horizon://metrics")
+@mcp.resource("lucidnews://metrics")
 def r_metrics() -> dict[str, Any]:
     """In-memory metrics snapshot."""
 
-    return _resource_result("horizon://metrics", _metrics_snapshot)
+    return _resource_result("lucidnews://metrics", _metrics_snapshot)
 
 
-@mcp.resource("horizon://runs")
+@mcp.resource("lucidnews://runs")
 def r_runs() -> dict[str, Any]:
     """Recent run list."""
 
-    return _resource_result("horizon://runs", lambda: service.list_runs(limit=30))
+    return _resource_result("lucidnews://runs", lambda: service.list_runs(limit=30))
 
 
-@mcp.resource("horizon://runs/{run_id}/meta")
+@mcp.resource("lucidnews://runs/{run_id}/meta")
 def r_run_meta(run_id: str) -> dict[str, Any]:
     """Run metadata resource."""
 
     return _resource_result(
-        f"horizon://runs/{run_id}/meta",
+        f"lucidnews://runs/{run_id}/meta",
         lambda: service.get_run_meta(run_id),
     )
 
 
-@mcp.resource("horizon://runs/{run_id}/items/{stage}")
+@mcp.resource("lucidnews://runs/{run_id}/items/{stage}")
 def r_run_items(run_id: str, stage: str) -> dict[str, Any]:
     """Run stage items resource."""
 
     return _resource_result(
-        f"horizon://runs/{run_id}/items/{stage}",
+        f"lucidnews://runs/{run_id}/items/{stage}",
         lambda: service.get_run_stage(run_id=run_id, stage=stage, max_items=200),
     )
 
 
-@mcp.resource("horizon://runs/{run_id}/summary/{language}")
+@mcp.resource("lucidnews://runs/{run_id}/summary/{language}")
 def r_run_summary(run_id: str, language: str) -> dict[str, Any]:
     """Run summary resource."""
 
     return _resource_result(
-        f"horizon://runs/{run_id}/summary/{language}",
+        f"lucidnews://runs/{run_id}/summary/{language}",
         lambda: service.get_run_summary(run_id=run_id, language=language),
     )
 
 
-@mcp.resource("horizon://config/effective")
+@mcp.resource("lucidnews://config/effective")
 def r_effective_config() -> dict[str, Any]:
-    """Effective default config resolved from local Horizon path."""
+    """Effective default config resolved from local LucidNews path."""
 
-    return _resource_result("horizon://config/effective", service.get_effective_config)
+    return _resource_result("lucidnews://config/effective", service.get_effective_config)
 
 
 def main() -> None:
     """Run MCP server over stdio."""
-    parser = argparse.ArgumentParser(description="Horizon MCP server")
+    parser = argparse.ArgumentParser(description="LucidNews MCP server")
     add_log_level_argument(parser, default="INFO")
     args = parser.parse_args()
 

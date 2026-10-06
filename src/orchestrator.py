@@ -15,7 +15,6 @@ from .models import Config, ContentItem
 from .storage.manager import StorageManager, safe_output_path
 from .services.email import EmailManager
 from .services.webhook import WebhookNotifier
-from .services.wechat import WeChatNotifier
 from .scrapers.github import GitHubScraper
 from .scrapers.hackernews import HackerNewsScraper
 from .scrapers.rss import RSSScraper
@@ -23,7 +22,6 @@ from .scrapers.reddit import RedditScraper
 from .scrapers.telegram import TelegramScraper
 from .scrapers.twitter import TwitterScraper
 from .scrapers.twitter_playwright import TwitterPlaywrightScraper
-from .scrapers.openbb import OpenBBScraper
 from .scrapers.ossinsight import OSSInsightScraper
 from .scrapers.gdelt import GDELTScraper
 from .scrapers.google_news import GoogleNewsScraper
@@ -167,7 +165,7 @@ class FetchReport:
         }
 
 
-class HorizonOrchestrator:
+class PipelineOrchestrator:
     """Orchestrates the complete workflow for content aggregation and analysis."""
 
     icons = get_icons()
@@ -217,11 +215,6 @@ class HorizonOrchestrator:
             if config.webhook and config.webhook.enabled
             else None
         )
-        self.wechat_notifier = (
-            WeChatNotifier(config.wechat, self.storage, console=self.console, icons=self.icons)
-            if config.wechat and config.wechat.enabled
-            else None
-        )
         self.last_fetch_report: Optional[FetchReport] = None
 
     async def run(self, force_hours: int = None) -> None:
@@ -231,7 +224,7 @@ class HorizonOrchestrator:
             force_hours: Optional override for time window in hours
         """
         self.console.print(
-            f"[bold cyan]{self.icons['start']} Horizon - Starting aggregation...[/bold cyan]\n"
+            f"[bold cyan]{self.icons['start']} LucidNews - Starting aggregation...[/bold cyan]\n"
         )
 
         # Check email subscriptions if configured
@@ -313,54 +306,13 @@ class HorizonOrchestrator:
                     f"{self.icons['save']} Saved {lang.upper()} summary to: {summary_path}\n"
                 )
 
-                # Copy to docs/ for GitHub Pages
-                try:
-                    from pathlib import Path
-
-                    post_filename = f"{today}-summary-{lang}.md"
-                    posts_dir = Path("docs/_posts")
-                    posts_dir.mkdir(parents=True, exist_ok=True)
-
-                    dest_path = safe_output_path(posts_dir, post_filename)
-
-                    # Add Jekyll front matter
-                    front_matter = (
-                        "---\n"
-                        "layout: default\n"
-                        f"title: \"Horizon Summary: {today} ({lang.upper()})\"\n"
-                        f"date: {today}\n"
-                        f"lang: {lang}\n"
-                        "---\n\n"
-                    )
-
-                    # Strip leading H1 header to avoid duplication with Jekyll title
-                    summary_content = summary
-                    first_line = summary_content.strip().split("\n")[0]
-                    if first_line.startswith("# "):
-                        parts = summary_content.split("\n", 1)
-                        if len(parts) > 1:
-                            summary_content = parts[1].strip()
-
-                    with open(dest_path, "w", encoding="utf-8") as f:
-                        f.write(front_matter + summary_content)
-
-                    self.console.print(
-                        f"{self.icons['document']} Copied {lang.upper()} summary "
-                        f"to GitHub Pages: {dest_path}\n"
-                    )
-                except Exception as e:
-                    self.console.print(
-                        f"[yellow]{self.icons['warning']} Failed to copy "
-                        f"{lang.upper()} summary to docs/: {e}[/yellow]\n"
-                    )
-
                 # Send email if configured
                 if self.email_manager and self.config.email and self.config.email.enabled:
                     self.console.print(
                         f"{self.icons['email']} Sending {lang.upper()} email summary..."
                     )
                     subscribers = self.storage.load_subscribers()
-                    subject = f"Horizon Summary ({lang.upper()}) - {today}"
+                    subject = f"LucidNews Summary ({lang.upper()}) - {today}"
                     self.email_manager.send_daily_summary(summary, subject, subscribers)
 
                 # Send webhook notification if configured
@@ -373,12 +325,10 @@ class HorizonOrchestrator:
                         lang=lang,
                         summarizer=summarizer,
                     )
-                if self.wechat_notifier:
-                    await self.wechat_notifier.send_daily_summary(summary, lang)
 
             self.console.print(
                 f"[bold green]{self.icons['success']} "
-                "Horizon completed successfully![/bold green]"
+                "LucidNews completed successfully![/bold green]"
             )
             usage = get_usage_snapshot()
             if usage.total_tokens > 0:
@@ -403,11 +353,6 @@ class HorizonOrchestrator:
             # Send webhook failure notification if configured
             if self.webhook_notifier:
                 await self.webhook_notifier.send_failure(
-                    date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-                    error_message=str(e),
-                )
-            if self.wechat_notifier:
-                await self.wechat_notifier.send_failure(
                     date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
                     error_message=str(e),
                 )
@@ -475,11 +420,6 @@ class HorizonOrchestrator:
                 else:
                     twitter_scraper = TwitterScraper(tw_cfg, client)
                 tasks.append(self._fetch_with_progress("Twitter", twitter_scraper, since))
-
-            # OpenBB (financial news / filings via the OpenBB Platform SDK)
-            if self.config.sources.openbb and self.config.sources.openbb.enabled:
-                openbb_scraper = OpenBBScraper(self.config.sources.openbb, client)
-                tasks.append(self._fetch_with_progress("OpenBB", openbb_scraper, since))
 
             # OSS Insight trending repos
             if self.config.sources.ossinsight and self.config.sources.ossinsight.enabled:

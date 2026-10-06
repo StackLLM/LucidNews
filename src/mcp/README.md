@@ -1,41 +1,41 @@
-# Horizon MCP
+# LucidNews MCP
 
-Horizon includes a built-in MCP server that exposes the native Horizon pipeline as staged tools and read-only resources.
+LucidNews includes a built-in MCP server that exposes the native LucidNews pipeline as staged tools and read-only resources.
 
-The MCP layer does not reimplement Horizon business logic. It reuses the existing fetch, score, filter, enrich, and summarize modules from the main codebase.
+The MCP layer does not reimplement LucidNews business logic. It reuses the existing fetch, score, filter, enrich, and summarize modules from the main codebase.
 
 ## Tools
 
 | Tool | Description |
 | --- | --- |
-| `hz_validate_config` | Validate Horizon config and required environment variables |
-| `hz_fetch_items` | Fetch and deduplicate content into the `raw` stage |
-| `hz_score_items` | Score items from a stage into `scored` |
-| `hz_filter_items` | Filter scored items into `filtered` |
-| `hz_enrich_items` | Enrich filtered items into `enriched` |
-| `hz_generate_summary` | Generate markdown from a stage |
-| `hz_run_pipeline` | Run fetch -> score -> filter -> enrich -> summarize |
-| `hz_list_runs` | List recent run artifacts |
-| `hz_get_run_meta` | Read metadata for a run |
-| `hz_get_run_stage` | Read items from a run stage |
-| `hz_get_run_summary` | Read a generated summary |
-| `hz_get_metrics` | Read in-memory server metrics |
+| `ln_validate_config` | Validate LucidNews config and required environment variables |
+| `ln_fetch_items` | Fetch and deduplicate content into the `raw` stage |
+| `ln_score_items` | Score items from a stage into `scored` |
+| `ln_filter_items` | Filter scored items into `filtered` |
+| `ln_enrich_items` | Enrich filtered items into `enriched` |
+| `ln_generate_summary` | Generate markdown from a stage |
+| `ln_run_pipeline` | Run fetch -> score -> filter -> enrich -> summarize |
+| `ln_list_runs` | List recent run artifacts |
+| `ln_get_run_meta` | Read metadata for a run |
+| `ln_get_run_stage` | Read items from a run stage |
+| `ln_get_run_summary` | Read a generated summary |
+| `ln_get_metrics` | Read in-memory server metrics |
 
 ## Resources
 
-- `horizon://server/info`
-- `horizon://metrics`
-- `horizon://runs`
-- `horizon://runs/{run_id}/meta`
-- `horizon://runs/{run_id}/items/{stage}`
-- `horizon://runs/{run_id}/summary/{language}`
-- `horizon://config/effective`
+- `lucidnews://server/info`
+- `lucidnews://metrics`
+- `lucidnews://runs`
+- `lucidnews://runs/{run_id}/meta`
+- `lucidnews://runs/{run_id}/items/{stage}`
+- `lucidnews://runs/{run_id}/summary/{language}`
+- `lucidnews://config/effective`
 
 ## Install and Start
 
 ```bash
 uv sync
-uv run horizon-mcp
+uv run lucidnews-mcp
 ```
 
 | Option | Default | Description |
@@ -57,7 +57,7 @@ Each run writes artifacts under `data/mcp-runs/<run_id>/`:
 
 ## Design Principles
 
-1. Keep Horizon as the single source of business logic.
+1. Keep LucidNews as the single source of business logic.
 2. Preserve staged re-entry so a run can continue from intermediate artifacts.
 3. Default to no extra side effects unless explicitly requested.
 

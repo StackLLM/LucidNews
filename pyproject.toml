@@ -1,7 +1,7 @@
 [project]
-name = "horizon"
+name = "lucidnews"
 version = "0.1.0"
-description = "AI-driven information aggregation system for tracking academic and social trends"
+description = "LucidNews — reliable tech intelligence: collect, verify, classify, summarize and deliver IT news"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
@@ -22,7 +22,6 @@ dependencies = [
     "mcp>=1.0.0",
     "opencc-python-reimplemented>=0.1.7",
     "trafilatura>=2.1.0",
-    "qrcode>=7.4",
 ]
 
 [project.optional-dependencies]
@@ -30,20 +29,15 @@ dev = [
     "pytest>=8.0.0",
     "pytest-cov>=5.0.0",
 ]
-openbb = [
-    "openbb>=4.4.0",
-    "openbb-benzinga>=1.6.0",
-]
 twitter = [
     "playwright>=1.40.0",
     "playwright-stealth>=1.0.0",
 ]
 [project.scripts]
-horizon = "src.main:main"
-horizon-mcp = "src.mcp.server:main"
-horizon-wizard = "src.setup.wizard:main"
-horizon-webhook = "src.services.webhook_cli:main"
-horizon-wechat = "src.services.wechat_cli:main"
+lucidnews = "src.main:main"
+lucidnews-mcp = "src.mcp.server:main"
+lucidnews-wizard = "src.setup.wizard:main"
+lucidnews-webhook = "src.services.webhook_cli:main"
 
 [build-system]
 requires = ["hatchling"]

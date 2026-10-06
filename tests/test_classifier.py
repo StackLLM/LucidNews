@@ -114,7 +114,7 @@ def test_candidate_profiles_restrict_ai_catalog():
 
     async def complete(**kwargs):
         requests.append(kwargs)
-        return '{"profile":"finance-news","confidence":0.95,"reason":"Finance first"}'
+        return '{"profile":"ai-creator","confidence":0.95,"reason":"Finance first"}'
 
     item = ContentItem(
         id="telegram:test:1",
@@ -123,18 +123,18 @@ def test_candidate_profiles_restrict_ai_catalog():
         url="https://example.com/finance",
         content="The central bank reduced its benchmark rate.",
         published_at=datetime.now(timezone.utc),
-        profile=["tech-news", "finance-news"],
+        profile=["tech-news", "ai-creator"],
     )
 
     profile = asyncio.run(
         ContentClassifier(SimpleNamespace(complete=complete), BASE_PROFILES).resolve(item)
     )
 
-    assert profile.id == "finance-news"
+    assert profile.id == "ai-creator"
     assert item.processing is not None
     assert item.processing.classification.method == "ai_match"
     assert "## tech-news:" in requests[0]["user"]
-    assert "## finance-news:" in requests[0]["user"]
+    assert "## ai-creator:" in requests[0]["user"]
     assert "## tech-blog:" not in requests[0]["user"]
 
 
@@ -148,14 +148,14 @@ def test_candidate_classification_failure_falls_back_within_candidates():
         title="Quarterly earnings",
         url="https://example.com/earnings",
         published_at=datetime.now(timezone.utc),
-        profile=["finance-news", "tech-blog"],
+        profile=["ai-creator", "tech-blog"],
     )
 
     profile = asyncio.run(
         ContentClassifier(SimpleNamespace(complete=complete), BASE_PROFILES).resolve(item)
     )
 
-    assert profile.id == "finance-news"
+    assert profile.id == "ai-creator"
     assert item.processing is not None
-    assert item.processing.classification.profile == "finance-news"
+    assert item.processing.classification.profile == "ai-creator"
     assert item.processing.classification.confidence == 0

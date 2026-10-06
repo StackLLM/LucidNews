@@ -4,22 +4,22 @@ import json
 import os
 from pathlib import Path
 
-from src.mcp.horizon_adapter import (
+from src.mcp.pipeline_adapter import (
     _load_mcp_secrets,
     apply_source_filter,
     get_enabled_sources,
     load_config,
     load_runtime,
     resolve_config_path,
-    resolve_horizon_path,
+    resolve_project_path,
 )
 from src.models import AIProvider, Config, SOURCE_REGISTRY, SourceType
 
 
-def test_resolve_horizon_path_accepts_explicit_repo() -> None:
+def test_resolve_project_path_accepts_explicit_repo() -> None:
     repo_root = Path(__file__).resolve().parents[1]
 
-    assert resolve_horizon_path(str(repo_root)) == repo_root.resolve()
+    assert resolve_project_path(str(repo_root)) == repo_root.resolve()
 
 
 def test_resolve_config_path_defaults_to_repo_data_config(tmp_path: Path) -> None:
@@ -47,7 +47,7 @@ def test_load_mcp_secrets_loads_generic_env_keys(tmp_path: Path, monkeypatch) ->
     )
 
     repo_root = Path(__file__).resolve().parents[1]
-    monkeypatch.setenv("HORIZON_MCP_SECRETS_PATH", str(secrets_path))
+    monkeypatch.setenv("LUCIDNEWS_MCP_SECRETS_PATH", str(secrets_path))
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("CUSTOM_TOKEN", raising=False)
 
@@ -84,7 +84,7 @@ def test_load_config_expands_env_vars(tmp_path: Path, monkeypatch) -> None:
     assert config.ai.base_url == "https://api.example.com/v1"
 
 
-def test_apply_source_filter_handles_twitter_and_openbb() -> None:
+def test_apply_source_filter_handles_twitter_and_telegram() -> None:
     config = Config.model_validate(
         {
             "ai": {
@@ -98,9 +98,9 @@ def test_apply_source_filter_handles_twitter_and_openbb() -> None:
                     "users": ["openai"],
                     "keywords": ["LLM"],
                 },
-                "openbb": {
+                "telegram": {
                     "enabled": True,
-                    "watchlists": [{"name": "ai", "symbols": ["NVDA"]}],
+                    "channels": [{"channel": "ai_updates"}],
                 },
             },
             "collection": {},
@@ -115,17 +115,17 @@ def test_apply_source_filter_handles_twitter_and_openbb() -> None:
     assert filtered.sources.twitter.enabled is True
     assert filtered.sources.twitter.users == ["openai"]
     assert filtered.sources.twitter.keywords == ["LLM"]
-    assert filtered.sources.openbb.enabled is False
-    assert filtered.sources.openbb.watchlists == []
+    assert filtered.sources.telegram.enabled is False
+    assert filtered.sources.telegram.channels == []
 
-    filtered_openbb, chosen_openbb, unknown_openbb = apply_source_filter(
-        config, ["openbb"]
+    filtered_telegram, chosen_telegram, unknown_telegram = apply_source_filter(
+        config, ["telegram"]
     )
-    assert chosen_openbb == ["openbb"]
-    assert unknown_openbb == []
-    assert filtered_openbb.sources.twitter.enabled is False
-    assert filtered_openbb.sources.twitter.users == []
-    assert filtered_openbb.sources.twitter.keywords == []
+    assert chosen_telegram == ["telegram"]
+    assert unknown_telegram == []
+    assert filtered_telegram.sources.twitter.enabled is False
+    assert filtered_telegram.sources.twitter.users == []
+    assert filtered_telegram.sources.twitter.keywords == []
 
 
 def test_mcp_source_registry_covers_model_source_types() -> None:
@@ -145,7 +145,6 @@ def test_mcp_filter_and_reporting_support_every_registered_source() -> None:
                 "reddit": {"enabled": True, "subreddits": [{"subreddit": "python"}]},
                 "telegram": {"enabled": True, "channels": [{"channel": "updates"}]},
                 "twitter": {"enabled": True, "users": ["openai"]},
-                "openbb": {"enabled": True, "watchlists": [{"name": "tech", "symbols": ["NVDA"]}]},
                 "ossinsight": {"enabled": True},
                 "gdelt": {"enabled": True},
                 "google_news": {"enabled": True},

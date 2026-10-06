@@ -1,4 +1,4 @@
-"""Core data models for Horizon."""
+"""Core data models for LucidNews."""
 
 from datetime import datetime, timezone
 from enum import Enum
@@ -16,7 +16,6 @@ class SourceType(str, Enum):
     REDDIT = "reddit"
     TELEGRAM = "telegram"
     TWITTER = "twitter"
-    OPENBB = "openbb"
     OSSINSIGHT = "ossinsight"
     GDELT = "gdelt"
     GOOGLE_NEWS = "google_news"
@@ -37,7 +36,6 @@ SOURCE_REGISTRY = {
     SourceType.REDDIT.value: SourceDefinition("reddit", item_fields=("subreddits", "users")),
     SourceType.TELEGRAM.value: SourceDefinition("telegram", item_fields=("channels",)),
     SourceType.TWITTER.value: SourceDefinition("twitter", item_fields=("users", "keywords")),
-    SourceType.OPENBB.value: SourceDefinition("openbb", item_fields=("watchlists",)),
     SourceType.OSSINSIGHT.value: SourceDefinition("ossinsight"),
     SourceType.GDELT.value: SourceDefinition("gdelt"),
     SourceType.GOOGLE_NEWS.value: SourceDefinition("google_news"),
@@ -343,40 +341,6 @@ class TwitterConfig(BaseModel):
     cookie_file_pattern: str = "x_cookies_*.json"
 
 
-class OpenBBWatchlist(BaseModel):
-    """A named watchlist of tickers fetched from one OpenBB provider.
-
-    Each watchlist produces one news.company() call per run, so group
-    symbols by provider rather than creating one watchlist per symbol.
-    """
-
-    name: str
-    symbols: List[str] = Field(default_factory=list)
-    enabled: bool = True
-    provider: str = "yfinance"
-    fetch_limit: int = 20
-    category: Optional[str] = None
-    profile: ProfileRoute = None
-
-
-class OpenBBConfig(BaseModel):
-    """OpenBB Platform source configuration.
-
-    Uses the installed `openbb` SDK to fetch news and filings for a set of
-    tickers. The SDK is an optional dependency; if it is not installed the
-    scraper will no-op with a console warning rather than crash the run.
-
-    Provider credentials (FMP, Benzinga, Polygon, Intrinio, Tiingo, etc.)
-    are resolved by openbb from environment variables / its own user
-    settings file, so Horizon does not need to pass them explicitly.
-    """
-
-    enabled: bool = True
-    watchlists: List[OpenBBWatchlist] = Field(default_factory=list)
-    fetch_filings: bool = False
-    filings_provider: str = "sec"
-
-
 class OSSInsightConfig(BaseModel):
     """OSS Insight trending repos source configuration.
 
@@ -417,7 +381,7 @@ class GDELTConfig(BaseModel):
     timespan: Optional[str] = None  # e.g. "24h"; overrides since-derived window
     language: Optional[str] = None  # sourcelang filter, e.g. "english"; None = no filter
     country: Optional[str] = None  # sourcecountry filter; None = no filter
-    category: Optional[str] = None  # Horizon category label for downstream grouping
+    category: Optional[str] = None  # LucidNews category label for downstream grouping
     profile: ProfileRoute = None
 
 
@@ -448,7 +412,6 @@ class SourcesConfig(BaseModel):
     reddit: RedditConfig = Field(default_factory=RedditConfig)
     telegram: TelegramConfig = Field(default_factory=TelegramConfig)
     twitter: Optional[TwitterConfig] = None
-    openbb: Optional[OpenBBConfig] = None
     ossinsight: OSSInsightConfig = Field(default_factory=OSSInsightConfig)
     gdelt: Optional[GDELTConfig] = None
     google_news: Optional[GoogleNewsConfig] = None
@@ -521,14 +484,6 @@ class WebhookConfig(BaseModel):
         return v
 
 
-class WeChatConfig(BaseModel):
-    """Optional iLink delivery; credentials live in the data directory's session file."""
-
-    enabled: bool = False
-    languages: Optional[List[str]] = None
-    chunk_size: int = Field(default=4000, gt=0, le=4000)
-
-
 class EmailConfig(BaseModel):
     """Email configuration for updates/subscriptions."""
 
@@ -540,7 +495,7 @@ class EmailConfig(BaseModel):
     smtp_username: Optional[str] = None
     email_address: str
     password_env: str = "EMAIL_PASSWORD"
-    sender_name: str = "Horizon Daily"
+    sender_name: str = "LucidNews Daily"
     subscribe_keyword: str = "SUBSCRIBE"
     unsubscribe_keyword: str = "UNSUBSCRIBE"
     enabled: bool = False
@@ -624,4 +579,3 @@ class Config(BaseModel):
     extractors: Dict[str, ExtractorConfig] = Field(default_factory=dict)
     email: Optional[EmailConfig] = None
     webhook: Optional[WebhookConfig] = None
-    wechat: Optional[WeChatConfig] = None

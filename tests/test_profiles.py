@@ -15,7 +15,7 @@ def test_loads_builtin_profiles():
         Path(__file__).resolve().parents[1] / "profiles", "tech-news"
     )
 
-    for profile_id in ("tech-news", "tech-blog", "finance-news"):
+    for profile_id in ("tech-news", "tech-blog", "ai-creator"):
         profile = registry.get(profile_id)
         assert profile.match_prompt
         assert profile.analysis_prompt
@@ -26,13 +26,13 @@ def test_loads_builtin_profiles():
         for block in registry.get("tech-news").definition.enrichment.blocks
         if block.id == "impact"
     )
-    finance_impact = next(
+    creator_angle = next(
         block
-        for block in registry.get("finance-news").definition.enrichment.blocks
-        if block.id == "impact"
+        for block in registry.get("ai-creator").definition.enrichment.blocks
+        if block.id == "content_angle"
     )
     assert tech_impact.optional is True
-    assert finance_impact.optional is True
+    assert creator_angle.optional is True
 
 
 @pytest.mark.parametrize(

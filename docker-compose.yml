@@ -1,10 +1,10 @@
 services:
-  horizon:
+  lucidnews:
     build:
       context: .
       # args:
-      #   EXTRAS: trafilatura  # comma-separated optional extras, e.g. "trafilatura,openbb"
-    container_name: horizon
+      #   EXTRAS: trafilatura  # comma-separated optional extras, e.g. "twitter"
+    container_name: lucidnews
     volumes:
       - ./data:/app/data
       - ./.env:/app/.env:ro
@@ -12,5 +12,5 @@ services:
       - TZ=UTC
     restart: "no"
     # Run daily at 8:00 AM UTC (adjust as needed)
-    # For one-time run, use: docker compose run --rm horizon
+    # For one-time run, use: docker compose run --rm lucidnews
     command: ["--hours", "24"]

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from src.models import ContentItem, SourceType
-from src.orchestrator import HorizonOrchestrator
+from src.orchestrator import PipelineOrchestrator
 
 
 NOW = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -29,7 +29,7 @@ def item(
 
 
 def merge(items: list[ContentItem]) -> list[ContentItem]:
-    orchestrator = object.__new__(HorizonOrchestrator)
+    orchestrator = object.__new__(PipelineOrchestrator)
     return orchestrator.merge_cross_source_duplicates(items)
 
 
@@ -147,18 +147,18 @@ def test_candidate_profile_routes_are_hashable_and_preserve_route_distinctions()
         item(
             "candidate-one",
             "https://example.com/story",
-            profile=["tech-news", "finance-news"],
+            profile=["tech-news", "ai-creator"],
         ),
         item(
             "candidate-two",
             "https://example.com/story/",
             source_type=SourceType.TELEGRAM,
-            profile=["tech-news", "finance-news"],
+            profile=["tech-news", "ai-creator"],
         ),
         item(
             "different-order",
             "https://example.com/story",
-            profile=["finance-news", "tech-news"],
+            profile=["ai-creator", "tech-news"],
         ),
     ]
 

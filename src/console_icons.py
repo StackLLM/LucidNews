@@ -1,4 +1,4 @@
-"""Terminal icon sets used by Horizon's console output."""
+"""Terminal icon sets used by LucidNews's console output."""
 
 from typing import Literal
 
@@ -25,7 +25,6 @@ ICON_SETS: dict[IconStyle, dict[str, str]] = {
         "document": "📄",
         "webhook": "🔔",
         "webhook_skip": "🔕",
-        "wechat": "💚",
         "tokens": "🧮",
         "success": "✅",
         "warning": "⚠️",
@@ -50,7 +49,6 @@ ICON_SETS: dict[IconStyle, dict[str, str]] = {
         "document": "\uf15c",
         "webhook": "\uf0f3",
         "webhook_skip": "\uf1f6",
-        "wechat": "\uf1d7",
         "tokens": "\uf1ec",
         "success": "\uf058",
         "warning": "\uf071",
@@ -75,7 +73,6 @@ ICON_SETS: dict[IconStyle, dict[str, str]] = {
         "document": "#",
         "webhook": "@",
         "webhook_skip": "-",
-        "wechat": "W",
         "tokens": "#",
         "success": "+",
         "warning": "!",

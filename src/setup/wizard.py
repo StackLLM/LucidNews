@@ -1,4 +1,4 @@
-"""Interactive setup wizard for Horizon configuration."""
+"""Interactive setup wizard for LucidNews configuration."""
 
 import argparse
 import json
@@ -310,7 +310,7 @@ def build_config(
         sources=sources,
         collection=collection,
         digest=DigestConfig(
-            profile_order=["tech-news", "tech-blog", "finance-news"]
+            profile_order=["tech-news", "tech-blog", "ai-creator"]
         ),
         processing=ProcessingConfig(
             profile_settings={
@@ -318,7 +318,7 @@ def build_config(
                 "tech-blog": ProfileSettingsConfig(
                     threshold=4.0, topic_dedup=False
                 ),
-                "finance-news": ProfileSettingsConfig(threshold=7.0),
+                "ai-creator": ProfileSettingsConfig(threshold=7.0),
             }
         ),
     )
@@ -389,7 +389,7 @@ def _gh_key(src: GitHubSourceConfig) -> str:
 
 def main():
     """Main entry point for the setup wizard."""
-    parser = argparse.ArgumentParser(description="Horizon setup wizard")
+    parser = argparse.ArgumentParser(description="LucidNews setup wizard")
     add_data_dir_arguments(parser)
     add_log_level_argument(parser)
     args = parser.parse_args()
@@ -416,11 +416,7 @@ def main():
         if not presets_path.exists():
             presets_path = Path("data/presets.json")
         presets = load_presets(presets_path=str(presets_path), prefer_api=True)
-        offline = os.environ.get("HORIZON_OFFLINE", "").lower() in ("1", "true", "yes")
-        if offline:
-            console.print("[dim]Using local presets (offline mode)[/dim]")
-        else:
-            console.print("[dim]Loaded preset sources from API[/dim]")
+        console.print(f"[dim]Loaded {len(presets.get('domains', []))} preset domains[/dim]")
     except FileNotFoundError:
         console.print("[yellow]Could not fetch presets (offline and no local file).[/yellow]")
         console.print("[yellow]Skipping preset matching.[/yellow]")
@@ -487,7 +483,7 @@ def main():
         f"  AI:      {ai_config.provider.value} / {ai_config.model}\n"
         f"  Sources: {_count_sources(config)} total\n"
         f"  Profile: {config.processing.default_profile}\n\n"
-        f"Run [bold cyan]horizon[/bold cyan] to start aggregating!",
+        f"Run [bold cyan]lucidnews[/bold cyan] to start aggregating!",
         title="Setup Complete",
         border_style="green",
     ))
@@ -507,8 +503,6 @@ def _count_sources(config: Config) -> int:
         count += len([s for s in config.sources.telegram.channels if s.enabled])
     if config.sources.twitter and config.sources.twitter.enabled:
         count += len(config.sources.twitter.users) + len(config.sources.twitter.keywords)
-    if config.sources.openbb and config.sources.openbb.enabled:
-        count += len([s for s in config.sources.openbb.watchlists if s.enabled])
     if config.sources.ossinsight.enabled:
         count += 1
     if config.sources.gdelt and config.sources.gdelt.enabled:

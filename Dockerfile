@@ -14,7 +14,7 @@ COPY data ./data
 COPY profiles ./profiles
 COPY .env.example .env.example
 
-# Install optional extras from a comma-separated list, e.g. "trafilatura,openbb".
+# Install optional extras from a comma-separated list, e.g. "twitter".
 ARG EXTRAS=""
 RUN set -eu; \
     set --; \
@@ -30,16 +30,16 @@ RUN set -eu; \
     uv sync --frozen --no-dev "$@"
 
 # Runtime data is mounted here; keep the image and process unprivileged.
-RUN useradd --create-home --uid 10001 horizon \
-    && chown -R horizon:horizon /app
+RUN useradd --create-home --uid 10001 lucidnews \
+    && chown -R lucidnews:lucidnews /app
 
 # Create volume mount points
 VOLUME ["/app/data"]
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
-USER horizon
+USER lucidnews
 
 # Run the application
-ENTRYPOINT ["uv", "run", "horizon"]
+ENTRYPOINT ["uv", "run", "lucidnews"]
 CMD []
