@@ -37,6 +37,9 @@ from .i18n import messages
 from .newsletter import DeliveryPlan, plan_deliveries
 
 
+# Identify the collector honestly; some feeds reject the default httpx agent.
+COLLECTOR_USER_AGENT = "Mozilla/5.0 (compatible; LucidNews/1.0; RSS reader)"
+
 _TRACKING_QUERY_PARAMETERS = {
     "_ga",
     "dclid",
@@ -415,7 +418,9 @@ class PipelineOrchestrator:
             List[ContentItem]: All fetched items
         """
         self.last_fetch_report = None
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(
+            timeout=30.0, headers={"User-Agent": COLLECTOR_USER_AGENT}
+        ) as client:
             tasks = []
 
             # GitHub sources

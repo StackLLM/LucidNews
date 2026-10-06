@@ -5,11 +5,11 @@ title: Configuration Guide
 
 # Configuration Guide
 
-Horizon is configured through a `.env` file for secrets, a JSON file for runtime settings, and processing profiles for analysis and enrichment prompts. The JSON file defaults to `data/config.json`; profiles default to `profiles/`.
+LucidNews is configured through a `.env` file for secrets, a JSON file for runtime settings, and processing profiles for analysis and enrichment prompts. The JSON file defaults to `data/config.json`; profiles default to `profiles/`.
 
 ## Configuration Paths
 
-`horizon`, `horizon-wizard`, `horizon-webhook`, and `horizon-wechat` all resolve configuration and state paths the same way:
+`lucidnews`, `lucidnews-wizard` and `lucidnews-webhook` all resolve configuration and state paths the same way:
 
 | Option | Effect |
 | --- | --- |
@@ -17,26 +17,26 @@ Horizon is configured through a `.env` file for secrets, a JSON file for runtime
 | `-c`, `--config PATH` | Uses an explicit config file without changing the state directory. |
 
 ```bash
-uv run horizon --data-dir /srv/horizon
-uv run horizon --config /etc/horizon/config.json
-uv run horizon --data-dir /srv/horizon --config /etc/horizon/config.json
+uv run lucidnews --data-dir /srv/lucidnews
+uv run lucidnews --config /etc/lucidnews/config.json
+uv run lucidnews --data-dir /srv/lucidnews --config /etc/lucidnews/config.json
 ```
 
-When both options are present, configuration is loaded from `--config`, while summaries and subscribers remain under `--data-dir`. Because this logic is identical across all three CLIs, passing the same `-d`/`-c` flags to each one keeps them pointed at the same files — for example, generating a config with `horizon-wizard --data-dir /srv/horizon`, then running `horizon --data-dir /srv/horizon` and testing with `horizon-webhook --data-dir /srv/horizon`.
+When both options are present, configuration is loaded from `--config`, while summaries and subscribers remain under `--data-dir`. Because this logic is identical across all three CLIs, passing the same `-d`/`-c` flags to each one keeps them pointed at the same files — for example, generating a config with `lucidnews-wizard --data-dir /srv/lucidnews`, then running `horizon --data-dir /srv/lucidnews` and testing with `lucidnews-webhook --data-dir /srv/lucidnews`.
 
 Without either flag, all three default to `data/config.json`. To bootstrap a custom location without the wizard, initialize it manually:
 
 ```bash
-mkdir -p /etc/horizon
-cp data/config.example.json /etc/horizon/config.json
+mkdir -p /etc/lucidnews
+cp data/config.example.json /etc/lucidnews/config.json
 ```
 
 ## Interactive Wizard
 
-`horizon-wizard` asks about your interests and generates `data/config.json` from matched presets and, optionally, AI recommendations:
+`lucidnews-wizard` asks about your interests and generates `data/config.json` from matched presets and, optionally, AI recommendations:
 
 ```bash
-uv run horizon-wizard
+uv run lucidnews-wizard
 ```
 
 | Option | Default | Description |
@@ -72,7 +72,7 @@ and webhook message content are unchanged.
 
 Profiles define how to evaluate and present content; the runtime configuration
 defines what you collect, how much you keep, and where it goes. Use `tech-news`
-for events and context, `tech-blog` for engineering lessons, `finance-news` for
+for events and context, `tech-blog` for engineering lessons, `ai-creator` for
 market developments, or `ai-creator` for content ideas.
 
 The `processing` section controls profile discovery and the fallback used when
@@ -101,7 +101,7 @@ automatic matching cannot select a profile:
 - `default_profile`: ID of a profile present in `profiles_dir`.
 - `profile_settings`: User preferences keyed by profile ID. `threshold` accepts
   `0` through `10` or `null` for no score filter; `topic_dedup` defaults to
-  `true`. Unknown profile IDs are rejected when Horizon starts.
+  `true`. Unknown profile IDs are rejected when LucidNews starts.
 
 Each profile owns its matching, analysis, and enrichment behavior. Runtime
 filtering preferences stay in the main JSON configuration. See [Processing
@@ -121,9 +121,9 @@ OPENAI_API_KEY=sk-your-key
 GOOGLE_API_KEY=your-gemini-key
 ```
 
-When Horizon starts, environment variables have priority because
+When LucidNews starts, environment variables have priority because
 the active config file does not store the secret. For local VS Code runs, create
-`.env` in the repository root and launch Horizon from that same root directory.
+`.env` in the repository root and launch LucidNews from that same root directory.
 
 Common API key variable names:
 
@@ -221,7 +221,7 @@ Use the endpoint for your account region and preferred compatible API:
 | China | `https://api.minimaxi.com/v1` | `https://api.minimaxi.com/anthropic` |
 
 For the Anthropic-compatible API, keep `provider` set to `minimax` and pass
-the base URL directly without adding `/v1`. Horizon selects its Anthropic
+the base URL directly without adding `/v1`. LucidNews selects its Anthropic
 client for this endpoint, and the SDK appends `/v1/messages` when sending a
 request:
 
@@ -268,13 +268,33 @@ Use the [DashScope compatible-mode](https://help.aliyun.com/zh/dashscope/develop
 
 Omit `base_url` to use the default `http://localhost:11434/v1`.
 For remote Ollama servers, set `ai.base_url` in the active config file or set
-`HORIZON_OLLAMA_BASE_URL` in `.env`. `OLLAMA_BASE_URL` and `OLLAMA_HOST` are
-also recognized. If the value omits `/v1`, Horizon appends it automatically
+`LUCIDNEWS_OLLAMA_BASE_URL` in `.env`. `OLLAMA_BASE_URL` and `OLLAMA_HOST` are
+also recognized. If the value omits `/v1`, LucidNews appends it automatically
 for Ollama's OpenAI-compatible endpoint.
+
+### AI request quota
+
+Set `max_requests_per_minute` to the provider's per-minute quota. Every AI call
+(classification, analysis, topic dedup, enrichment) shares one budget per
+provider/model, so the run stays under the quota instead of losing items to
+`429` errors (an item the AI fails to score is never published):
+
+```json
+{
+  "ai": {
+    "max_requests_per_minute": 5
+  }
+}
+```
+
+Free tiers can also have a **daily** cap (for example 20 requests per day per
+model); a full run needs roughly two calls per fetched item plus enrichment
+calls per selected item and language, so use a paid tier or a model with a
+larger quota for production.
 
 ### AI throttling
 
-If your model has a strict per-minute request cap, you can slow the scorer down in the active config file:
+If your model has a strict per-minute request cap, you can also slow the scorer down in the active config file:
 
 ```json
 {
@@ -320,7 +340,7 @@ By default, AI scoring and enrichment run one item at a time. If your API endpoi
 }
 ```
 
-For OpenAI-compatible gateways, Horizon sends `temperature` by default. If a newer reasoning-style model rejects that parameter with an error such as `temperature is deprecated for this model`, Horizon retries once without it and remembers that capability for later requests.
+For OpenAI-compatible gateways, LucidNews sends `temperature` by default. If a newer reasoning-style model rejects that parameter with an error such as `temperature is deprecated for this model`, LucidNews retries once without it and remembers that capability for later requests.
 
 ## Information Sources
 
@@ -331,11 +351,11 @@ Source entries also accept `profile`:
 | --- | --- |
 | `"tech-blog"` | Use that profile directly, without an AI matching call |
 | `"auto"` or omitted | Let AI choose one of all loaded profiles |
-| `["tech-news", "finance-news"]` | Let AI choose one profile from this candidate list |
+| `["tech-news", "ai-creator"]` | Let AI choose one profile from this candidate list |
 
 An unknown profile ID is an error. For nested sources, set the field on the
 item-producing entry, such as an RSS feed, Reddit subreddit or user, Telegram
-channel, or OpenBB watchlist. See [Source Routing](profiles.md#source-routing)
+channel. See [Source Routing](profiles.md#source-routing)
 for validation and fallback rules.
 
 ### GitHub
@@ -454,7 +474,7 @@ Telegram scraping uses the public web preview at `https://t.me/s/<channel>`, so 
 - `channels` — list of public Telegram channels to monitor
 - `channel` — Telegram channel username only, without `@` or the full `https://t.me/` URL
 - `fetch_limit` — maximum number of recent messages to inspect per channel per run (default: `20`)
-- `category` — optional tag for balanced digest grouping (e.g., `"ai-news"`, `"finance"`)
+- `category` — optional tag for balanced digest grouping (e.g., `"ai"`, `"cybersecurity"`)
 
 ### Twitter
 
@@ -493,52 +513,6 @@ For example, the configuration above starts three discovery runs: one for both u
 
 The scraper uses the `altimis/scweet` actor by default. You can override it with `actor_id` if needed.
 
-### OpenBB Financial News
-
-OpenBB is useful when you want equity or macro news from providers such as yfinance, Benzinga, FMP, Intrinio, Tiingo, SEC, or Federal Reserve through one SDK.
-
-Install the optional dependency before enabling the source:
-
-```bash
-uv sync --extra openbb
-```
-
-If your platform struggles to build transitive dependencies, prefer:
-
-```bash
-uv pip install --only-binary=:all: openbb openbb-benzinga
-```
-
-```json
-{
-  "sources": {
-    "openbb": {
-      "enabled": true,
-      "watchlists": [
-        {
-          "name": "megacaps",
-          "enabled": true,
-          "provider": "yfinance",
-          "fetch_limit": 20,
-          "category": "equities",
-          "symbols": ["AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "META", "TSLA"]
-        }
-      ]
-    }
-  }
-}
-```
-
-- `enabled` — enable or disable the OpenBB source globally
-- `watchlists` — list of named ticker groups; each watchlist becomes one `news.company()` call per run
-- `name` — label shown in Horizon metadata and selection breakdowns
-- `provider` — OpenBB provider name such as `yfinance` or `benzinga`
-- `fetch_limit` — maximum news rows requested for that watchlist
-- `category` — optional tag stored on fetched items
-- `symbols` — ticker symbols to fetch together; group symbols by provider to keep requests efficient
-
-OpenBB provider credentials are handled by the OpenBB SDK itself, using its own environment variables or user settings. Horizon does not pass those secrets through the active config file.
-
 ### OSS Insight (Trending GitHub Repos)
 
 Pulls top star-gain repositories from the [OSS Insight](https://ossinsight.io) public API, which aggregates GitHub WatchEvents. Useful for surfacing repos that are gaining stars right now without needing to scrape GitHub Trending or query BigQuery.
@@ -568,6 +542,23 @@ Pulls top star-gain repositories from the [OSS Insight](https://ossinsight.io) p
 
 No API key is required.
 
+## Reliability
+
+See [fiabilite.md](fiabilite.md) for the model. Configuration:
+
+```json
+{
+  "reliability": {
+    "domains": { "internal-blog.example": "official" },
+    "exclude_labels": ["rumor"]
+  }
+}
+```
+
+- `domains`: add or override publisher tiers (`official`, `reputable`, `community`, `unknown`). Subdomains are covered; the most specific entry wins.
+- `exclude_labels`: reliability labels (`confirmed`, `reliable`, `unverified`, `rumor`) removed from the digest. Empty by default: unconfirmed items are published but explicitly flagged.
+- RSS feeds accept `"trust": "<tier>"` to pin the tier of their items.
+
 ## Filtering
 
 Score filtering is configured under `processing.profile_settings` in the runtime
@@ -595,17 +586,17 @@ digest limits:
 {
   "digest": {
     "max_items": 20,
-    "profile_order": ["tech-news", "tech-blog", "finance-news"],
+    "profile_order": ["tech-news", "tech-blog", "ai-creator"],
     "category_groups": {
       "ai": {
         "name": "AI / Machine Learning",
         "limit": 5,
         "categories": ["ai-news", "ai-tools", "machine-learning", "llm"]
       },
-      "finance": {
-        "name": "Finance",
+      "security": {
+        "name": "Cybersecurity",
         "limit": 5,
-        "categories": ["finance", "equities", "crypto"]
+        "categories": ["cybersecurity"]
       }
     },
     "default_group": "other",
@@ -638,11 +629,11 @@ All source types support a `category` field: `sources.rss[].category`,
 `sources.github[].category`, `sources.hackernews.category`,
 `sources.reddit.subreddits[].category`, `sources.reddit.users[].category`,
 `sources.telegram.channels[].category`, `sources.twitter.category`,
-`sources.openbb.watchlists[].category`, `sources.ossinsight.category`,
+`sources.ossinsight.category`,
 `sources.gdelt.category`, and `sources.google_news.category`.
 Sources without a category set enter the default group.
 
-If the same category appears in multiple groups, Horizon logs a warning and uses
+If the same category appears in multiple groups, LucidNews logs a warning and uses
 the first group in configuration order. Omitting both `category_groups` and
 `max_items` disables balanced digest limits; configured profile thresholds still
 apply.
@@ -656,7 +647,7 @@ Example:
 ```json
 {
   "ai": {
-    "base_url": "${HORIZON_AI_BASE_URL}"
+    "base_url": "${LUCIDNEWS_AI_BASE_URL}"
   },
   "sources": {
     "rss": [
@@ -668,33 +659,33 @@ Example:
     ]
   },
   "webhook": {
-    "url_env": "HORIZON_WEBHOOK_URL",
-    "headers": "Authorization: Bearer ${HORIZON_WEBHOOK_TOKEN}"
+    "url_env": "LUCIDNEWS_WEBHOOK_URL",
+    "headers": "Authorization: Bearer ${LUCIDNEWS_WEBHOOK_TOKEN}"
   }
 }
 ```
 
-- `${NAME}` is replaced only when `NAME` is a valid identifier like `LWN_KEY` or `HORIZON_AI_BASE_URL`.
+- `${NAME}` is replaced only when `NAME` is a valid identifier like `LWN_KEY` or `LUCIDNEWS_AI_BASE_URL`.
 - Unset variables are left as `${NAME}` instead of becoming an empty string, so configuration mistakes fail loudly downstream.
 - Expansion is recursive through dicts, lists, and tuples; non-string values are left unchanged.
 
 ## Email Subscription
 
-Email delivery is optional and disabled unless `email.enabled` is `true`. Horizon uses SMTP to send daily summaries and IMAP to check subscribe/unsubscribe requests.
+Email delivery is optional and disabled unless `email.enabled` is `true`. LucidNews uses SMTP to send daily summaries and IMAP to check subscribe/unsubscribe requests.
 
 ```json
 {
   "email": {
     "enabled": true,
-    "smtp_server": "smtp.qq.com",
+    "smtp_server": "smtp.example.com",
     "smtp_port": 465,
     "smtp_username": null,
     "imap_enabled": true,
-    "imap_server": "imap.qq.com",
+    "imap_server": "imap.example.com",
     "imap_port": 993,
-    "email_address": "xxx@qq.com",
+    "email_address": "newsletter@example.com",
     "password_env": "EMAIL_PASSWORD",
-    "sender_name": "Horizon Daily",
+    "sender_name": "LucidNews",
     "subscribe_keyword": "SUBSCRIBE",
     "unsubscribe_keyword": "UNSUBSCRIBE"
   }
@@ -703,13 +694,13 @@ Email delivery is optional and disabled unless `email.enabled` is `true`. Horizo
 
 - `enabled`: Turns email subscription handling and daily email delivery on or off.
 - `smtp_server` / `smtp_port`: SMTP server used to send emails.
-- `smtp_username`: Optional SMTP login username. If omitted, Horizon uses `email_address`.
+- `smtp_username`: Optional SMTP login username. If omitted, LucidNews uses `email_address`.
 - `imap_enabled`: Turns IMAP subscribe/unsubscribe checks on or off. Set it to `false` for send-only SMTP providers.
 - `imap_server` / `imap_port`: IMAP server used to scan incoming subscription requests when `imap_enabled` is `true`.
 - `email_address`: Sender account and mailbox checked for subscription requests.
 - `password_env`: Environment variable containing the email password or app password. Defaults to `EMAIL_PASSWORD`.
 - `sender_name`: Display name shown in sent emails.
-- `subscribe_keyword` / `unsubscribe_keyword`: Keywords Horizon looks for in incoming email subjects.
+- `subscribe_keyword` / `unsubscribe_keyword`: Keywords LucidNews looks for in incoming email subjects.
 
 Resend SMTP example:
 
@@ -725,7 +716,7 @@ Resend SMTP example:
     "imap_server": "",
     "imap_port": 993,
     "email_address": "noreply@example.com",
-    "sender_name": "Horizon Daily"
+    "sender_name": "LucidNews"
   }
 }
 ```
@@ -734,13 +725,13 @@ Set `RESEND_API_KEY` in `.env`. Recipients are loaded from `<data-dir>/subscribe
 
 ## Webhook Notification
 
-Webhook notification is optional and disabled unless `webhook.enabled` is `true`. Horizon can call Feishu/Lark, DingTalk, Slack, Discord, or any custom webhook endpoint when the pipeline succeeds or fails.
+Webhook notification is optional and disabled unless `webhook.enabled` is `true`. LucidNews can call Feishu/Lark, DingTalk, Slack, Discord, or any custom webhook endpoint when the pipeline succeeds or fails.
 
 ```json
 {
   "webhook": {
     "enabled": true,
-    "url_env": "HORIZON_WEBHOOK_URL",
+    "url_env": "LUCIDNEWS_WEBHOOK_URL",
     "delivery": "summary",
     "overview_position": "first",
     "platform": "generic",
@@ -756,21 +747,21 @@ Webhook notification is optional and disabled unless `webhook.enabled` is `true`
 ```
 
 - `enabled`: Turns webhook delivery on or off. The default is `false`.
-- `url_env`: Environment variable that contains the webhook URL. For example, set `HORIZON_WEBHOOK_URL=https://...` in `.env`.
+- `url_env`: Environment variable that contains the webhook URL. For example, set `LUCIDNEWS_WEBHOOK_URL=https://...` in `.env`.
 - `delivery`: Controls how messages are sent. Use `summary` for one full message, or `summary_and_items` for one overview message followed by one message per selected item.
 - `overview_position`: Controls where the overview is sent in `summary_and_items` mode. Use `first` for the traditional order, or `last` to send item details in reverse and keep the overview as the newest chat message.
 - `platform`: Optional webhook platform hint. Use `generic` by default, or `feishu` / `lark` to enable platform-specific card rendering.
 - `layout`: Controls the message layout. Use `markdown` for templated Markdown delivery, or `collapsible` with `platform: "feishu"` / `"lark"` for a single Feishu Card JSON 2.0 message with each item in a collapsed panel.
 - `fallback_layout`: Reserved fallback layout for unsupported platform/layout combinations. The current safe fallback is `markdown`.
 - `languages`: Optional webhook-only language filter. Use `["zh"]` or `["en"]` to send only selected languages; use `null` or omit it to send all configured `ai.languages`.
-- `request_body`: Optional request body. If empty, Horizon sends a `GET` request. If provided, Horizon sends a `POST` request.
+- `request_body`: Optional request body. If empty, LucidNews sends a `GET` request. If provided, LucidNews sends a `POST` request.
 - `headers`: Optional custom headers, one `Key: Value` pair per line.
 
-When `request_body` is a JSON object or array, Horizon renders placeholders and serializes it as JSON. When it is a string, Horizon renders it directly and detects JSON if the rendered string is valid JSON.
+When `request_body` is a JSON object or array, LucidNews renders placeholders and serializes it as JSON. When it is a string, LucidNews renders it directly and detects JSON if the rendered string is valid JSON.
 
 ### Delivery Modes And Layouts
 
-`delivery` controls how many webhook messages Horizon sends:
+`delivery` controls how many webhook messages LucidNews sends:
 
 - `summary`: Sends one message containing the full daily summary. This is simple, but some chat platforms may reject long messages.
 - `summary_and_items`: Sends one overview message plus one message per selected item. In each item message, `#{summary}` contains only that item's Markdown body. This is useful for platforms that reject or truncate long messages.
@@ -778,7 +769,7 @@ When `request_body` is a JSON object or array, Horizon renders placeholders and 
 `layout` controls how each message is rendered:
 
 - `markdown`: Uses your `request_body` template for each message. This is the default and works with generic webhooks, DingTalk, Slack, Discord, Feishu, and Lark.
-- `collapsible`: Currently supported for `platform: "feishu"` or `"lark"`. Horizon ignores `request_body` and builds one Feishu/Lark Card JSON 2.0 message with each item in a collapsed panel.
+- `collapsible`: Currently supported for `platform: "feishu"` or `"lark"`. LucidNews ignores `request_body` and builds one Feishu/Lark Card JSON 2.0 message with each item in a collapsed panel.
 
 For platforms without a platform-specific layout, keep `layout: "markdown"` and choose the message count with `delivery`.
 
@@ -788,7 +779,7 @@ Example `summary_and_items` Markdown delivery config:
 {
   "webhook": {
     "enabled": true,
-    "url_env": "HORIZON_WEBHOOK_URL",
+    "url_env": "LUCIDNEWS_WEBHOOK_URL",
     "delivery": "summary_and_items",
     "overview_position": "last",
     "platform": "generic",
@@ -800,7 +791,7 @@ Example `summary_and_items` Markdown delivery config:
 }
 ```
 
-With `summary_and_items`, Horizon sends one overview plus one message per selected item. `overview_position: "last"` sends item messages first and keeps the overview as the newest chat message; omit it or set `"first"` to send the overview first.
+With `summary_and_items`, LucidNews sends one overview plus one message per selected item. `overview_position: "last"` sends item messages first and keeps the overview as the newest chat message; omit it or set `"first"` to send the overview first.
 
 ### Webhook Templates
 
@@ -832,7 +823,7 @@ When `delivery` is `summary_and_items`, item messages also include:
 | `#{item_url}` | Current item URL |
 | `#{item_score}` | Current item analysis score |
 
-For webhook delivery, Horizon flattens HTML disclosure blocks such as `<details><summary>...</summary>` in `#{summary}` into plain Markdown link lists. This makes the generated summary easier to render in chat products. Saved Markdown files, GitHub Pages, and email content are unchanged.
+For webhook delivery, LucidNews flattens HTML disclosure blocks such as `<details><summary>...</summary>` in `#{summary}` into plain Markdown link lists. This makes the generated summary easier to render in chat products. Saved Markdown files, GitHub Pages, and email content are unchanged.
 
 Use `#{key?limit=N&split=DELIM}` to truncate long values by splitting on `DELIM` and keeping segments until the total character count reaches `N`.
 
@@ -842,21 +833,21 @@ Use `#{key?limit=N&split=DELIM}` to truncate long values by splitting on `DELIM`
 
 ### DingTalk
 
-In DingTalk, create a custom group robot and use a custom keyword such as `Horizon`. The keyword must appear in the body content.
+In DingTalk, create a custom group robot and use a custom keyword such as `LucidNews`. The keyword must appear in the body content.
 
 ```json
 {
   "msgtype": "markdown",
   "markdown": {
-    "title": "Horizon #{date} Daily",
-    "text": "Horizon result: #{result}\n\nHorizon important items: #{important_items}/#{all_items}\n\n#{summary}"
+    "title": "LucidNews #{date} Daily",
+    "text": "LucidNews result: #{result}\n\nLucidNews important items: #{important_items}/#{all_items}\n\n#{summary}"
   }
 }
 ```
 
 ### Feishu / Lark
 
-In Feishu or Lark, create a custom group robot and use a custom keyword such as `Horizon`. The keyword must appear in the body content.
+In Feishu or Lark, create a custom group robot and use a custom keyword such as `LucidNews`. The keyword must appear in the body content.
 
 Use Card JSON 2.0 for Markdown rendering. The card must include `"schema": "2.0"` and put rich-text Markdown components under `card.body.elements`.
 
@@ -866,7 +857,7 @@ To keep the group chat compact while still allowing readers to browse the full b
 {
   "webhook": {
     "enabled": true,
-    "url_env": "HORIZON_WEBHOOK_URL",
+    "url_env": "LUCIDNEWS_WEBHOOK_URL",
     "platform": "feishu",
     "layout": "collapsible",
     "fallback_layout": "markdown",
@@ -875,7 +866,7 @@ To keep the group chat compact while still allowing readers to browse the full b
 }
 ```
 
-With this layout, Horizon sends one interactive card containing the overview and one collapsed panel per selected item. Each panel can be expanded in Feishu to read the full item detail. The regular `request_body` template is ignored for this rendered card.
+With this layout, LucidNews sends one interactive card containing the overview and one collapsed panel per selected item. Each panel can be expanded in Feishu to read the full item detail. The regular `request_body` template is ignored for this rendered card.
 
 ```json
 {
@@ -896,7 +887,7 @@ With this layout, Horizon sends one interactive card containing the overview and
       "elements": [
         {
           "tag": "markdown",
-          "content": "Horizon result: #{result}\nHorizon important items: #{important_items}/#{all_items}"
+          "content": "LucidNews result: #{result}\nLucidNews important items: #{important_items}/#{all_items}"
         },
         {
           "tag": "hr"
@@ -913,10 +904,10 @@ With this layout, Horizon sends one interactive card containing the overview and
 
 ### Testing
 
-Use `horizon-webhook` to preview or send a test notification without running the full pipeline:
+Use `lucidnews-webhook` to preview or send a test notification without running the full pipeline:
 
 ```bash
-uv run horizon-webhook --dry-run
+uv run lucidnews-webhook --dry-run
 ```
 
 | Option | Default | Description |
@@ -929,72 +920,12 @@ uv run horizon-webhook --dry-run
 | `-l`, `--log-level LEVEL` | `WARNING` | Logging level (DEBUG/INFO/WARNING/ERROR/CRITICAL) |
 
 
-## WeChat Notification
-
-Horizon sends briefings to your WeChat through the iLink Bot API, following
-Tencent's `openclaw-weixin` client protocol. Enable it in your configuration:
-
-```json
-{
-  "wechat": {
-    "enabled": true,
-    "languages": ["zh"],
-    "chunk_size": 4000
-  }
-}
-```
-
-- `enabled`: Defaults to `false`.
-- `languages`: Optional filter; omit it or use `null` to send all `ai.languages`.
-- `chunk_size`: Maximum characters per message, from 1 to 4000 (default: 4000).
-  Long briefings are split at paragraph or line boundaries where possible.
-
-```bash
-uv run horizon-wechat login                     # scan with WeChat, then message the bot
-uv run horizon-wechat status                    # connection and estimated replies left
-uv run horizon-wechat test --lang zh --dry-run  # preview without connecting or sending
-uv run horizon-wechat test --lang zh             # send a test message
-```
-
-The normal `horizon` run then delivers its generated briefings and failure
-notifications. Login credentials and the
-latest conversation context are saved in `<data-dir>/wechat_session.json`.
-Keep this file between scheduled runs; on POSIX it is written with mode `0600`.
-
-**WeChat limits:** a user message provides the context required for replies.
-Live testing of this integration observed a limit of 10 replies per context;
-Horizon tracks an estimate, reminds you when it runs low, and stops on a server
-rejection. Send the bot another message to refresh the context. Long or
-multilingual briefings may exhaust the budget partway through. A daily budget
-reset has not been confirmed; the API response remains authoritative.
-
-If setup timed out waiting for your first message, send one and run
-`uv run horizon-wechat status --refresh`. A receive-session timeout (`-14`) does
-not necessarily prevent delivery; if it persists, use `login --force`.
-Markdown is adapted for WeChat by flattening HTML and removing images and
-in-page links.
-
-For custom paths, put `-d` / `-c` before the subcommand, for example
-`uv run horizon-wechat -d ./my-data login`. With Docker, reuse the existing data
-mount and override the entrypoint:
-
-```bash
-docker compose run --rm --entrypoint uv horizon run horizon-wechat login
-docker compose run --rm --entrypoint uv horizon run horizon-wechat test --lang zh
-```
-
-## Static Site
-
-Horizon writes generated summaries to `data/summaries/` (or `<data-dir>/summaries/` when `--data-dir` is set) and copies publishable Markdown into `docs/` for the GitHub Pages site. The repository includes a disabled daily workflow template at [`.github/workflows/daily-summary.yml.disabled`](../.github/workflows/daily-summary.yml.disabled). Configure it for your deployment and rename it to `daily-summary.yml` to enable scheduled generation.
-
-To use GitHub Pages, enable Pages for the repository and run the scheduled workflow or trigger it manually. The generated site is built from the `docs/` directory.
-
 ## MCP Server
 
-Horizon includes an MCP server for AI assistants and MCP-compatible clients.
+LucidNews includes an MCP server for AI assistants and MCP-compatible clients.
 
 ```bash
-uv run horizon-mcp
+uv run lucidnews-mcp
 ```
 
 Available tools include `hz_validate_config`, `hz_fetch_items`, `hz_score_items`, `hz_filter_items`, `hz_enrich_items`, `hz_generate_summary`, and `hz_run_pipeline`.

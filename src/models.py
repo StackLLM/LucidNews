@@ -222,6 +222,8 @@ class AIConfig(BaseModel):
     temperature: float = 0.3
     max_tokens: int = 4096
     throttle_sec: float = 0.0
+    # Provider quota, e.g. 5 for Gemini free tier on gemini-2.5-flash. None = unlimited.
+    max_requests_per_minute: Optional[int] = Field(default=None, gt=0)
     analysis_concurrency: int = 1
     enrichment_concurrency: int = 1
     languages: List[str] = Field(default_factory=lambda: ["en"])

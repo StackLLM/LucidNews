@@ -1,70 +1,48 @@
-# Twitter / X Cookie 配置指南（Playwright 模式）
+# Twitter / X Cookie Setup (Playwright mode)
 
-Horizon 支持两种 Twitter 抓取方式：
+LucidNews can read X/Twitter in two ways:
 
-| 方式 | 成本 | 稳定性 | 适用场景 |
-|------|------|--------|----------|
-| **Apify** (默认) | 需订阅 ($49/月起) | ⭐⭐⭐ 高 | 生产环境、大量账号 |
-| **Playwright + Cookie** (免费) | 免费 | ⭐⭐ 中 | 个人使用、少量账号 |
+| Mode | Cost | Stability | Use case |
+|------|------|-----------|----------|
+| **Apify** (default) | Paid Apify subscription | High | Production, many accounts |
+| **Playwright + cookies** | Free | Medium | Personal use, a few accounts |
 
-本文档介绍免费方案的配置方法。
+This page covers the Playwright mode. Automated access to X is governed by X's
+Terms of Service; check that your use is allowed before enabling it, and prefer
+the Apify mode for anything beyond personal use.
 
----
-
-## 1. 安装依赖
+## 1. Install dependencies
 
 ```bash
 uv sync --extra twitter
 uv run playwright install chromium
 ```
 
----
+## 2. Export cookies
 
-## 2. 获取 Cookie
+### Option A: browser extension
 
-### 方法一：浏览器扩展（推荐）
+1. Sign in to [x.com](https://x.com) in Chrome, Edge or Firefox.
+2. Install a cookie export extension such as **Cookie-Editor**.
+3. Export the x.com cookies in **JSON** format.
+4. Save them as `data/x_cookies_1.json`.
 
-1. 用 Chrome/Edge/Firefox 登录 [x.com](https://x.com)
-2. 安装扩展 **"Cookie-Editor"** 或 **"Get cookies.txt LOCALLY"**
-3. 在 x.com 页面打开扩展，导出为 **JSON 格式**
-4. 保存到 `data/x_cookies_1.json`
+### Option B: developer tools
 
-### 方法二：开发者工具
-
-1. 登录 x.com 后按 `F12` 打开开发者工具
-2. 切换到 **Application (应用)** → **Cookies** → `https://x.com`
-3. 找到以下关键 Cookie（名称可能略有不同）：
-   - `auth_token`
-   - `ct0`
-   - `twid`
-4. 手动构建 JSON 数组：
+1. While signed in, open the developer tools (`F12`).
+2. Go to **Application → Cookies → https://x.com**.
+3. Copy the `auth_token`, `ct0` and `twid` cookies into a JSON array:
 
 ```json
 [
-  {
-    "name": "auth_token",
-    "value": "你的auth_token值",
-    "domain": ".x.com",
-    "path": "/",
-    "secure": true,
-    "httpOnly": true
-  },
-  {
-    "name": "ct0",
-    "value": "你的ct0值",
-    "domain": ".x.com",
-    "path": "/",
-    "secure": true,
-    "httpOnly": false
-  }
+  {"name": "auth_token", "value": "<auth_token>", "domain": ".x.com", "path": "/", "secure": true, "httpOnly": true},
+  {"name": "ct0", "value": "<ct0>", "domain": ".x.com", "path": "/", "secure": true, "httpOnly": false}
 ]
 ```
 
----
+## 3. Configuration
 
-## 3. 配置文件
-
-编辑 `data/config.json`：
+In `data/config.json`:
 
 ```json
 {
@@ -81,50 +59,35 @@ uv run playwright install chromium
 }
 ```
 
-Keyword search (`sources.twitter.keywords`) is Apify-only. Playwright logs a warning and skips those queries.
+Keyword search (`sources.twitter.keywords`) is Apify-only. Playwright logs a
+warning and skips those queries.
 
----
+## 4. Several cookie files
 
-## 4. 多账号轮询（防封策略）
+Every file matching `cookie_file_pattern` (for example `data/x_cookies_1.json`,
+`data/x_cookies_2.json`) is used in turn; when one session is rate-limited the
+scraper moves to the next one.
 
-如果你有多个 X 账号，可以为每个账号导出 cookie，命名为：
+## 5. Proxy (optional)
 
-```
-data/x_cookies_1.json   # 账号A
-data/x_cookies_2.json   # 账号B
-data/x_cookies_3.json   # 账号C
-```
-
-Horizon 会自动**轮询使用**这些 cookie，当一个账号触发限流时切换到下一个，大幅提升稳定性。
-
----
-
-## 5. 代理配置（可选）
-
-如果在中国大陆或需要代理：
+Playwright reads the `PROXY`, `https_proxy`, `http_proxy` and `all_proxy`
+environment variables:
 
 ```bash
 export https_proxy=http://127.0.0.1:7890
 ```
 
-Playwright 会自动读取 `PROXY`、`https_proxy`、`http_proxy`、`all_proxy` 环境变量。
+## 6. Notes
 
----
+- Cookies expire (usually after 1–4 weeks); export them again when they do.
+- Cookie files are secrets. `data/x_cookies_*.json` is in `.gitignore`; never commit them.
+- Keep the fetch volume low to stay within the platform's limits.
 
-## 6. 注意事项
+## 7. Troubleshooting
 
-⚠️ **Cookie 有有效期**：通常 1-4 周，过期后需要重新导出  
-⚠️ **不要提交 Cookie 文件**：已加入 `.gitignore`，请妥善保管  
-⚠️ **账号安全**：建议使用**小号/备用号**，避免主账号风险  
-⚠️ **抓取频率**：每个账号间隔 5-10 秒，避免触发平台限流
-
----
-
-## 7. 故障排除
-
-| 问题 | 原因 | 解决 |
-|------|------|------|
-| "No cookie files found" | cookie 文件名不匹配 | 检查 `cookie_file_pattern` 和实际文件名 |
-| "page shows login gate" | cookie 已过期 | 重新登录并导出最新 cookie |
-| "no GraphQL data intercepted" | 页面结构变化或被限流 | 等待几分钟后重试，或增加 cookie 数量 |
-| Playwright 未安装 | 依赖缺失 | 运行 `uv sync --extra twitter && uv run playwright install chromium` |
+| Problem | Cause | Fix |
+|---------|-------|-----|
+| "No cookie files found" | File name does not match | Check `cookie_file_pattern` and the file names |
+| "page shows login gate" | Cookies expired | Sign in again and re-export |
+| "no GraphQL data intercepted" | Page changed or rate-limited | Retry later |
+| Playwright missing | Optional dependency not installed | `uv sync --extra twitter && uv run playwright install chromium` |

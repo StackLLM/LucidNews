@@ -154,13 +154,6 @@
         "profile": "tech-news"
       },
       {
-        "name": "CISA Advisories",
-        "url": "https://www.cisa.gov/cybersecurity-advisories/all.xml",
-        "enabled": true,
-        "category": "cybersecurity",
-        "profile": "tech-news"
-      },
-      {
         "name": "CERT-FR",
         "url": "https://www.cert.ssi.gouv.fr/feed/",
         "enabled": true,

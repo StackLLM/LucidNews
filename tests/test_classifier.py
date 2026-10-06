@@ -159,3 +159,31 @@ def test_candidate_classification_failure_falls_back_within_candidates():
     assert item.processing is not None
     assert item.processing.classification.profile == "ai-creator"
     assert item.processing.classification.confidence == 0
+
+
+def test_transient_provider_errors_are_retried_before_falling_back(monkeypatch) -> None:
+    from tenacity import wait_none
+
+    monkeypatch.setattr(ContentClassifier._classify.retry, "wait", wait_none())
+    calls = []
+
+    async def complete(system, user):  # type: ignore[no-untyped-def]
+        calls.append(user)
+        if len(calls) < 3:
+            raise RuntimeError("503 UNAVAILABLE")
+        return '{"profile":"other","confidence":0.8,"reason":"fits"}'
+
+    item = ContentItem(
+        id="rss:test:retry",
+        source_type=SourceType.RSS,
+        title="A release",
+        url="https://example.com/item",
+        published_at=datetime.now(timezone.utc),
+    )
+    classifier = ContentClassifier(SimpleNamespace(complete=complete), PROFILES)
+
+    profile = asyncio.run(classifier.resolve(item))
+
+    assert profile.id == "other"
+    assert len(calls) == 3
+    assert item.processing.classification.confidence == 0.8

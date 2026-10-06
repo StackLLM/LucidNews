@@ -1,7 +1,9 @@
 """AI client abstraction supporting multiple providers."""
 
+import asyncio
 import os
 import re
+import time
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 from openai import AsyncAzureOpenAI, AsyncOpenAI
@@ -677,6 +679,63 @@ def _create_chained_client(config: AIConfig) -> ChainedAIClient:
     return ChainedAIClient(chain_configs)
 
 
+class RequestRateLimiter:
+    """Space requests evenly so at most ``requests_per_minute`` start per minute."""
+
+    def __init__(self, requests_per_minute: int):
+        self.interval = 60.0 / requests_per_minute
+        self._next_start = 0.0
+        self._lock = asyncio.Lock()
+
+    async def acquire(self) -> None:
+        async with self._lock:
+            now = time.monotonic()
+            wait = self._next_start - now
+            self._next_start = max(now, self._next_start) + self.interval
+        if wait > 0:
+            await asyncio.sleep(wait)
+
+
+# Shared per provider/model so every pipeline stage draws from the same budget.
+_RATE_LIMITERS: Dict[tuple, RequestRateLimiter] = {}
+
+
+def _rate_limiter_for(config: AIConfig) -> RequestRateLimiter:
+    key = (
+        config.provider.value,
+        config.provider_chain or "",
+        config.model,
+        config.base_url or "",
+        config.max_requests_per_minute,
+    )
+    limiter = _RATE_LIMITERS.get(key)
+    if limiter is None:
+        limiter = RequestRateLimiter(config.max_requests_per_minute)
+        _RATE_LIMITERS[key] = limiter
+    return limiter
+
+
+class RateLimitedClient(AIClient):
+    """Wrap a client so it respects the provider's requests-per-minute quota."""
+
+    def __init__(self, inner: AIClient, limiter: RequestRateLimiter):
+        self.inner = inner
+        self.limiter = limiter
+        self.config = getattr(inner, "config", None)
+
+    async def complete(
+        self,
+        system: str,
+        user: str,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+    ) -> str:
+        await self.limiter.acquire()
+        return await self.inner.complete(
+            system=system, user=user, temperature=temperature, max_tokens=max_tokens
+        )
+
+
 def create_ai_client(config: AIConfig) -> AIClient:
     """Factory function to create appropriate AI client.
 
@@ -690,5 +749,9 @@ def create_ai_client(config: AIConfig) -> AIClient:
         ValueError: If provider is not supported
     """
     if config.provider_chain:
-        return _create_chained_client(config)
-    return _create_single_client(config)
+        client: AIClient = _create_chained_client(config)
+    else:
+        client = _create_single_client(config)
+    if config.max_requests_per_minute:
+        client = RateLimitedClient(client, _rate_limiter_for(config))
+    return client

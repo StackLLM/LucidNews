@@ -1,29 +1,19 @@
-# Security Policy
+# Sécurité
 
-## Reporting a Vulnerability
+## Signaler une vulnérabilité
 
-If you discover a security vulnerability in Horizon, please do **not** open a public issue.
-Instead, please report it privately by email:
-**thysrael@gmail.com**
+Ne publiez pas de vulnérabilité dans une issue. Signalez-la en privé aux mainteneurs du dépôt, avec :
 
-Please include:
-- A clear description of the issue
-- Steps to reproduce the problem
-- The affected version, commit, or environment
-- Any proof-of-concept, screenshots, or logs that may help
+- la description du problème et son impact ;
+- les étapes pour le reproduire ;
+- la version ou le commit concerné.
 
-## Response Process
+## Secrets
 
-I will try to:
+- Les secrets vivent uniquement dans `.env` ou dans l'environnement d'exécution. `.env`, `data/config.json`, `data/subscribers.json`, les cookies et les fichiers de session sont dans `.gitignore`.
+- `data/config.json` référence les secrets par **nom de variable** (`api_key_env`, `password_env`, `url_env`) ou par `${VAR}`, jamais par valeur.
+- Le serveur MCP masque les valeurs développées depuis l'environnement dans la configuration qu'il expose.
 
-- Acknowledge receipt within **7 days**
-- Investigate and validate the report
-- Work on a fix and coordinate responsible disclosure when appropriate
+## Contenu non fiable
 
-## Supported Versions
-
-Security updates are provided for the latest maintained version of Horizon.
-
-## Disclosure Policy
-
-Please avoid public disclosure until I have had a reasonable opportunity to investigate and release a fix.
+Tout contenu collecté (titres, articles, commentaires, résultats de recherche) est traité comme des **données** : les prompts interdisent d'en suivre les instructions, et le rendu Markdown/HTML échappe tout texte et n'autorise que des liens `http(s)`. Les requêtes webhook passent par `src/url_security.py`.

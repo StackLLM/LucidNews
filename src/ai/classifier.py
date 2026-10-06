@@ -3,6 +3,7 @@
 import logging
 
 from pydantic import BaseModel, Field, ValidationError
+from tenacity import retry, retry_if_not_exception_type, stop_after_attempt, wait_exponential
 
 from .client import AIClient
 from .prompting.classification import (
@@ -111,6 +112,15 @@ class ContentClassifier:
             self.profiles.get(profile_id)
         return candidate_ids
 
+    # Provider errors (rate limits, 503 overload) are transient: retry them before
+    # falling back to the default profile. Invalid responses raise ValueError and
+    # fall back immediately.
+    @retry(
+        retry=retry_if_not_exception_type(ValueError),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(min=2, max=10),
+        reraise=True,
+    )
     async def _classify(
         self,
         item: ContentItem,

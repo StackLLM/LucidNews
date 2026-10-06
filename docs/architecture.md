@@ -1,0 +1,110 @@
+# Architecture
+
+LucidNews est une application Python asynchrone en ligne de commande. Elle n'a ni base de données ni interface pour l'instant : tout l'état vit dans des fichiers sous `data/`.
+
+## Vue d'ensemble
+
+```
+             ┌────────────────────── src/orchestrator.py (PipelineOrchestrator.run) ──────────────────────┐
+ sources ──▶ │ 1 Collecte ─▶ 2 Fusion ─▶ 3 Classification ─▶ 4 Analyse ─▶ 5 Fiabilité ─▶ 6 Filtrage      │
+ (scrapers)  │   parallèle    doublons     (profil)          score, catégories, claim    seuils, dédup     │
+             │                                                                            sujet, quotas    │
+             │ ─▶ 7 Enrichissement (par langue) ─▶ 8 Rendu Markdown ─▶ 9 Distribution                     │
+             │      résumé, contexte, impact         par langue          fichier, email (par abonné),     │
+             │      + recherche web / historique                         webhook                          │
+             └─────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+| Étape | Module | Rôle | IA ? |
+|---|---|---|---|
+| 1 Collecte | `scrapers/*`, `extractors/*` | Une classe par type de source, toutes lancées en parallèle. Une source en échec n'arrête pas les autres ; si **toutes** échouent, le run s'arrête en erreur. | Non |
+| 2 Fusion | `orchestrator.merge_cross_source_duplicates` | Regroupe les items qui pointent vers la même URL normalisée (sans `utm_*`, `fbclid`…), garde le contenu le plus riche et fusionne les métadonnées. | Non |
+| 3 Classification | `ai/classifier.py` | Choisit le profil éditorial : forcé par la source (`profile`), ou choisi par l'IA (`"auto"` ou liste de candidats). Les erreurs temporaires du fournisseur sont réessayées. | Oui |
+| 4 Analyse | `ai/analyzer.py`, `ai/prompting/analysis.py` | Note de 0 à 10 selon la grille du profil, résumé d'une phrase, tags, 1 à 3 catégories IT, statut de l'affirmation. | Oui |
+| 5 Fiabilité | `reliability/assess.py` | Combine la confiance de l'éditeur et le statut de l'affirmation → étiquette. Déterministe. | Non |
+| 6 Filtrage | `orchestrator.select_digest_items` | Seuil par profil, exclusion des items non notés et des étiquettes exclues, dédoublonnage sémantique par sujet (IA), quotas par catégorie, plafond global. | Partiel |
+| 7 Enrichissement | `ai/enricher.py`, `processing/tools.py` | Pour chaque langue, génère les blocs du profil (résumé, contexte…), avec recherche web (DuckDuckGo) et recherche BM25 dans les digests précédents. | Oui |
+| 8 Rendu | `ai/summarizer.py`, `i18n.py` | Markdown produit par du code (pas d'IA), avec échappement strict des contenus non fiables. | Non |
+| 9 Distribution | `storage/`, `newsletter/`, `services/` | Digest dans `data/summaries/`, email par jeu de préférences, webhooks. | Non |
+
+## Modules
+
+| Chemin | Responsabilité |
+|---|---|
+| `src/main.py` | CLI `lucidnews` : charge `.env` et la config, lance l'orchestrateur |
+| `src/orchestrator.py` | Enchaîne les étapes ; seul endroit qui connaît tout le pipeline |
+| `src/models.py` | Modèles Pydantic des items (`ContentItem`, `ProcessingResult`…) et **schéma complet de la configuration** (`Config`) |
+| `src/scrapers/` | `BaseScraper.fetch(since) → list[ContentItem]` pour chaque source |
+| `src/extractors/` | Extraction du texte intégral d'une page (trafilatura) pour les flux RSS tronqués |
+| `src/ai/client.py` | Clients IA (OpenAI, Anthropic, Gemini, Azure, DeepSeek, Ollama…), chaîne de repli entre fournisseurs, limiteur de débit |
+| `src/ai/classifier.py`, `analyzer.py`, `enricher.py` | Étapes IA |
+| `src/ai/prompting/` | Construction des prompts (règles de preuve communes, catégories, vérification) |
+| `src/ai/summarizer.py` | Rendu Markdown du digest et des messages webhook |
+| `src/processing/profiles.py` | Chargement et validation des profils éditoriaux (`profiles/*/profile.json`) |
+| `src/processing/tools.py`, `history.py` | Outils d'enrichissement : recherche web, recherche dans l'historique |
+| `src/reliability/` | Registre de confiance des domaines, règles de combinaison, types |
+| `src/taxonomy.py` | 12 catégories IT, alias, libellés, niveaux d'importance |
+| `src/i18n.py` | Registre des langues, textes fixes du digest, format des dates |
+| `src/newsletter/` | Abonnés, préférences, plans, sélection, plan d'envoi, stockage |
+| `src/services/email.py` | SMTP (envoi) et IMAP (inscription / désinscription par email) |
+| `src/services/webhook.py` | Webhooks génériques et plateformes (Slack, Discord, Feishu/Lark, DingTalk) |
+| `src/storage/manager.py` | Lecture de la config (avec `${VAR}`), écriture atomique des digests, accès abonnés |
+| `src/mcp/` | Serveur MCP : le même pipeline exposé par étapes (`ln_fetch_items`, `ln_score_items`…) |
+| `src/setup/` | Assistant `lucidnews-wizard` et catalogue `data/presets.json` |
+| `profiles/` | Profils éditoriaux : `match.md` (routage), `analysis.md` (grille de score), `enrichment.md` (rédaction) |
+
+## Données
+
+Un item traverse le pipeline sous la forme d'un `ContentItem` :
+
+```
+ContentItem
+├── id, source_type, title, url, content, author, published_at
+├── metadata            (feed_name, category, discussion_url, score HN, source_trust, merged_sources…)
+├── profile             (routage demandé par la source)
+└── processing: ProcessingResult
+    ├── classification  (profil retenu, méthode, confiance)
+    ├── analysis        (score, reason, summary, tags, categories, claim{status, evidence})
+    ├── reliability     (label, source_tier, source_domain, claim_status, reasons)
+    └── artifacts[lang] (titre localisé, blocs, sources citées)
+```
+
+Fichiers sous `data/` :
+
+| Fichier | Contenu | Git |
+|---|---|---|
+| `config.json` | Configuration locale | ignoré |
+| `config.example.json` | Modèle de configuration et catalogue de sources de référence | suivi |
+| `presets.json` | Catalogue de sources pour l'assistant | suivi |
+| `summaries/lucidnews-AAAA-MM-JJ-<lang>.md` | Digests produits ; servent aussi d'historique pour l'enrichissement | ignoré |
+| `subscribers.json` | Abonnés newsletter (format versionné) | ignoré |
+| `mcp-runs/` | Étapes intermédiaires du serveur MCP | ignoré |
+
+## Configuration
+
+Toute la configuration est centralisée dans un seul schéma, `Config` (`src/models.py`), chargé depuis `data/config.json` :
+
+| Section | Rôle |
+|---|---|
+| `ai` | Fournisseur, modèle, `api_key_env` (nom de variable), langues de sortie, concurrence, `max_requests_per_minute`, chaîne de repli |
+| `sources` | Sources à surveiller, avec pour chacune `category`, `profile` et, pour RSS, `trust` |
+| `collection` | Fenêtre de temps (`time_window_hours`) |
+| `processing` | Dossier des profils, profil par défaut, seuil et dédoublonnage par profil |
+| `reliability` | Surcharges du registre de domaines, étiquettes à exclure du digest |
+| `digest` | Ordre des sections, quotas par catégorie, plafond d'items |
+| `email`, `webhook` | Distribution |
+| `extractors`, `display` | Extraction de texte intégral, icônes du terminal |
+
+Les secrets ne vont jamais dans ce fichier : il contient des **noms** de variables (`api_key_env`, `password_env`, `url_env`) ou des références `${VAR}`.
+
+## Points sensibles
+
+Ces parties portent la qualité et la fiabilité du produit. Toute modification doit être accompagnée de tests.
+
+- **Scrapers** : chaque source a ses particularités (dates, pagination, limites d'API). Un scraper doit renvoyer `[]` plutôt que lever une exception pour une erreur réseau ponctuelle ; le rapport de collecte (`FetchReport`) distingue succès, vide et échec.
+- **Fusion des doublons** : la clé d'URL est volontairement prudente (pas de suppression de paramètres autres que le tracking).
+- **Filtrage** : un item non noté ne passe jamais ; les items sont toujours triés par score décroissant.
+- **Prompts** (`ai/prompting/`, `profiles/`) : ils imposent de ne rien inventer et de traiter tout contenu collecté comme des données, pas des instructions (protection contre l'injection de prompt).
+- **Rendu** : tout texte venant d'une source ou de l'IA est échappé (HTML et Markdown) ; seules les URL `http(s)` sont rendues en lien.
+- **Fiabilité** : les règles de `reliability/assess.py` sont conservatrices par conception ; ne pas les assouplir sans décision produit.
+- **Quotas IA** : régler `ai.max_requests_per_minute` selon l'offre du fournisseur, sinon les erreurs 429 font perdre des items (non notés, donc exclus).
