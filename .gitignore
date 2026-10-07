@@ -72,3 +72,6 @@ todo.txt
 
 # Local, not part of the product
 Skills/
+
+# Design reference images (input for the UI, kept local)
+Templates/

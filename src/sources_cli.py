@@ -11,7 +11,7 @@ from rich.table import Table
 
 from ._cli import add_data_dir_arguments
 from .archive import ItemArchive
-from .source_health import HealthStatus, assess_health, configured_source_keys
+from .source_health import HealthStatus, assess_health, configured_source_keys, health_to_dict
 from .storage.manager import StorageManager
 
 STATUS_STYLES = {
@@ -70,22 +70,7 @@ def main(argv: list[str] | None = None) -> int:
             json.dumps(
                 {
                     "days": args.days,
-                    "sources": [
-                        {
-                            "source": h.source_key,
-                            "type": h.source_type,
-                            "status": h.status.value,
-                            "reasons": h.reasons,
-                            "runs": h.runs,
-                            "failures": h.failures,
-                            "items": h.items,
-                            "selected": h.selected,
-                            "selection_rate": round(h.selection_rate, 4),
-                            "last_success_at": h.last_success_at,
-                            "last_error": h.last_error,
-                        }
-                        for h in report
-                    ],
+                    "sources": [health_to_dict(h) for h in report],
                     "configured_without_history": never_seen,
                 },
                 indent=2,

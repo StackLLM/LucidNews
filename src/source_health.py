@@ -241,3 +241,22 @@ def assess_health(rows: Sequence[Mapping[str, object]]) -> List[SourceHealth]:
         by_key.values(),
         key=lambda h: (SEVERITY.index(h.status), -h.failure_rate, h.source_key),
     )
+
+
+def health_to_dict(health: SourceHealth) -> Dict[str, object]:
+    """JSON-ready view shared by ``lucidnews-sources --json`` and the web API."""
+    return {
+        "source": health.source_key,
+        "type": health.source_type,
+        "status": health.status.value,
+        "reasons": health.reasons,
+        "runs": health.runs,
+        "failures": health.failures,
+        "consecutive_failures": health.consecutive_failures,
+        "empty_runs": health.empty_runs,
+        "items": health.items,
+        "selected": health.selected,
+        "selection_rate": round(health.selection_rate, 4),
+        "last_success_at": health.last_success_at,
+        "last_error": health.last_error,
+    }

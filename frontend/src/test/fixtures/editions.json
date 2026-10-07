@@ -1,0 +1,60 @@
+{
+ "editions": [
+  {
+   "id": "20261006T174848Z-40cb84d1",
+   "started_at": "2026-10-06T17:48:48.081281+00:00",
+   "finished_at": "2026-10-06T17:59:55.017163+00:00",
+   "fetched_count": 46,
+   "selected_count": 13
+  },
+  {
+   "id": "20261006T174527Z-e70aca52",
+   "started_at": "2026-10-06T17:45:27.984103+00:00",
+   "finished_at": "2026-10-06T17:45:52.662183+00:00",
+   "fetched_count": 9,
+   "selected_count": 1
+  },
+  {
+   "id": "20261006T174458Z-83ca1fee",
+   "started_at": "2026-10-06T17:44:58.756360+00:00",
+   "finished_at": "2026-10-06T17:45:25.552887+00:00",
+   "fetched_count": 9,
+   "selected_count": 1
+  },
+  {
+   "id": "20261006T174415Z-cdb1d724",
+   "started_at": "2026-10-06T17:44:15.460908+00:00",
+   "finished_at": "2026-10-06T17:44:56.390916+00:00",
+   "fetched_count": 9,
+   "selected_count": 1
+  },
+  {
+   "id": "20261006T173900Z-29995468",
+   "started_at": "2026-10-06T17:39:00.967851+00:00",
+   "finished_at": "2026-10-06T17:40:03.319719+00:00",
+   "fetched_count": 12,
+   "selected_count": 1
+  },
+  {
+   "id": "20261006T172831Z-1e6452a2",
+   "started_at": "2026-10-06T17:28:31.933973+00:00",
+   "finished_at": "2026-10-06T17:29:26.497771+00:00",
+   "fetched_count": 12,
+   "selected_count": 2
+  },
+  {
+   "id": "20261006T172336Z-cb71d2a6",
+   "started_at": "2026-10-06T17:23:36.245523+00:00",
+   "finished_at": "2026-10-06T17:27:12.670954+00:00",
+   "fetched_count": 13,
+   "selected_count": 2
+  },
+  {
+   "id": "20261006T171940Z-7b1deced",
+   "started_at": "2026-10-06T17:19:40.876082+00:00",
+   "finished_at": "2026-10-06T17:23:29.407191+00:00",
+   "fetched_count": 14,
+   "selected_count": 2
+  }
+ ]
+}

@@ -202,6 +202,24 @@ class ItemArchive:
             ).fetchall()
         return [RunRecord(**dict(row)) for row in rows]
 
+    def latest_published_run(self) -> Optional[RunRecord]:
+        """Most recent successful run that selected at least one item."""
+        with closing(self._connect()) as conn:
+            row = conn.execute(
+                """SELECT id, started_at, finished_at, status, since, fetched_count,
+                          selected_count, error, unscored_count FROM runs
+                   WHERE status = 'success' AND selected_count > 0
+                   ORDER BY started_at DESC LIMIT 1"""
+            ).fetchone()
+        return RunRecord(**dict(row)) if row else None
+
+    def run_item_ids(self, run_id: str, *, selected_only: bool = False) -> List[str]:
+        query = "SELECT item_id FROM run_items WHERE run_id = ?"
+        if selected_only:
+            query += " AND selected = 1"
+        with closing(self._connect()) as conn:
+            return [row["item_id"] for row in conn.execute(query, (run_id,))]
+
     # Items ----------------------------------------------------------------
 
     def record_items(
