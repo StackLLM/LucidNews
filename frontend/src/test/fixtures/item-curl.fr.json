@@ -1,0 +1,68 @@
+{
+ "id": "rss:lobste.rs_rss:084029a21599b2e3",
+ "title": "Deux bogues de compilation sur arm64 introduisent des vulnérabilités dans curl",
+ "url": "https://mastodon.social/@bagder/117392573268225646",
+ "score": 7.0,
+ "importance": "high",
+ "categories": [
+  "cybersecurity",
+  "software-development",
+  "infrastructure"
+ ],
+ "tags": [
+  "curl",
+  "arm64",
+  "compiler-bugs",
+  "vulnerabilities",
+  "security"
+ ],
+ "summary": "Daniel Stenberg rapporte que deux erreurs de compilation spécifiques à l'architecture arm64 auraient introduit des vulnérabilités dans l'utilitaire curl. Ces défauts, attribués à des comportements de compilateur, affectent potentiellement les utilisateurs déployant curl sur des systèmes arm64. Les détails techniques précis restent à confirmer par les canaux officiels de correctifs et de sécurité.",
+ "sections": [
+  {
+   "id": "background",
+   "title": "Contexte",
+   "content": "Développé en langage C et largement utilisé pour les transferts de données, curl fait l'objet d'un suivi de sécurité rigoureux par ses mainteneurs et sa communauté face aux divers signalements et vulnérabilités."
+  },
+  {
+   "id": "impact",
+   "title": "Impact",
+   "content": "Les administrateurs systèmes et développeurs utilisant curl sur des architectures arm64 doivent surveiller les publications de correctifs de sécurité afin d'éviter l'exploitation potentielle de ces failles induites par le compilateur."
+  }
+ ],
+ "reliability": {
+  "label": "unverified",
+  "source_tier": "community",
+  "source_domain": "mastodon.social",
+  "claim_status": "reported",
+  "corroborated_by": [],
+  "reasons": [
+   "mastodon.social is registered as community",
+   "claim reported: Stated by Daniel Stenberg via a social media post linking to a discussion about arm64-specific miscompiles affecting curl."
+  ]
+ },
+ "source_type": "rss",
+ "author": "mastodon.social via addison",
+ "published_at": "2026-10-06T07:52:24+00:00",
+ "discussion_url": null,
+ "translated": true,
+ "language": "fr",
+ "available_languages": [
+  "en",
+  "fr"
+ ],
+ "profile": "tech-news",
+ "profile_name": "Actualités tech",
+ "claim": {
+  "status": "reported",
+  "evidence": "Stated by Daniel Stenberg via a social media post linking to a discussion about arm64-specific miscompiles affecting curl."
+ },
+ "editions": [
+  {
+   "id": "20261006T174848Z-40cb84d1",
+   "started_at": "2026-10-06T17:48:48.081281+00:00",
+   "finished_at": "2026-10-06T17:59:55.017163+00:00",
+   "fetched_count": 46,
+   "selected_count": 13
+  }
+ ]
+}

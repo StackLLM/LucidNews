@@ -1,0 +1,334 @@
+import { useSearchParams } from 'react-router'
+import type { HealthStatus, ReliabilityLabel, SourceTier } from './api'
+
+// Interface strings. Labels mirror src/i18n.py and src/taxonomy.py so the web app
+// and the e-mail digest say the same thing. A missing key falls back to English.
+
+export const languages = ['en', 'fr'] as const
+export type Language = (typeof languages)[number]
+
+const en = {
+  'nav.edition': 'Edition',
+  'item.details': 'Full brief',
+  'detail.back': 'Back to the edition',
+  'detail.crumb': 'Item',
+  'detail.notFound': 'This item is not in the archive.',
+  'detail.section': 'Section',
+  'detail.published': 'Published',
+  'detail.score': 'Score',
+  'detail.publisher': 'Publisher',
+  'detail.claim': 'Claim',
+  'detail.notAssessed': 'not assessed',
+  'detail.evidence': 'Evidence (AI analysis)',
+  'detail.corroboration': 'Independent corroboration',
+  'detail.noCorroboration': 'No other independent outlet detected.',
+  'detail.read': 'Read',
+  'detail.openSource': 'Read the original article',
+  'detail.discussion': 'Discussion',
+  'detail.copy': 'Copy link',
+  'detail.copied': 'Link copied',
+  'detail.editions': 'Published in',
+  'detail.noEdition': 'Not published in an edition.',
+  'detail.tags': 'Tags',
+  'detail.categories': 'Categories',
+  'claim.confirmed': 'confirmed by the party concerned',
+  'claim.reported': 'reported by a credible outlet',
+  'claim.unverified': 'not verified',
+  'claim.rumor': 'rumor or leak',
+  'nav.main': 'Main navigation',
+  'page.loading': 'Loading…',
+  'archive.title': 'Archive',
+  'archive.subtitle': 'Every published edition, by date.',
+  'archive.calendar': 'Pick a day',
+  'archive.all': 'All editions',
+  'archive.showAll': 'Show all',
+  'archive.count': '{count} edition(s)',
+  'archive.emptyDay': 'No edition on this day.',
+  'archive.empty': 'No edition has been published yet.',
+  'archive.open': 'Open',
+  'archive.ratio': '{selected} selected out of {fetched}',
+  'archive.ratio.one': '{selected} selected out of {fetched}',
+  'sources.title': 'Source health',
+  'sources.subtitle': 'How each configured source behaved over the period.',
+  'sources.period': 'Period',
+  'sources.days': '{days} days',
+  'sources.tracked': 'Sources tracked',
+  'sources.healthy': 'Healthy',
+  'sources.watch': 'To watch',
+  'sources.broken': 'Failing',
+  'sources.neverSeen': 'Configured but never collected: {list}',
+  'sources.volume': 'Volume per run',
+  'sources.volumeHint': 'Items collected and items selected in each run.',
+  'sources.collected': 'Collected',
+  'sources.selected': 'Selected',
+  'sources.showTable': 'Table',
+  'sources.showChart': 'Chart',
+  'sources.run': 'Run',
+  'sources.list': 'Sources',
+  'sources.filterAll': 'All',
+  'sources.col.source': 'Source',
+  'sources.col.status': 'Status',
+  'sources.col.runs': 'Runs',
+  'sources.col.failures': 'Failures',
+  'sources.col.perRun': 'Items/run',
+  'sources.col.selected': 'Selected',
+  'sources.col.lastSuccess': 'Last success',
+  'sources.col.detail': 'Detail',
+  'sources.never': 'never',
+  'sources.noneMatch': 'No source with this status.',
+  'sources.noRuns': 'No run in this period.',
+  'health.dead': 'Dead',
+  'health.failing': 'Failing',
+  'health.silent': 'Silent',
+  'health.noisy': 'Noisy',
+  'health.healthy': 'Healthy',
+  'reason.dead': 'failed the last {count} runs',
+  'reason.failing': 'failed {failures}/{runs} runs',
+  'reason.silent': 'no items in {runs} runs',
+  'reason.noisy': '{selected}/{items} items selected',
+  'reason.empty': 'no items in the period',
+  'nav.archive': 'Archive',
+  'nav.sources': 'Sources',
+  'nav.soon': 'Soon',
+  'motion.on': 'Animations on',
+  'motion.off': 'Animations off',
+  'language.switch': 'Language',
+  'edition.kicker': 'Daily edition',
+  'edition.archived': 'Archived edition',
+  'edition.analyzed': 'items analyzed',
+  'edition.selected': 'selected',
+  'edition.sections': 'sections',
+  'edition.inThisEdition': 'In this edition',
+  'edition.reliability': 'Reliability',
+  'edition.reliabilityHint': 'Every item shows how much you can trust it. Unconfirmed news is never presented as fact.',
+  'item.readMore': 'Read more',
+  'item.readLess': 'Show less',
+  'item.discussion': 'Discussion',
+  'item.open': 'Open the source',
+  'item.notTranslated': 'Not available in this language yet',
+  'item.score': 'Score',
+  'item.corroborated': 'corroborated by {count} independent source(s)',
+  'state.loading': 'Loading the edition…',
+  'state.errorTitle': 'The edition could not be loaded',
+  'state.errorBody': 'Start the local API, then retry.',
+  'state.notFound': 'No edition has been published yet.',
+  'state.retry': 'Retry',
+  'label.confirmed': 'Confirmed',
+  'label.reliable': 'Reliable',
+  'label.unverified': 'Unverified',
+  'label.rumor': 'Rumor',
+  'labelHint.confirmed': 'Published or confirmed by the party concerned.',
+  'labelHint.reliable': 'Reported by a reputable outlet.',
+  'labelHint.unverified': 'Not confirmed by an official or reputable source.',
+  'labelHint.rumor': 'Speculation or leak, not a confirmed fact.',
+  'tier.official': 'official source',
+  'tier.reputable': 'reputable source',
+  'tier.community': 'community source',
+  'tier.unknown': 'unrecognized source',
+  'importance.critical': 'Critical',
+  'importance.high': 'High',
+  'importance.medium': 'Medium',
+  'importance.low': 'Low',
+  'category.ai': 'AI / LLM / Agents',
+  'category.software-development': 'Software Development',
+  'category.cloud': 'Cloud',
+  'category.devops': 'DevOps',
+  'category.data': 'Data',
+  'category.cybersecurity': 'Cybersecurity',
+  'category.web': 'Web',
+  'category.open-source': 'Open Source',
+  'category.developer-tools': 'Developer Tools',
+  'category.databases': 'Databases',
+  'category.infrastructure': 'Infrastructure',
+  'category.emerging-tech': 'Emerging Technologies',
+}
+
+export type MessageKey = keyof typeof en
+
+const fr: Partial<Record<MessageKey, string>> = {
+  'nav.edition': 'Édition',
+  'item.details': 'Fiche complète',
+  'detail.back': 'Retour à l’édition',
+  'detail.crumb': 'Article',
+  'detail.notFound': 'Cette news n’est pas dans l’archive.',
+  'detail.section': 'Rubrique',
+  'detail.published': 'Publié',
+  'detail.score': 'Score',
+  'detail.publisher': 'Éditeur',
+  'detail.claim': 'Affirmation',
+  'detail.notAssessed': 'non évaluée',
+  'detail.evidence': 'Élément de preuve (analyse IA, en anglais)',
+  'detail.corroboration': 'Corroboration indépendante',
+  'detail.noCorroboration': 'Aucun autre média indépendant détecté.',
+  'detail.read': 'Lire',
+  'detail.openSource': 'Lire l’article original',
+  'detail.discussion': 'Discussion',
+  'detail.copy': 'Copier le lien',
+  'detail.copied': 'Lien copié',
+  'detail.editions': 'Publiée dans',
+  'detail.noEdition': 'Publiée dans aucune édition.',
+  'detail.tags': 'Tags',
+  'detail.categories': 'Catégories',
+  'claim.confirmed': 'confirmée par l’acteur concerné',
+  'claim.reported': 'rapportée par un média crédible',
+  'claim.unverified': 'non vérifiée',
+  'claim.rumor': 'rumeur ou fuite',
+  'nav.main': 'Navigation principale',
+  'page.loading': 'Chargement…',
+  'archive.title': 'Archives',
+  'archive.subtitle': 'Toutes les éditions publiées, par date.',
+  'archive.calendar': 'Choisir un jour',
+  'archive.all': 'Toutes les éditions',
+  'archive.showAll': 'Tout afficher',
+  'archive.count': '{count} édition(s)',
+  'archive.emptyDay': 'Aucune édition ce jour-là.',
+  'archive.empty': 'Aucune édition n’a encore été publiée.',
+  'archive.open': 'Ouvrir',
+  'archive.ratio': '{selected} retenus sur {fetched}',
+  'archive.ratio.one': '{selected} retenu sur {fetched}',
+  'sources.title': 'Santé des sources',
+  'sources.subtitle': 'Le comportement de chaque source configurée sur la période.',
+  'sources.period': 'Période',
+  'sources.days': '{days} jours',
+  'sources.tracked': 'Sources suivies',
+  'sources.healthy': 'Saines',
+  'sources.watch': 'À surveiller',
+  'sources.broken': 'En échec',
+  'sources.neverSeen': 'Configurées mais jamais collectées : {list}',
+  'sources.volume': 'Volume par run',
+  'sources.volumeHint': 'Contenus collectés et contenus retenus à chaque run.',
+  'sources.collected': 'Collectés',
+  'sources.selected': 'Retenus',
+  'sources.showTable': 'Tableau',
+  'sources.showChart': 'Graphique',
+  'sources.run': 'Run',
+  'sources.list': 'Sources',
+  'sources.filterAll': 'Toutes',
+  'sources.col.source': 'Source',
+  'sources.col.status': 'Statut',
+  'sources.col.runs': 'Runs',
+  'sources.col.failures': 'Échecs',
+  'sources.col.perRun': 'Contenus/run',
+  'sources.col.selected': 'Retenus',
+  'sources.col.lastSuccess': 'Dernier succès',
+  'sources.col.detail': 'Détail',
+  'sources.never': 'jamais',
+  'sources.noneMatch': 'Aucune source avec ce statut.',
+  'sources.noRuns': 'Aucun run sur cette période.',
+  'health.dead': 'Morte',
+  'health.failing': 'En échec',
+  'health.silent': 'Silencieuse',
+  'health.noisy': 'Bruyante',
+  'health.healthy': 'Saine',
+  'reason.dead': 'échec aux {count} derniers runs',
+  'reason.failing': 'échec à {failures}/{runs} runs',
+  'reason.silent': 'aucun contenu en {runs} runs',
+  'reason.noisy': '{selected}/{items} contenus retenus',
+  'reason.empty': 'aucun contenu sur la période',
+  'nav.archive': 'Archives',
+  'nav.sources': 'Sources',
+  'nav.soon': 'Bientôt',
+  'motion.on': 'Animations activées',
+  'motion.off': 'Animations désactivées',
+  'language.switch': 'Langue',
+  'edition.kicker': 'Édition du jour',
+  'edition.archived': 'Édition archivée',
+  'edition.analyzed': 'contenus analysés',
+  'edition.selected': 'retenus',
+  'edition.sections': 'rubriques',
+  'edition.inThisEdition': 'Dans cette édition',
+  'edition.reliability': 'Fiabilité',
+  'edition.reliabilityHint':
+    'Chaque information indique son niveau de confiance. Une info non confirmée n’est jamais présentée comme un fait.',
+  'item.readMore': 'Lire la suite',
+  'item.readLess': 'Réduire',
+  'item.discussion': 'Discussion',
+  'item.open': 'Ouvrir la source',
+  'item.notTranslated': 'Pas encore disponible dans cette langue',
+  'item.score': 'Score',
+  'item.corroborated': 'corroboré par {count} source(s) indépendante(s)',
+  'state.loading': 'Chargement de l’édition…',
+  'state.errorTitle': 'Impossible de charger l’édition',
+  'state.errorBody': 'Lancez l’API locale, puis réessayez.',
+  'state.notFound': 'Aucune édition n’a encore été publiée.',
+  'state.retry': 'Réessayer',
+  'label.confirmed': 'Confirmé',
+  'label.reliable': 'Fiable',
+  'label.unverified': 'Non vérifié',
+  'label.rumor': 'Rumeur',
+  'labelHint.confirmed': 'Publié ou confirmé par l’acteur concerné.',
+  'labelHint.reliable': 'Rapporté par un média reconnu.',
+  'labelHint.unverified': 'Pas confirmé par une source officielle ou reconnue.',
+  'labelHint.rumor': 'Spéculation ou fuite, pas un fait confirmé.',
+  'tier.official': 'source officielle',
+  'tier.reputable': 'source reconnue',
+  'tier.community': 'source communautaire',
+  'tier.unknown': 'source non référencée',
+  'importance.critical': 'Critique',
+  'importance.high': 'Élevée',
+  'importance.medium': 'Moyenne',
+  'importance.low': 'Faible',
+  'category.ai': 'IA / LLM / Agents',
+  'category.software-development': 'Développement logiciel',
+  'category.cybersecurity': 'Cybersécurité',
+  'category.developer-tools': 'Outils développeurs',
+  'category.databases': 'Bases de données',
+  'category.emerging-tech': 'Technologies émergentes',
+}
+
+const tables: Record<Language, Partial<Record<MessageKey, string>>> = { en, fr }
+
+export function translate(language: Language, key: MessageKey, params?: Record<string, string | number>): string {
+  let text = tables[language][key] ?? en[key]
+  for (const [name, value] of Object.entries(params ?? {})) {
+    text = text.replaceAll(`{${name}}`, String(value))
+  }
+  return text
+}
+
+/** Picks `<key>.one` when the language's plural rules say so, else `<key>`. */
+export function translatePlural(
+  language: Language,
+  key: MessageKey,
+  count: number,
+  params?: Record<string, string | number>,
+): string {
+  const oneKey = `${key}.one` as MessageKey
+  const useOne = new Intl.PluralRules(language).select(count) === 'one' && oneKey in en
+  return translate(language, useOne ? oneKey : key, params)
+}
+
+export function isLanguage(value: string | null): value is Language {
+  return value !== null && (languages as readonly string[]).includes(value)
+}
+
+function preferredLanguage(): Language {
+  return typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('fr') ? 'fr' : 'en'
+}
+
+/** Language lives in the URL (`?lang=fr`) so a shared link opens the same view. */
+export function useLanguage() {
+  const [params, setParams] = useSearchParams()
+  const requested = params.get('lang')
+  const language: Language = isLanguage(requested) ? requested : preferredLanguage()
+  const setLanguage = (next: Language) =>
+    setParams(
+      (current) => {
+        current.set('lang', next)
+        return current
+      },
+      { replace: true },
+    )
+  const t = (key: MessageKey, params?: Record<string, string | number>) => translate(language, key, params)
+  return { language, setLanguage, t }
+}
+
+export const labelKey = (label: ReliabilityLabel) => `label.${label}` as MessageKey
+export const labelHintKey = (label: ReliabilityLabel) => `labelHint.${label}` as MessageKey
+export const tierKey = (tier: SourceTier) => `tier.${tier}` as MessageKey
+export const healthKey = (status: HealthStatus) => `health.${status}` as MessageKey
+
+export function categoryLabel(language: Language, category: string): string {
+  const key = `category.${category}` as MessageKey
+  return key in en ? translate(language, key) : category
+}

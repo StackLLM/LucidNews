@@ -154,3 +154,27 @@ def test_sources_endpoint_reports_configured_sources_and_runs(tmp_path) -> None:
     assert [(r["id"], r["fetched_count"], r["selected_count"]) for r in body["runs"]] == [(run_id, 4, 3)]
     assert resolve(ctx, "/api/sources", {"days": ["0"]})[0] == 400
     assert resolve(ctx, "/api/sources", {"days": ["abc"]})[0] == 400
+
+
+def test_item_detail_returns_claim_and_publishing_editions(tmp_path) -> None:
+    ctx, run_id = make_context(tmp_path)
+
+    status, body = resolve(ctx, "/api/items/top", {"lang": ["fr"]})
+
+    assert status == 200
+    assert (body["title"], body["language"], body["profile_name"]) == ("top FR", "fr", "Actualités tech")
+    assert body["available_languages"] == ["en", "fr"]
+    assert [edition["id"] for edition in body["editions"]] == [run_id]
+    assert body["claim"] is None
+    # Not selected in any run: no edition listed, still readable.
+    assert resolve(ctx, "/api/items/dropped", {})[1]["editions"] == []
+
+
+def test_item_detail_decodes_ids_and_rejects_bad_ones(tmp_path) -> None:
+    ctx, _ = make_context(tmp_path)
+    item = make_item("hackernews:story:42", "tech-news", 8.0)
+    ctx.archive.record_items(ctx.archive.list_runs()[0].id, [item])
+
+    assert resolve(ctx, "/api/items/hackernews%3Astory%3A42", {})[1]["id"] == "hackernews:story:42"
+    assert resolve(ctx, "/api/items/missing", {})[0] == 404
+    assert resolve(ctx, "/api/items/bad%0Aid", {})[0] == 400

@@ -53,7 +53,7 @@ function EditionView({ edition, archived }: { edition: Edition; archived: boolea
               <span className="tabular-nums text-faint">{section.items.length}</span>
             </motion.h2>
             {section.items.map((item) => (
-              <ItemCard key={item.id} item={item} />
+              <ItemCard key={item.id} item={item} editionId={edition.id} />
             ))}
           </motion.section>
         ))}

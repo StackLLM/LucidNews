@@ -1,9 +1,10 @@
-import { ArrowUpRight, ChevronDown, Clock, MessageSquare, TriangleAlert } from 'lucide-react'
+import { ArrowUpRight, ChevronDown, Clock, FileText, MessageSquare, TriangleAlert } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useId, useState } from 'react'
+import { Link } from 'react-router'
 import { ReliabilityBadge } from '../../design/ReliabilityBadge'
 import type { EditionItem } from '../../lib/api'
-import { formatItemTime, formatScore, hostOf, sourceName } from '../../lib/format'
+import { formatItemTime, formatScore, hostOf, itemPath, sourceName } from '../../lib/format'
 import { categoryLabel, labelHintKey, tierKey, useLanguage, type MessageKey } from '../../lib/i18n'
 import { expand, riseIn } from '../../lib/motion'
 
@@ -14,7 +15,7 @@ const importanceTone: Record<string, string> = {
   low: 'bg-ink/5 text-faint',
 }
 
-export function ItemCard({ item }: { item: EditionItem }) {
+export function ItemCard({ item, editionId }: { item: EditionItem; editionId?: string }) {
   const { language, t } = useLanguage()
   const [open, setOpen] = useState(false)
   const detailsId = useId()
@@ -142,13 +143,21 @@ export function ItemCard({ item }: { item: EditionItem }) {
           />
         </a>
 
+        <span className="ml-auto flex items-center gap-2">
+          <Link
+            to={itemPath(item.id, language, editionId)}
+            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold text-ink/70 transition-colors duration-150 hover:bg-canvas hover:text-ink"
+          >
+            <FileText size={14} aria-hidden />
+            {t('item.details')}
+          </Link>
         {item.sections.length > 0 && (
           <button
             type="button"
             aria-expanded={open}
             aria-controls={detailsId}
             onClick={() => setOpen((value) => !value)}
-            className="ml-auto flex items-center gap-1.5 rounded-full bg-accent-soft px-3.5 py-1.5 text-[13px] font-semibold text-accent transition-all duration-150 ease-soft hover:bg-accent hover:text-white active:scale-95"
+            className="flex items-center gap-1.5 rounded-full bg-accent-soft px-3.5 py-1.5 text-[13px] font-semibold text-accent transition-all duration-150 ease-soft hover:bg-accent hover:text-white active:scale-95"
           >
             {t(open ? 'item.readLess' : 'item.readMore')}
             <ChevronDown
@@ -158,6 +167,7 @@ export function ItemCard({ item }: { item: EditionItem }) {
             />
           </button>
         )}
+        </span>
       </footer>
     </motion.article>
   )

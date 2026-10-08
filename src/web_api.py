@@ -5,6 +5,7 @@ Endpoints (JSON, GET only):
 - ``/api/editions``: recent runs that published a digest.
 - ``/api/editions/latest?lang=fr``: the latest edition in one language.
 - ``/api/editions/<run_id>?lang=fr``: one edition.
+- ``/api/items/<item_id>?lang=fr``: one item with its reliability details and editions.
 - ``/api/sources?days=14``: source health (configured sources) and per-run volumes.
 
 The server binds to localhost by default and never writes to the archive.
@@ -20,7 +21,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 from ._cli import add_data_dir_arguments
 from .archive import ItemArchive, RunRecord
@@ -32,6 +33,7 @@ from .storage.manager import StorageManager
 from .taxonomy import importance_from_score
 
 RUN_ID = re.compile(r"^\d{8}T\d{6}Z-[0-9a-f]{8}$")
+ITEM_ID = re.compile(r"^[^\x00-\x1f\x7f]{1,300}$")
 
 
 @dataclass
@@ -84,6 +86,22 @@ def item_payload(item: ContentItem, language: str) -> Dict[str, Any]:
         "published_at": item.published_at.isoformat(),
         "discussion_url": item.metadata.get("discussion_url"),
         "translated": artifact is not None,
+    }
+
+
+def item_detail_payload(ctx: "ApiContext", item: ContentItem, language: str) -> Dict[str, Any]:
+    processing = item.processing
+    analysis = processing.analysis if processing else None
+    claim = analysis.claim if analysis else None
+    return {
+        **item_payload(item, language),
+        "language": language,
+        "available_languages": sorted(processing.artifacts) if processing else [],
+        "profile": _profile_id(item),
+        "profile_name": _profile_name(ctx, _profile_id(item), language),
+        # The claim evidence comes from the AI analysis, which is written in English.
+        "claim": {"status": claim.status.value, "evidence": claim.evidence} if claim else None,
+        "editions": [run_payload(run) for run in ctx.archive.runs_selecting(item.id)],
     }
 
 
@@ -182,6 +200,14 @@ def resolve(ctx: ApiContext, path: str, query: Dict[str, List[str]]) -> tuple[in
         if not 1 <= days <= MAX_HEALTH_DAYS:
             return HTTPStatus.BAD_REQUEST, {"error": f"days must be between 1 and {MAX_HEALTH_DAYS}"}
         return HTTPStatus.OK, source_health_payload(ctx, days)
+    if path.startswith("/api/items/"):
+        item_id = unquote(path.removeprefix("/api/items/"))
+        if not ITEM_ID.match(item_id):
+            return HTTPStatus.BAD_REQUEST, {"error": "invalid item id"}
+        item = ctx.archive.get_item(item_id)
+        if item is None or not item.processing or not item.processing.analysis:
+            return HTTPStatus.NOT_FOUND, {"error": "item not found"}
+        return HTTPStatus.OK, item_detail_payload(ctx, item, language)
     if path.startswith("/api/editions/"):
         key = path.removeprefix("/api/editions/")
         if key == "latest":

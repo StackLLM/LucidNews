@@ -213,6 +213,19 @@ class ItemArchive:
             ).fetchone()
         return RunRecord(**dict(row)) if row else None
 
+    def runs_selecting(self, item_id: str) -> List[RunRecord]:
+        """Successful runs that published the item, newest first."""
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                """SELECT r.id, r.started_at, r.finished_at, r.status, r.since, r.fetched_count,
+                          r.selected_count, r.error, r.unscored_count
+                   FROM runs r JOIN run_items ri ON ri.run_id = r.id
+                   WHERE ri.item_id = ? AND ri.selected = 1 AND r.status = 'success'
+                   ORDER BY r.started_at DESC""",
+                (item_id,),
+            ).fetchall()
+        return [RunRecord(**dict(row)) for row in rows]
+
     def run_item_ids(self, run_id: str, *, selected_only: bool = False) -> List[str]:
         query = "SELECT item_id FROM run_items WHERE run_id = ?"
         if selected_only:

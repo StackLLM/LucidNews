@@ -1,7 +1,7 @@
 # LucidNews — frontend
 
-Statut : **3 écrans construits** (Édition, Archives, Santé des sources), branchés
-sur l'API en lecture seule du moteur Python. Détail d'une news et Préférences sont prévus.
+Statut : **4 écrans construits** (Édition, Fiche d'une news, Archives, Santé des
+sources), branchés sur l'API en lecture seule du moteur Python. Préférences est prévu.
 
 ## Lancer
 
@@ -33,7 +33,7 @@ Premium, calme, fin, professionnel. Impressionnant sans être chargé.
 | Écran | Rôle | Données existantes côté moteur |
 |---|---|---|
 | Édition du jour ✅ | Lire le digest : sections, score, fiabilité | API `/api/editions/latest` |
-| Détail d'une news | Article + colonne Fiabilité / sources / discussion | Analyse, fiabilité, corroborations |
+| Fiche d'une news ✅ | Article complet + colonne Fiabilité (éditeur, affirmation, preuve, corroboration), actions, éditions | API `/api/items/<id>` |
 | Archives ✅ | Retrouver une édition par date (calendrier + liste) | API `/api/editions` |
 | Préférences | Langues, catégories, seuil, fréquence, offre affichée | Modèle d'abonné et préférences |
 | Santé des sources ✅ | Chiffres clés, volume par run, tableau filtrable | API `/api/sources` |
@@ -66,6 +66,7 @@ localhost. Aucune dépendance Python ajoutée (serveur HTTP de la bibliothèque 
 | `GET /api/editions` | Runs ayant publié une édition |
 | `GET /api/editions/latest?lang=fr` | Dernière édition, dans une langue |
 | `GET /api/editions/<id>?lang=fr` | Une édition précise |
+| `GET /api/items/<id>?lang=fr` | Une news : contenu, fiabilité détaillée, éditions qui l'ont publiée |
 | `GET /api/sources?days=14` | Santé des sources configurées (1 à 90 jours) et volume par run |
 
 Les tests du frontend utilisent les vraies réponses de l'API sur l'archive

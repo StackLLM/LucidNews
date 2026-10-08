@@ -10,6 +10,7 @@ import { TopBar } from './TopBar'
 // One chunk per screen: charts and the calendar load only where they are used.
 const EditionPage = lazy(() => import('../features/edition/EditionPage').then((m) => ({ default: m.EditionPage })))
 const ArchivePage = lazy(() => import('../features/archive/ArchivePage').then((m) => ({ default: m.ArchivePage })))
+const ItemPage = lazy(() => import('../features/item/ItemPage').then((m) => ({ default: m.ItemPage })))
 const SourcesPage = lazy(() => import('../features/sources/SourcesPage').then((m) => ({ default: m.SourcesPage })))
 
 export function createQueryClient() {
@@ -33,6 +34,7 @@ export function Shell() {
           <Routes>
             <Route path="/" element={<EditionPage />} />
             <Route path="/editions/:editionId" element={<EditionPage />} />
+            <Route path="/items/:itemId" element={<ItemPage />} />
             <Route path="/archive" element={<ArchivePage />} />
             <Route path="/sources" element={<SourcesPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />

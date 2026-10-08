@@ -5,7 +5,7 @@ import { languages, useLanguage, type MessageKey } from '../lib/i18n'
 import { useMotionPreference } from '../lib/motion'
 
 const navItems: { key: MessageKey; icon: LucideIcon; to: string; matches: (path: string) => boolean }[] = [
-  { key: 'nav.edition', icon: Newspaper, to: '/', matches: (path) => path === '/' || path.startsWith('/editions/') },
+  { key: 'nav.edition', icon: Newspaper, to: '/', matches: (path) => path === '/' || path.startsWith('/editions/') || path.startsWith('/items/') },
   { key: 'nav.archive', icon: Archive, to: '/archive', matches: (path) => path.startsWith('/archive') },
   { key: 'nav.sources', icon: Activity, to: '/sources', matches: (path) => path.startsWith('/sources') },
 ]
