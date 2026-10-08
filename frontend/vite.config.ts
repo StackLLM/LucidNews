@@ -14,5 +14,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.ts',
+    // First render of a screen loads its lazy chunk.
+    testTimeout: 15_000,
   },
 })

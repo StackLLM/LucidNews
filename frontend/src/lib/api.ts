@@ -101,17 +101,27 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    /** Field-level validation messages from the API (422/409). */
+    readonly fields: Record<string, string> = {},
   ) {
     super(message)
   }
 }
 
-async function getJson<T>(path: string, schema: z.ZodType<T>, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(path, { signal, headers: { Accept: 'application/json' } })
+async function request<T>(path: string, schema: z.ZodType<T>, init: RequestInit = {}): Promise<T> {
+  const response = await fetch(path, {
+    ...init,
+    headers: { Accept: 'application/json', ...(init.body ? { 'Content-Type': 'application/json' } : {}) },
+  })
   if (!response.ok) {
-    throw new ApiError(`API responded ${response.status}`, response.status)
+    const body = await response.json().catch(() => ({}))
+    throw new ApiError(body?.error ?? `API responded ${response.status}`, response.status, body?.fields ?? {})
   }
   return schema.parse(await response.json())
+}
+
+function getJson<T>(path: string, schema: z.ZodType<T>, signal?: AbortSignal): Promise<T> {
+  return request(path, schema, { signal })
 }
 
 export function fetchEdition(id: string, language: string, signal?: AbortSignal): Promise<Edition> {
@@ -128,4 +138,72 @@ export function fetchSourceReport(days: number, signal?: AbortSignal): Promise<S
 
 export function fetchItem(id: string, language: string, signal?: AbortSignal): Promise<ItemDetail> {
   return getJson(`/api/items/${encodeURIComponent(id)}?lang=${encodeURIComponent(language)}`, itemDetailSchema, signal)
+}
+
+// Subscriber preferences (local-only routes, see src/subscribers_api.py) -------------
+
+export const frequencies = ['daily', 'weekly'] as const
+export const importanceLevels = ['low', 'medium', 'high', 'critical'] as const
+
+export const preferencesSchema = z.object({
+  language: z.string(),
+  categories: z.array(z.string()),
+  sources: z.array(z.string()),
+  frequency: z.enum(frequencies),
+  min_importance: z.enum(importanceLevels).nullable(),
+  include_unconfirmed: z.boolean(),
+  max_items: z.number().int().nullable(),
+})
+
+const subscriberSchema = z.object({
+  id: z.string(),
+  email: z.string(),
+  plan: z.enum(['free', 'premium']),
+  preferences: preferencesSchema,
+  created_at: z.string(),
+})
+
+const optionsSchema = z.object({
+  languages: z.array(z.object({ code: z.string(), name: z.string() })),
+  categories: z.array(z.string()),
+  frequencies: z.array(z.enum(frequencies)),
+  importance_levels: z.array(z.enum(importanceLevels)),
+  sources: z.array(z.object({ value: z.string(), type: z.string(), kind: z.enum(['type', 'source']) })),
+  plans: z.array(
+    z.object({
+      id: z.enum(['free', 'premium']),
+      max_categories: z.number().nullable(),
+      max_sources: z.number().nullable(),
+      max_items: z.number().nullable(),
+    }),
+  ),
+})
+
+export type Preferences = z.infer<typeof preferencesSchema>
+export type Subscriber = z.infer<typeof subscriberSchema>
+export type PreferenceOptions = z.infer<typeof optionsSchema>
+
+export function fetchPreferenceOptions(signal?: AbortSignal): Promise<PreferenceOptions> {
+  return getJson('/api/preferences/options', optionsSchema, signal)
+}
+
+export async function fetchSubscribers(signal?: AbortSignal): Promise<Subscriber[]> {
+  return (await getJson('/api/subscribers', z.object({ subscribers: z.array(subscriberSchema) }), signal)).subscribers
+}
+
+export function createSubscriber(email: string): Promise<Subscriber> {
+  return request('/api/subscribers', subscriberSchema, { method: 'POST', body: JSON.stringify({ email }) })
+}
+
+export function updatePreferences(id: string, preferences: Preferences): Promise<Subscriber> {
+  return request(`/api/subscribers/${encodeURIComponent(id)}`, subscriberSchema, {
+    method: 'PUT',
+    body: JSON.stringify({ preferences }),
+  })
+}
+
+export function deleteSubscriber(id: string): Promise<{ deleted: string }> {
+  return request(`/api/subscribers/${encodeURIComponent(id)}`, z.object({ deleted: z.string() }), {
+    method: 'DELETE',
+  })
 }

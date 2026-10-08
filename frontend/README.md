@@ -1,7 +1,7 @@
 # LucidNews — frontend
 
-Statut : **4 écrans construits** (Édition, Fiche d'une news, Archives, Santé des
-sources), branchés sur l'API en lecture seule du moteur Python. Préférences est prévu.
+Statut : **5 écrans construits** (Édition, Fiche d'une news, Archives, Santé des
+sources, Préférences), branchés sur l'API du moteur Python.
 
 ## Lancer
 
@@ -35,7 +35,7 @@ Premium, calme, fin, professionnel. Impressionnant sans être chargé.
 | Édition du jour ✅ | Lire le digest : sections, score, fiabilité | API `/api/editions/latest` |
 | Fiche d'une news ✅ | Article complet + colonne Fiabilité (éditeur, affirmation, preuve, corroboration), actions, éditions | API `/api/items/<id>` |
 | Archives ✅ | Retrouver une édition par date (calendrier + liste) | API `/api/editions` |
-| Préférences | Langues, catégories, seuil, fréquence, offre affichée | Modèle d'abonné et préférences |
+| Préférences ✅ | Abonnés (ajout, suppression), langue, thèmes, sources, rythme, importance, infos non confirmées, limite, offre affichée | API `/api/subscribers` (local) |
 | Santé des sources ✅ | Chiffres clés, volume par run, tableau filtrable | API `/api/sources` |
 
 Pas de paiement, pas de paywall : l'offre Premium est seulement affichée.
@@ -56,10 +56,11 @@ frontend/
 - Code et noms de composants en anglais, comme le moteur Python.
 - Textes de l'interface en EN et FR, extensibles.
 
-## API (lecture seule)
+## API
 
-Commande `lucidnews-api` : lit l'archive SQLite, n'écrit jamais, écoute sur
+Commande `lucidnews-api` : lit l'archive SQLite sans jamais l'écrire, écoute sur
 localhost. Aucune dépendance Python ajoutée (serveur HTTP de la bibliothèque standard).
+Seules les préférences des abonnés s'écrivent (`data/subscribers.json`).
 
 | Route | Contenu |
 |---|---|
@@ -68,6 +69,24 @@ localhost. Aucune dépendance Python ajoutée (serveur HTTP de la bibliothèque 
 | `GET /api/editions/<id>?lang=fr` | Une édition précise |
 | `GET /api/items/<id>?lang=fr` | Une news : contenu, fiabilité détaillée, éditions qui l'ont publiée |
 | `GET /api/sources?days=14` | Santé des sources configurées (1 à 90 jours) et volume par run |
+
+| `GET /api/preferences/options` | Langues, thèmes, sources filtrables, offres |
+| `GET /api/subscribers` | Abonnés et leurs préférences |
+| `POST /api/subscribers` | Ajouter un abonné (`{"email": …}`) |
+| `PUT /api/subscribers/<id>` | Enregistrer ses préférences |
+| `DELETE /api/subscribers/<id>` | Le supprimer (rien n'est conservé) |
+
+### Préférences : version locale, sans comptes
+
+- Les routes abonnés n'existent que si l'API écoute sur localhost (sinon : 403).
+- Requêtes refusées si le nom d'hôte n'est pas local (protection DNS rebinding)
+  ou si elles viennent d'un autre site (en-tête `Origin`).
+- Écritures en JSON seulement (un formulaire d'un autre site ne peut pas en envoyer
+  sans autorisation du navigateur), corps limité à 64 Ko.
+- Un abonné est désigné par un identifiant opaque (empreinte de l'e-mail) :
+  l'adresse n'apparaît jamais dans les URL.
+- L'offre (Gratuite / Premium) est affichée, jamais modifiable depuis l'écran :
+  pas de paiement.
 
 Les tests du frontend utilisent les vraies réponses de l'API sur l'archive
 locale du 6 octobre 2026 (`src/test/fixtures/`).

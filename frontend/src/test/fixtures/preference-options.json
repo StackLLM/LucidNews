@@ -1,0 +1,197 @@
+{
+ "languages": [
+  {
+   "code": "en",
+   "name": "English"
+  },
+  {
+   "code": "fr",
+   "name": "Français"
+  }
+ ],
+ "categories": [
+  "ai",
+  "software-development",
+  "cloud",
+  "devops",
+  "data",
+  "cybersecurity",
+  "web",
+  "open-source",
+  "developer-tools",
+  "databases",
+  "infrastructure",
+  "emerging-tech"
+ ],
+ "frequencies": [
+  "daily",
+  "weekly"
+ ],
+ "importance_levels": [
+  "low",
+  "medium",
+  "high",
+  "critical"
+ ],
+ "sources": [
+  {
+   "value": "github",
+   "type": "github",
+   "kind": "type"
+  },
+  {
+   "value": "hackernews",
+   "type": "hackernews",
+   "kind": "type"
+  },
+  {
+   "value": "rss",
+   "type": "rss",
+   "kind": "type"
+  },
+  {
+   "value": "sgl-project/sglang",
+   "type": "github",
+   "kind": "source"
+  },
+  {
+   "value": "vllm-project/vllm",
+   "type": "github",
+   "kind": "source"
+  },
+  {
+   "value": "YD4223/aihub",
+   "type": "github",
+   "kind": "source"
+  },
+  {
+   "value": "Ahead of AI (Sebastian Raschka)",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "AI Weekly",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "AINews (Buttondown)",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "BAIR Blog",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "Brendan Gregg",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "Chip Huyen",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "CSS-Tricks",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "Interconnects",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "Jay Alammar",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "Krebs on Security",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "Last Week in AI",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "Latent Space",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "Lilian Weng",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "Lobsters",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "LWN.net",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "Machine Learning Mastery",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "OpenAI Blog",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "Schneier on Security",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "Sebastian Raschka",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "Simon Willison",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "Stanford AI Lab (SAIL) Blog",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "The Gradient",
+   "type": "rss",
+   "kind": "source"
+  },
+  {
+   "value": "The Pragmatic Engineer",
+   "type": "rss",
+   "kind": "source"
+  }
+ ],
+ "plans": [
+  {
+   "id": "free",
+   "max_categories": null,
+   "max_sources": null,
+   "max_items": null
+  },
+  {
+   "id": "premium",
+   "max_categories": null,
+   "max_sources": null,
+   "max_items": null
+  }
+ ]
+}

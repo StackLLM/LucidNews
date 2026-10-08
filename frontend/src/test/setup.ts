@@ -20,3 +20,10 @@ window.matchMedia = (query: string) =>
     removeListener: () => {},
     dispatchEvent: () => false,
   }) as MediaQueryList
+
+// jsdom has no ResizeObserver; Radix primitives (Switch) measure themselves with it.
+globalThis.ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+} as unknown as typeof ResizeObserver

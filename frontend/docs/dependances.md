@@ -17,13 +17,14 @@ Un paquet n'est installé que lorsqu'un écran en a besoin.
 | `@fontsource-variable/plus-jakarta-sans`, `@fontsource-variable/newsreader` | 5.3 |
 | `recharts` (Santé des sources) | 3.10 |
 | `react-day-picker` + `date-fns` (Archives) | 10.0 / 4.4 |
+| `radix-ui` (interrupteur, confirmation de suppression) | 1.7 |
+| `react-hook-form` + `@hookform/resolvers` (Préférences) | 7.89 / 5.9 |
 | Build : `vite` 8.3, `typescript` 7.0, `tailwindcss` + `@tailwindcss/vite` 4.3 | |
 | Tests : `vitest` 5.0, `jsdom`, `@testing-library/react`, `@testing-library/jest-dom` | |
 
 ## Prévu, pas encore installé
 
-`radix-ui` (Préférences, menus), `react-hook-form` + `@hookform/resolvers`
-(Préférences), `eslint`, `prettier`.
+`eslint`, `prettier`.
 
 ## Socle
 

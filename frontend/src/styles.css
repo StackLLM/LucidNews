@@ -59,6 +59,19 @@
   }
 }
 
+/* Dialog entrances (used as arbitrary animate-[...] values, so kept outside @theme). */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.97);
+  }
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;

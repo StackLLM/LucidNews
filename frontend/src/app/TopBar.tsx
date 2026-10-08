@@ -1,4 +1,4 @@
-import { Activity, Archive, Newspaper, Zap, ZapOff, type LucideIcon } from 'lucide-react'
+import { Activity, Archive, Newspaper, SlidersHorizontal, Zap, ZapOff, type LucideIcon } from 'lucide-react'
 import { motion } from 'motion/react'
 import { Link, NavLink, useLocation } from 'react-router'
 import { languages, useLanguage, type MessageKey } from '../lib/i18n'
@@ -8,6 +8,7 @@ const navItems: { key: MessageKey; icon: LucideIcon; to: string; matches: (path:
   { key: 'nav.edition', icon: Newspaper, to: '/', matches: (path) => path === '/' || path.startsWith('/editions/') || path.startsWith('/items/') },
   { key: 'nav.archive', icon: Archive, to: '/archive', matches: (path) => path.startsWith('/archive') },
   { key: 'nav.sources', icon: Activity, to: '/sources', matches: (path) => path.startsWith('/sources') },
+  { key: 'nav.preferences', icon: SlidersHorizontal, to: '/preferences', matches: (path) => path.startsWith('/preferences') },
 ]
 
 export function TopBar() {
@@ -99,7 +100,7 @@ export function TopBar() {
               key={key}
               to={{ pathname: to, search }}
               aria-current={active ? 'page' : undefined}
-              className={`flex min-w-20 flex-col items-center gap-0.5 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors duration-150 ${
+              className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors duration-150 ${
                 active ? 'bg-accent-soft text-accent' : 'text-muted'
               }`}
             >

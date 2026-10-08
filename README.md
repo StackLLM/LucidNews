@@ -120,7 +120,7 @@ Autres commandes :
 | `uv run lucidnews-wizard` | Assistant de configuration |
 | `uv run lucidnews-webhook` | Tester ou renvoyer un webhook |
 | `uv run lucidnews-sources` | Santé des sources (mortes, en échec, silencieuses, bruyantes) |
-| `uv run lucidnews-api` | API web en lecture seule pour le frontend (`frontend/`), sur localhost |
+| `uv run lucidnews-api` | API web du frontend (`frontend/`), sur localhost : archive en lecture, préférences des abonnés en local |
 | `uv run lucidnews-mcp` | Serveur MCP (pipeline par étapes pour agents IA) |
 | `./scripts/daily-run.sh [heures]` | Exécution quotidienne (cron) |
 

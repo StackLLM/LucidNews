@@ -8,10 +8,19 @@ Endpoints (JSON, GET only):
 - ``/api/items/<item_id>?lang=fr``: one item with its reliability details and editions.
 - ``/api/sources?days=14``: source health (configured sources) and per-run volumes.
 
-The server binds to localhost by default and never writes to the archive.
+Subscriber preferences (local only, see ``subscribers_api``):
+
+- ``GET /api/preferences/options``, ``GET /api/subscribers``
+- ``POST /api/subscribers``, ``PUT /api/subscribers/<id>``, ``DELETE /api/subscribers/<id>``
+
+The server binds to localhost by default and never writes to the archive. The
+subscriber routes exist only on a loopback bind, accept only localhost Host headers
+(DNS rebinding) and, for writes, a JSON body from a localhost Origin (cross-site
+requests).
 """
 
 import argparse
+import ipaddress
 import json
 import re
 import sys
@@ -30,10 +39,15 @@ from .models import ContentItem
 from .processing import ProfileRegistry
 from .source_health import assess_health, configured_source_keys, health_to_dict
 from .storage.manager import StorageManager
+from .subscribers_api import SubscriberService
 from .taxonomy import importance_from_score
 
 RUN_ID = re.compile(r"^\d{8}T\d{6}Z-[0-9a-f]{8}$")
 ITEM_ID = re.compile(r"^[^\x00-\x1f\x7f]{1,300}$")
+SUBSCRIBER_ID = re.compile(r"^[0-9a-f]{16}$")
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+MAX_BODY_BYTES = 64 * 1024
+LOCAL_ONLY = {"error": "subscriber management is only available when the API is bound to localhost"}
 
 
 @dataclass
@@ -44,6 +58,8 @@ class ApiContext:
     default_language: str = DEFAULT_LANGUAGE
     # source key -> type, for the sources still in the config (empty = show all)
     configured_sources: Dict[str, str] = field(default_factory=dict)
+    # None when the API is not bound to loopback: subscriber routes are then refused.
+    subscribers: Optional[SubscriberService] = None
 
 
 def _profile_id(item: ContentItem) -> str:
@@ -200,6 +216,14 @@ def resolve(ctx: ApiContext, path: str, query: Dict[str, List[str]]) -> tuple[in
         if not 1 <= days <= MAX_HEALTH_DAYS:
             return HTTPStatus.BAD_REQUEST, {"error": f"days must be between 1 and {MAX_HEALTH_DAYS}"}
         return HTTPStatus.OK, source_health_payload(ctx, days)
+    if path == "/api/preferences/options":
+        if ctx.subscribers is None:
+            return HTTPStatus.FORBIDDEN, LOCAL_ONLY
+        return HTTPStatus.OK, ctx.subscribers.options()
+    if path == "/api/subscribers":
+        if ctx.subscribers is None:
+            return HTTPStatus.FORBIDDEN, LOCAL_ONLY
+        return ctx.subscribers.list()
     if path.startswith("/api/items/"):
         item_id = unquote(path.removeprefix("/api/items/"))
         if not ITEM_ID.match(item_id):
@@ -222,17 +246,55 @@ def resolve(ctx: ApiContext, path: str, query: Dict[str, List[str]]) -> tuple[in
     return HTTPStatus.NOT_FOUND, {"error": "not found"}
 
 
+def resolve_write(ctx: ApiContext, method: str, path: str, body: Dict[str, Any]) -> tuple[int, Dict[str, Any]]:
+    """Route a POST/PUT/DELETE request (subscriber preferences only)."""
+    if ctx.subscribers is None:
+        return HTTPStatus.FORBIDDEN, LOCAL_ONLY
+    path = path.rstrip("/")
+    if path == "/api/subscribers" and method == "POST":
+        return ctx.subscribers.create(body)
+    if path.startswith("/api/subscribers/"):
+        sub_id = path.removeprefix("/api/subscribers/")
+        if not SUBSCRIBER_ID.match(sub_id):
+            return HTTPStatus.BAD_REQUEST, {"error": "invalid subscriber id"}
+        if method == "PUT":
+            return ctx.subscribers.update(sub_id, body)
+        if method == "DELETE":
+            return ctx.subscribers.delete(sub_id)
+    return HTTPStatus.METHOD_NOT_ALLOWED, {"error": "method not allowed"}
+
+
+def _hostname(value: str) -> str:
+    """Host part of a Host header or Origin: ``[::1]:8765`` -> ``::1``."""
+    value = value.strip().lower()
+    if "//" in value:
+        value = urlsplit(value).netloc
+    if value.startswith("["):
+        return value[1 : value.find("]")] if "]" in value else value
+    return value.rsplit(":", 1)[0] if value.count(":") == 1 else value
+
+
+def is_local_request(host: Optional[str], origin: Optional[str]) -> bool:
+    """Same-machine request: localhost Host (no DNS rebinding) and, if sent, localhost Origin."""
+    if not host or _hostname(host) not in LOCAL_HOSTS:
+        return False
+    return origin is None or _hostname(origin) in LOCAL_HOSTS
+
+
+def is_loopback(host: str) -> bool:
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
 def make_handler(ctx: ApiContext) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
         server_version = "LucidNewsAPI/1.0"
 
-        def do_GET(self) -> None:  # noqa: N802 (stdlib name)
-            parts = urlsplit(self.path)
-            try:
-                status, body = resolve(ctx, parts.path, parse_qs(parts.query))
-            except Exception as exc:  # never leak a traceback to the client
-                self.log_error("request failed: %r", exc)
-                status, body = HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "internal error"}
+        def _send(self, status: int, body: Dict[str, Any]) -> None:
             data = json.dumps(body, ensure_ascii=False).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -241,10 +303,60 @@ def make_handler(ctx: ApiContext) -> type[BaseHTTPRequestHandler]:
             self.end_headers()
             self.wfile.write(data)
 
+        def _guarded(self, handler) -> None:
+            try:
+                status, body = handler()
+            except Exception as exc:  # never leak a traceback to the client
+                self.log_error("request failed: %r", exc)
+                status, body = HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "internal error"}
+            self._send(status, body)
+
+        def do_GET(self) -> None:  # noqa: N802 (stdlib name)
+            parts = urlsplit(self.path)
+            if parts.path.startswith(("/api/subscribers", "/api/preferences")) and not is_local_request(
+                self.headers.get("Host"), self.headers.get("Origin")
+            ):
+                self._send(HTTPStatus.FORBIDDEN, {"error": "local requests only"})
+                return
+            self._guarded(lambda: resolve(ctx, parts.path, parse_qs(parts.query)))
+
+        def _write(self, method: str) -> None:
+            if not is_local_request(self.headers.get("Host"), self.headers.get("Origin")):
+                self._send(HTTPStatus.FORBIDDEN, {"error": "local requests only"})
+                return
+            length = int(self.headers.get("Content-Length") or 0)
+            if length > MAX_BODY_BYTES:
+                self._send(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "body too large"})
+                return
+            body: Any = {}
+            if length:
+                # JSON only: a cross-site form post cannot send it without a CORS preflight.
+                if not (self.headers.get("Content-Type") or "").startswith("application/json"):
+                    self._send(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, {"error": "expected application/json"})
+                    return
+                try:
+                    body = json.loads(self.rfile.read(length))
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    self._send(HTTPStatus.BAD_REQUEST, {"error": "invalid JSON"})
+                    return
+            if not isinstance(body, dict):
+                self._send(HTTPStatus.BAD_REQUEST, {"error": "expected a JSON object"})
+                return
+            self._guarded(lambda: resolve_write(ctx, method, urlsplit(self.path).path, body))
+
+        def do_POST(self) -> None:  # noqa: N802
+            self._write("POST")
+
+        def do_PUT(self) -> None:  # noqa: N802
+            self._write("PUT")
+
+        def do_DELETE(self) -> None:  # noqa: N802
+            self._write("DELETE")
+
     return Handler
 
 
-def build_context(data_dir: str, config_path: Optional[str]) -> ApiContext:
+def build_context(data_dir: str, config_path: Optional[str], *, manage_subscribers: bool = False) -> ApiContext:
     storage = StorageManager(data_dir=data_dir, config_path=config_path)
     config = storage.load_config()
     archive_path = Path(config.archive.path)
@@ -261,23 +373,31 @@ def build_context(data_dir: str, config_path: Optional[str]) -> ApiContext:
         profile_order=list(config.digest.profile_order),
         default_language=(config.ai.languages or [DEFAULT_LANGUAGE])[0],
         configured_sources=configured_source_keys(config),
+        subscribers=(
+            SubscriberService(storage.subscribers, config.ai.languages, configured_source_keys(config))
+            if manage_subscribers
+            else None
+        ),
     )
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description="LucidNews read-only API")
+    parser = argparse.ArgumentParser(description="LucidNews web API (archive read-only, local preferences)")
     parser.add_argument("--host", default="127.0.0.1", help="Bind address (default: 127.0.0.1)")
     parser.add_argument("--port", type=int, default=8765, help="Port (default: 8765)")
     add_data_dir_arguments(parser)
     args = parser.parse_args(argv)
 
     try:
-        ctx = build_context(args.data_dir, args.config)
+        # Subscriber data is personal: only served on a loopback bind.
+        ctx = build_context(args.data_dir, args.config, manage_subscribers=is_loopback(args.host))
     except FileNotFoundError as exc:
         print(exc, file=sys.stderr)
         return 1
     server = ThreadingHTTPServer((args.host, args.port), make_handler(ctx))
     print(f"LucidNews API on http://{args.host}:{args.port}/api/editions/latest", file=sys.stderr)
+    if ctx.subscribers is None:
+        print("Subscriber preferences disabled (not bound to localhost).", file=sys.stderr)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
