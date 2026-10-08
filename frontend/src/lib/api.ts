@@ -207,3 +207,102 @@ export function deleteSubscriber(id: string): Promise<{ deleted: string }> {
     method: 'DELETE',
   })
 }
+
+// Quality evaluation (local-only routes, see src/evaluation/) ---------------------
+
+export const annotationSchema = z.object({
+  item_id: z.string(),
+  relevant: z.boolean(),
+  importance: z.enum(importanceLevels),
+  categories: z.array(z.string()),
+  claim_status: z.enum(claimStatuses),
+  notes: z.string(),
+  annotated_at: z.string(),
+})
+
+const evalItemSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  url: z.string(),
+  source_type: z.string(),
+  source: z.string(),
+  author: z.string().nullable(),
+  published_at: z.string(),
+  excerpt: z.string(),
+  discussion_url: z.string().nullable().optional(),
+  annotation: annotationSchema.nullable(),
+})
+
+const rate = z.number().nullable()
+const matrix = z.record(z.string(), z.record(z.string(), z.number()))
+
+const comparisonSchema = z.object({
+  item_id: z.string(),
+  title: z.string(),
+  issues: z.array(z.string()),
+  human: z.object({
+    relevant: z.boolean(),
+    importance: z.string(),
+    categories: z.array(z.string()),
+    claim_status: z.string(),
+    reliability: z.string().nullable(),
+    notes: z.string(),
+  }),
+  ai: z.object({
+    score: z.number().nullable(),
+    selected: z.boolean(),
+    importance: z.string().nullable(),
+    categories: z.array(z.string()),
+    claim_status: z.string().nullable(),
+    reliability: z.string().nullable(),
+  }),
+})
+
+export const reportSchema = z.object({
+  annotated: z.number(),
+  compared: z.number(),
+  missing: z.array(z.string()),
+  small_sample: z.boolean(),
+  selection: z.object({
+    true_positive: z.number(),
+    false_positive: z.number(),
+    false_negative: z.number(),
+    true_negative: z.number(),
+    precision: rate,
+    recall: rate,
+    f1: rate,
+    accuracy: rate,
+  }),
+  importance: z.object({ exact: rate, within_one: rate, mean_band_error: rate, confusion: matrix }),
+  categories: z.object({ precision: rate, recall: rate, f1: rate, exact_match: rate }),
+  claim: z.object({ accuracy: rate, overconfident: z.number(), confusion: matrix }),
+  reliability: z.object({ agreement: rate, false_reliable: z.number(), false_reliable_items: z.array(z.string()) }),
+  items: z.array(comparisonSchema),
+})
+
+export type Annotation = z.infer<typeof annotationSchema>
+export type AnnotationInput = Omit<Annotation, 'item_id' | 'annotated_at'>
+export type EvalItem = z.infer<typeof evalItemSchema>
+export type QualityReport = z.infer<typeof reportSchema>
+export type Comparison = z.infer<typeof comparisonSchema>
+
+export function fetchEvalItems(signal?: AbortSignal) {
+  return getJson('/api/eval/items', z.object({ items: z.array(evalItemSchema), annotated: z.number() }), signal)
+}
+
+export function fetchQualityReport(signal?: AbortSignal): Promise<QualityReport> {
+  return getJson('/api/eval/report', reportSchema, signal)
+}
+
+export function saveAnnotation(itemId: string, annotation: AnnotationInput): Promise<Annotation> {
+  return request(`/api/eval/annotations/${encodeURIComponent(itemId)}`, annotationSchema, {
+    method: 'PUT',
+    body: JSON.stringify(annotation),
+  })
+}
+
+export function deleteAnnotation(itemId: string): Promise<{ deleted: string }> {
+  return request(`/api/eval/annotations/${encodeURIComponent(itemId)}`, z.object({ deleted: z.string() }), {
+    method: 'DELETE',
+  })
+}

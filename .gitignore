@@ -75,3 +75,6 @@ Skills/
 
 # Design reference images (input for the UI, kept local)
 Templates/
+
+# Evaluation reports are machine output; annotations (data/eval/annotations.json) are versioned
+data/eval/reports/

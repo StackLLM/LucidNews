@@ -1,4 +1,4 @@
-import { Activity, Archive, Newspaper, SlidersHorizontal, Zap, ZapOff, type LucideIcon } from 'lucide-react'
+import { Activity, Archive, Gauge, Newspaper, SlidersHorizontal, Zap, ZapOff, type LucideIcon } from 'lucide-react'
 import { motion } from 'motion/react'
 import { Link, NavLink, useLocation } from 'react-router'
 import { languages, useLanguage, type MessageKey } from '../lib/i18n'
@@ -9,6 +9,7 @@ const navItems: { key: MessageKey; icon: LucideIcon; to: string; matches: (path:
   { key: 'nav.archive', icon: Archive, to: '/archive', matches: (path) => path.startsWith('/archive') },
   { key: 'nav.sources', icon: Activity, to: '/sources', matches: (path) => path.startsWith('/sources') },
   { key: 'nav.preferences', icon: SlidersHorizontal, to: '/preferences', matches: (path) => path.startsWith('/preferences') },
+  { key: 'nav.quality', icon: Gauge, to: '/quality', matches: (path) => path.startsWith('/quality') },
 ]
 
 export function TopBar() {

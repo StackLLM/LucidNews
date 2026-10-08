@@ -1,0 +1,186 @@
+{
+ "annotated": 4,
+ "compared": 3,
+ "missing": [
+  "gone"
+ ],
+ "small_sample": true,
+ "selection": {
+  "true_positive": 2,
+  "false_positive": 0,
+  "false_negative": 1,
+  "true_negative": 0,
+  "precision": 1.0,
+  "recall": 0.6667,
+  "f1": 0.8,
+  "accuracy": 0.6667
+ },
+ "importance": {
+  "exact": 0.3333,
+  "within_one": 1.0,
+  "mean_band_error": 0.6667,
+  "confusion": {
+   "low": {
+    "low": 0,
+    "medium": 0,
+    "high": 0,
+    "critical": 0,
+    "none": 0
+   },
+   "medium": {
+    "low": 1,
+    "medium": 0,
+    "high": 1,
+    "critical": 0,
+    "none": 0
+   },
+   "high": {
+    "low": 0,
+    "medium": 0,
+    "high": 0,
+    "critical": 0,
+    "none": 0
+   },
+   "critical": {
+    "low": 0,
+    "medium": 0,
+    "high": 0,
+    "critical": 1,
+    "none": 0
+   }
+  }
+ },
+ "categories": {
+  "precision": 0.75,
+  "recall": 1.0,
+  "f1": 0.8571,
+  "exact_match": 0.6667
+ },
+ "claim": {
+  "accuracy": 0.6667,
+  "overconfident": 1,
+  "confusion": {
+   "confirmed": {
+    "confirmed": 1,
+    "reported": 0,
+    "unverified": 0,
+    "rumor": 0,
+    "none": 0
+   },
+   "reported": {
+    "confirmed": 0,
+    "reported": 0,
+    "unverified": 0,
+    "rumor": 0,
+    "none": 0
+   },
+   "unverified": {
+    "confirmed": 0,
+    "reported": 0,
+    "unverified": 1,
+    "rumor": 0,
+    "none": 0
+   },
+   "rumor": {
+    "confirmed": 0,
+    "reported": 1,
+    "unverified": 0,
+    "rumor": 0,
+    "none": 0
+   }
+  }
+ },
+ "reliability": {
+  "agreement": 0.6667,
+  "false_reliable": 1,
+  "false_reliable_items": [
+   "leak"
+  ]
+ },
+ "items": [
+  {
+   "item_id": "leak",
+   "title": "leak title",
+   "issues": [
+    "importance",
+    "categories",
+    "claim",
+    "false_reliable"
+   ],
+   "human": {
+    "relevant": true,
+    "importance": "medium",
+    "categories": [
+     "ai"
+    ],
+    "claim_status": "rumor",
+    "reliability": "rumor",
+    "notes": ""
+   },
+   "ai": {
+    "score": 8.0,
+    "selected": true,
+    "importance": "high",
+    "categories": [
+     "ai",
+     "cloud"
+    ],
+    "claim_status": "reported",
+    "reliability": "reliable"
+   }
+  },
+  {
+   "item_id": "minor",
+   "title": "minor title",
+   "issues": [
+    "selection",
+    "importance"
+   ],
+   "human": {
+    "relevant": true,
+    "importance": "medium",
+    "categories": [
+     "web"
+    ],
+    "claim_status": "unverified",
+    "reliability": "unverified",
+    "notes": ""
+   },
+   "ai": {
+    "score": 4.0,
+    "selected": false,
+    "importance": "low",
+    "categories": [
+     "web"
+    ],
+    "claim_status": "unverified",
+    "reliability": "unverified"
+   }
+  },
+  {
+   "item_id": "official",
+   "title": "official title",
+   "issues": [],
+   "human": {
+    "relevant": true,
+    "importance": "critical",
+    "categories": [
+     "ai"
+    ],
+    "claim_status": "confirmed",
+    "reliability": "confirmed",
+    "notes": ""
+   },
+   "ai": {
+    "score": 9.0,
+    "selected": true,
+    "importance": "critical",
+    "categories": [
+     "ai"
+    ],
+    "claim_status": "confirmed",
+    "reliability": "confirmed"
+   }
+  }
+ ]
+}

@@ -1,7 +1,7 @@
 # LucidNews — frontend
 
-Statut : **5 écrans construits** (Édition, Fiche d'une news, Archives, Santé des
-sources, Préférences), branchés sur l'API du moteur Python.
+Statut : **6 écrans construits** (Édition, Fiche d'une news, Archives, Santé des
+sources, Préférences, Qualité), branchés sur l'API du moteur Python.
 
 ## Lancer
 
@@ -37,6 +37,8 @@ Premium, calme, fin, professionnel. Impressionnant sans être chargé.
 | Archives ✅ | Retrouver une édition par date (calendrier + liste) | API `/api/editions` |
 | Préférences ✅ | Abonnés (ajout, suppression), langue, thèmes, sources, rythme, importance, infos non confirmées, limite, offre affichée | API `/api/subscribers` (local) |
 | Santé des sources ✅ | Chiffres clés, volume par run, tableau filtrable | API `/api/sources` |
+
+| Qualité ✅ | Annotation à l'aveugle des news, résultats (sélection, importance, thèmes, affirmation, faux fiables) | API `/api/eval/*` (local), voir `docs/evaluation.md` |
 
 Pas de paiement, pas de paywall : l'offre Premium est seulement affichée.
 
@@ -75,6 +77,8 @@ Seules les préférences des abonnés s'écrivent (`data/subscribers.json`).
 | `POST /api/subscribers` | Ajouter un abonné (`{"email": …}`) |
 | `PUT /api/subscribers/<id>` | Enregistrer ses préférences |
 | `DELETE /api/subscribers/<id>` | Le supprimer (rien n'est conservé) |
+| `GET /api/eval/items` · `GET /api/eval/report` | News à annoter (sans l'avis de l'IA) · résultats |
+| `PUT` / `DELETE /api/eval/annotations/<id>` | Enregistrer / effacer une annotation (local) |
 
 ### Préférences : version locale, sans comptes
 

@@ -1,0 +1,41 @@
+{
+ "items": [
+  {
+   "id": "rss:www.schneier.com_feed_atom_:adecf7397db0fd9e",
+   "title": "Possible Vulnerability in Apple’s Automatic Reboot",
+   "url": "https://www.schneier.com/blog/archives/2026/10/possible-vulnerability-in-apples-automatic-reboot.html",
+   "source_type": "rss",
+   "source": "Schneier on Security",
+   "author": "Bruce Schneier",
+   "published_at": "2026-10-06T11:06:46+00:00",
+   "excerpt": "404Media is reporting (alternate link ) that a cyber-weapons arms manufacturer is exploiting a vulnerability in iOS to bypass its automatic reboot security feature. This is the feature that automatically puts an iPhone into a more secure state if it hasn’t been used for 72 hours. The new technology to get around inactivity reboot was developed by Magnet Forensics, the company behind GrayKey, a popular tool sold to law enforcement agencies that allows them to unlock and access data stored in iPhones and Android smartphones . Magnet has developed a new device called GrayKey Preserve and a feature for its regular GrayKey devices called Evidence Preservation Mode, according to the video...",
+   "discussion_url": null,
+   "annotation": null
+  },
+  {
+   "id": "rss:openai.com_blog_rss.xml:f57eff9c23a4454b",
+   "title": "Advancing computer use with Ironclad",
+   "url": "https://openai.com/index/advancing-computer-use-with-ironclad",
+   "source_type": "rss",
+   "source": "OpenAI Blog",
+   "author": "OpenAI Blog",
+   "published_at": "2026-10-06T10:00:00+00:00",
+   "excerpt": "Learn how OpenAI and Ironclad are training and evaluating AI agents on complex contracting workflows to advance computer use for professional work.",
+   "discussion_url": null,
+   "annotation": null
+  },
+  {
+   "id": "hackernews:story:49976265",
+   "title": "Nobel Prize in Physics goes to Francis Halzen",
+   "url": "https://www.nobelprize.org/prizes/physics/2026/",
+   "source_type": "hackernews",
+   "source": "hackernews",
+   "author": "solarist",
+   "published_at": "2026-10-06T09:48:46+00:00",
+   "excerpt": "[hazrmard]: A breakdown of why the awarded work, Ice Cube, is significant: - A neutrino is an elementary subatomic particle. Neutrinos are produced by nuclear reactions inside stars, supernovae, radioactive decay. They are one of the most abundant particles in the universe. - Neutrinos are known as \"ghost particles\". They have 0 charge and near-zero mass. They only react with the weak nuclear force and gravity. Incredibly hard to detect. Trillions can pass through a whole planet without h... [_Microft]: He receives the prize for conceiving the IceCube neutrino detector, a cubic-kilometer-sized detecter in the Antarctics. https://en.wikipedia.org/wiki/IceCube_Neutrino_Observatory Mechanism is…",
+   "discussion_url": "https://news.ycombinator.com/item?id=49976265",
+   "annotation": null
+  }
+ ],
+ "annotated": 0
+}

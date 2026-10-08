@@ -121,6 +121,7 @@ Autres commandes :
 | `uv run lucidnews-webhook` | Tester ou renvoyer un webhook |
 | `uv run lucidnews-sources` | Santé des sources (mortes, en échec, silencieuses, bruyantes) |
 | `uv run lucidnews-api` | API web du frontend (`frontend/`), sur localhost : archive en lecture, préférences des abonnés en local |
+| `uv run lucidnews-eval` | Mesure de la qualité de l'IA contre les news annotées à la main (voir `docs/evaluation.md`) |
 | `uv run lucidnews-mcp` | Serveur MCP (pipeline par étapes pour agents IA) |
 | `./scripts/daily-run.sh [heures]` | Exécution quotidienne (cron) |
 

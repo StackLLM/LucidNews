@@ -18,7 +18,7 @@ Priorités, dans cet ordre : **fiabilité → qualité des données → qualité
 - **Santé des sources** *(fait)* : historique par source dans l'archive (statut, erreur, news collectées et retenues), classement `dead` / `failing` / `silent` / `noisy` / `healthy`, alerte en fin de run et commande `lucidnews-sources`. Reste à faire : score de qualité par source utilisé dans la sélection.
 - **Archive d'items** *(fait)* : runs et news analysées stockés dans SQLite ; les analyses de news inchangées sont réutilisées. Ouvre la voie à l'envoi hebdomadaire, aux statistiques et à la reprise.
 - **Robustesse IA** *(fait)* : nouvelle tentative en fin d'étape pour l'analyse et l'enrichissement, puis reprise des news non notées aux runs suivants depuis l'archive. Reste à faire : budget de tokens par run.
-- **Évaluation** : jeu d'items annotés à la main pour mesurer la précision du score, des catégories et du statut de vérification à chaque changement de prompt.
+- **Évaluation** *(outil fait)* : annotation à l'aveugle dans l'écran Qualité, commande `lucidnews-eval` (sélection, importance, thèmes, affirmation, faux fiables), re-analyse avec `--rerun` pour tester un changement de consigne. Reste à faire : annoter au moins 30 news. Voir `docs/evaluation.md`.
 - Enrichir le registre de confiance (éditeurs français, autorités européennes) et `trust` pour les comptes X/Telegram officiels.
 
 ## Phase 3 — Newsletter

@@ -13,6 +13,11 @@ Subscriber preferences (local only, see ``subscribers_api``):
 - ``GET /api/preferences/options``, ``GET /api/subscribers``
 - ``POST /api/subscribers``, ``PUT /api/subscribers/<id>``, ``DELETE /api/subscribers/<id>``
 
+Quality evaluation (local only, see ``evaluation``):
+
+- ``GET /api/eval/items`` (blind candidates), ``GET /api/eval/report``
+- ``PUT /api/eval/annotations/<item_id>``, ``DELETE /api/eval/annotations/<item_id>``
+
 The server binds to localhost by default and never writes to the archive. The
 subscriber routes exist only on a loopback bind, accept only localhost Host headers
 (DNS rebinding) and, for writes, a JSON body from a localhost Origin (cross-site
@@ -34,6 +39,8 @@ from urllib.parse import parse_qs, unquote, urlsplit
 
 from ._cli import add_data_dir_arguments
 from .archive import ItemArchive, RunRecord
+from .evaluation import AnnotationStore
+from .evaluation.service import EvaluationService
 from .i18n import DEFAULT_LANGUAGE, is_supported
 from .models import ContentItem
 from .processing import ProfileRegistry
@@ -47,7 +54,8 @@ ITEM_ID = re.compile(r"^[^\x00-\x1f\x7f]{1,300}$")
 SUBSCRIBER_ID = re.compile(r"^[0-9a-f]{16}$")
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
 MAX_BODY_BYTES = 64 * 1024
-LOCAL_ONLY = {"error": "subscriber management is only available when the API is bound to localhost"}
+LOCAL_ONLY = {"error": "only available when the API is bound to localhost"}
+LOCAL_PREFIXES = ("/api/subscribers", "/api/preferences", "/api/eval")
 
 
 @dataclass
@@ -60,6 +68,7 @@ class ApiContext:
     configured_sources: Dict[str, str] = field(default_factory=dict)
     # None when the API is not bound to loopback: subscriber routes are then refused.
     subscribers: Optional[SubscriberService] = None
+    evaluation: Optional[EvaluationService] = None
 
 
 def _profile_id(item: ContentItem) -> str:
@@ -224,6 +233,12 @@ def resolve(ctx: ApiContext, path: str, query: Dict[str, List[str]]) -> tuple[in
         if ctx.subscribers is None:
             return HTTPStatus.FORBIDDEN, LOCAL_ONLY
         return ctx.subscribers.list()
+    if path in ("/api/eval/items", "/api/eval/report"):
+        if ctx.evaluation is None:
+            return HTTPStatus.FORBIDDEN, LOCAL_ONLY
+        if path == "/api/eval/items":
+            return HTTPStatus.OK, ctx.evaluation.candidates()
+        return HTTPStatus.OK, ctx.evaluation.report()
     if path.startswith("/api/items/"):
         item_id = unquote(path.removeprefix("/api/items/"))
         if not ITEM_ID.match(item_id):
@@ -247,10 +262,21 @@ def resolve(ctx: ApiContext, path: str, query: Dict[str, List[str]]) -> tuple[in
 
 
 def resolve_write(ctx: ApiContext, method: str, path: str, body: Dict[str, Any]) -> tuple[int, Dict[str, Any]]:
-    """Route a POST/PUT/DELETE request (subscriber preferences only)."""
+    """Route a POST/PUT/DELETE request (subscriber preferences and annotations)."""
+    path = path.rstrip("/")
+    if path.startswith("/api/eval/annotations/"):
+        if ctx.evaluation is None:
+            return HTTPStatus.FORBIDDEN, LOCAL_ONLY
+        item_id = unquote(path.removeprefix("/api/eval/annotations/"))
+        if not ITEM_ID.match(item_id):
+            return HTTPStatus.BAD_REQUEST, {"error": "invalid item id"}
+        if method == "PUT":
+            return ctx.evaluation.annotate(item_id, body)
+        if method == "DELETE":
+            return ctx.evaluation.unannotate(item_id)
+        return HTTPStatus.METHOD_NOT_ALLOWED, {"error": "method not allowed"}
     if ctx.subscribers is None:
         return HTTPStatus.FORBIDDEN, LOCAL_ONLY
-    path = path.rstrip("/")
     if path == "/api/subscribers" and method == "POST":
         return ctx.subscribers.create(body)
     if path.startswith("/api/subscribers/"):
@@ -313,7 +339,7 @@ def make_handler(ctx: ApiContext) -> type[BaseHTTPRequestHandler]:
 
         def do_GET(self) -> None:  # noqa: N802 (stdlib name)
             parts = urlsplit(self.path)
-            if parts.path.startswith(("/api/subscribers", "/api/preferences")) and not is_local_request(
+            if parts.path.startswith(LOCAL_PREFIXES) and not is_local_request(
                 self.headers.get("Host"), self.headers.get("Origin")
             ):
                 self._send(HTTPStatus.FORBIDDEN, {"error": "local requests only"})
@@ -356,7 +382,9 @@ def make_handler(ctx: ApiContext) -> type[BaseHTTPRequestHandler]:
     return Handler
 
 
-def build_context(data_dir: str, config_path: Optional[str], *, manage_subscribers: bool = False) -> ApiContext:
+def build_context(data_dir: str, config_path: Optional[str], *, local_features: bool = False) -> ApiContext:
+    """``local_features``: subscriber preferences and annotations (personal or
+    editable data), enabled only on a loopback bind."""
     storage = StorageManager(data_dir=data_dir, config_path=config_path)
     config = storage.load_config()
     archive_path = Path(config.archive.path)
@@ -367,15 +395,23 @@ def build_context(data_dir: str, config_path: Optional[str], *, manage_subscribe
     profiles = ProfileRegistry.load(
         Path(config.processing.profiles_dir), config.processing.default_profile
     )
+    archive = ItemArchive(archive_path)
     return ApiContext(
-        archive=ItemArchive(archive_path),
+        archive=archive,
         profile_names=profiles.names,
         profile_order=list(config.digest.profile_order),
         default_language=(config.ai.languages or [DEFAULT_LANGUAGE])[0],
         configured_sources=configured_source_keys(config),
         subscribers=(
             SubscriberService(storage.subscribers, config.ai.languages, configured_source_keys(config))
-            if manage_subscribers
+            if local_features
+            else None
+        ),
+        evaluation=(
+            EvaluationService.from_config(
+                config, archive, AnnotationStore(Path(data_dir) / "eval" / "annotations.json")
+            )
+            if local_features
             else None
         ),
     )
@@ -390,14 +426,14 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     try:
         # Subscriber data is personal: only served on a loopback bind.
-        ctx = build_context(args.data_dir, args.config, manage_subscribers=is_loopback(args.host))
+        ctx = build_context(args.data_dir, args.config, local_features=is_loopback(args.host))
     except FileNotFoundError as exc:
         print(exc, file=sys.stderr)
         return 1
     server = ThreadingHTTPServer((args.host, args.port), make_handler(ctx))
     print(f"LucidNews API on http://{args.host}:{args.port}/api/editions/latest", file=sys.stderr)
     if ctx.subscribers is None:
-        print("Subscriber preferences disabled (not bound to localhost).", file=sys.stderr)
+        print("Preferences and evaluation disabled (not bound to localhost).", file=sys.stderr)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
