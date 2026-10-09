@@ -1,5 +1,7 @@
 # Roadmap technique
 
+Le détail des lots clôturés et à venir est dans [lots.md](lots.md).
+
 Priorités, dans cet ordre : **fiabilité → qualité des données → qualité des sources → stabilité → valeur réelle**. La monétisation et l'interface viennent ensuite.
 
 ## Phase 1 — Fondations (fait)
