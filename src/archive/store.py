@@ -352,6 +352,24 @@ class ItemArchive:
                     result[row["id"]] = ContentItem.model_validate_json(row["payload"])
         return result
 
+    def all_items(self) -> List[ContentItem]:
+        with closing(self._connect()) as conn:
+            rows = conn.execute("SELECT payload FROM items ORDER BY published_at").fetchall()
+        return [ContentItem.model_validate_json(row["payload"]) for row in rows]
+
+    def update_reliability(self, items: Iterable[ContentItem]) -> int:
+        """Store a new reliability assessment for items; nothing else changes."""
+        rows = [
+            (item.processing.reliability.label.value, item.model_dump_json(), item.id)
+            for item in items
+            if item.processing and item.processing.reliability
+        ]
+        if not rows:
+            return 0
+        with closing(self._connect()) as conn, conn:
+            conn.executemany("UPDATE items SET reliability = ?, payload = ? WHERE id = ?", rows)
+        return len(rows)
+
     # Source health ---------------------------------------------------------
 
     def record_source_runs(self, run_id: str, outcomes: Iterable[SourceRunOutcome]) -> None:

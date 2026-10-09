@@ -90,6 +90,13 @@ Quand le dédoublonnage par sujet fusionne plusieurs articles qui racontent le m
 | Étiquette « Non vérifié » (source faible) + au moins **1** site reconnu | → Fiable |
 | Affirmation `rumor` | Reste Rumeur, même répétée par plusieurs médias |
 
+**Sources de corroboration.** Le dédoublonnage compare chaque news retenue avec d'autres articles, envoyés à l'IA comme « références » dans le même appel :
+
+- les news du run restées **sous le seuil** de score (un article reconnu mal noté peut donc confirmer une news retenue) ;
+- les news de l'**archive** publiées dans les 72 dernières heures (`reliability.corroboration_lookback_hours`), par exemple l'annonce officielle de la veille.
+
+Seules les références d'un éditeur `official` ou `reputable` sont envoyées, car les autres ne comptent pas. Il y en a au plus 30 par rubrique (`reliability.corroboration_max_references`, `0` pour couper), les plus récentes d'abord. Une référence n'est jamais publiée ni retirée : elle ajoute seulement son adresse aux corroborations de la news qu'elle couvre. Cela ne coûte pas d'appel IA en plus, sauf pour une rubrique d'une seule news, qui est maintenant comparée à ses références.
+
 Le digest l'affiche, par exemple `Fiable · source communautaire · corroboré par 2 source(s) indépendante(s)`. Le détail (sites concernés) est dans `processing.reliability.corroborated_by` et `reasons`.
 
 ## Effets dans le produit
@@ -115,6 +122,16 @@ Le digest l'affiche, par exemple `Fiable · source communautaire · corroboré p
 ## Limites connues et évolutions
 
 - La vérification s'appuie sur le contenu collecté. L'IA ne consulte pas d'autres sources pendant l'analyse ; la recherche web n'intervient qu'à l'enrichissement.
-- La corroboration ne porte que sur les news qui ont passé le seuil de score et sur un même run : un article reconnu mal noté, ou publié la veille, n'est pas encore pris en compte (voir la [roadmap](roadmap.md)).
+- La corroboration repose sur le jugement de l'IA (« même événement »). Une erreur de rapprochement avec un site officiel ferait passer une news à « Confirmé ». La consigne demande de laisser une référence de côté en cas de doute ; l'écran Qualité permet de repérer ces cas (« faux fiables »).
 - Le registre intégré est une base de départ et doit être enrichi au fil de l'usage. La commande `lucidnews-sources` et l'écran Qualité aident à repérer les domaines encore inconnus.
-- Un changement de registre s'applique aux **prochains runs**. Les étiquettes déjà publiées (digests, archive) ne sont pas réécrites. L'écran Qualité, lui, recalcule toujours avec le registre actuel.
+- Un changement de registre s'applique aux **prochains runs**. Les digests déjà envoyés ne changent pas. L'écran Qualité, lui, recalcule toujours avec le registre actuel.
+
+## Recalculer les étiquettes de l'archive
+
+Après un changement de registre, la commande `lucidnews-reassess` recalcule les étiquettes des news archivées, sans appel IA : le statut d'affirmation donné par l'IA est gardé. Les éditions passées de l'interface affichent alors les nouvelles étiquettes.
+
+```bash
+uv run lucidnews-reassess            # aperçu : ce qui changerait
+uv run lucidnews-reassess --apply    # écrit les nouvelles étiquettes
+uv run lucidnews-reassess --json     # aperçu en JSON
+```

@@ -19,3 +19,5 @@ Respond with valid JSON only:
 }}
 
 If there are no duplicates at all, return: {{"duplicates": []}}"""
+
+TOPIC_DEDUP_REFERENCES = """Items marked (reference) are other reports kept only to check corroboration (earlier or less important coverage). Put a reference in the group of the item that covers the exact same event, never first in a group; leave it out when unsure. A group may contain a single item plus its references."""

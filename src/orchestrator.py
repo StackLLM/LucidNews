@@ -5,7 +5,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Dict, List, Literal, Optional
+from typing import Dict, List, Literal, Optional, Sequence
 from urllib.parse import unquote_plus, urlsplit
 import httpx
 import logging
@@ -34,7 +34,7 @@ from .ai.enricher import ContentEnricher, EnrichmentBatchResult
 from .ai.tokens import get_usage_snapshot
 from .processing import ProfileRegistry
 from .processing.tools import ToolRegistry
-from .reliability.assess import ReliabilityPolicy, assess_item
+from .reliability.assess import ReliabilityPolicy, assess_item, source_tier_for
 from .reliability.models import SourceTier
 from .i18n import messages
 from .newsletter import DeliveryPlan, plan_deliveries
@@ -47,6 +47,7 @@ from .source_health import (
     configured_source_keys,
     source_key,
 )
+from .source_quality import compute_source_quality, item_source_key
 
 
 logger = logging.getLogger(__name__)
@@ -337,6 +338,9 @@ class PipelineOrchestrator:
             self.console.print(
                 f"{self.icons['ai']} Analyzed {len(analyzed_items)} items with AI\n"
             )
+
+            # Archive signals for selection: source quality and earlier reports.
+            self._load_archive_signals(analyzed_items)
 
             # 5. Filter, deduplicate, and balance the digest
             filtering_result = await self.select_digest_items(
@@ -839,6 +843,7 @@ class PipelineOrchestrator:
         items: List[ContentItem],
         *,
         log: bool = True,
+        references: Sequence[ContentItem] = (),
     ) -> List[ContentItem]:
         """Merge items covering the same topic using AI semantic deduplication.
 
@@ -849,22 +854,34 @@ class PipelineOrchestrator:
         item in each duplicate group is always the highest-scored one.
         Content (comments) from duplicate items is merged into the primary.
 
+        ``references`` are other reports (below the threshold, or from earlier runs
+        in the archive) listed after the items: they are never kept or dropped, but
+        a reference grouped with an item adds its URL to the item's corroborating
+        URLs. Only official or reputable publishers are worth passing.
+
         Falls back to returning items unchanged if the AI call fails.
         """
-        if len(items) <= 1:
+        if not items or (len(items) <= 1 and not references):
             return items
 
-        from .ai.prompting.deduplication import TOPIC_DEDUP_SYSTEM, TOPIC_DEDUP_USER
+        from .ai.prompting.deduplication import (
+            TOPIC_DEDUP_REFERENCES,
+            TOPIC_DEDUP_SYSTEM,
+            TOPIC_DEDUP_USER,
+        )
         from .ai.utils import parse_json_response
 
         # Build the item list for the prompt
         lines = []
-        for i, item in enumerate(items):
+        for i, item in enumerate([*items, *references]):
             analysis = item.processing.analysis if item.processing else None
             tags = ", ".join(analysis.tags) if analysis and analysis.tags else "—"
             summary = analysis.summary if analysis else "—"
-            lines.append(f"[{i}] {item.title}\n    Tags: {tags}\n    Summary: {summary}")
+            marker = " (reference)" if i >= len(items) else ""
+            lines.append(f"[{i}]{marker} {item.title}\n    Tags: {tags}\n    Summary: {summary}")
         items_text = "\n\n".join(lines)
+        if references:
+            items_text += "\n\n" + TOPIC_DEDUP_REFERENCES
 
         try:
             ai_client = create_ai_client(self.config.ai)
@@ -892,13 +909,24 @@ class PipelineOrchestrator:
         for group in duplicate_groups:
             if not isinstance(group, list) or len(group) < 2:
                 continue
-            primary_idx = group[0]
-            if primary_idx < 0 or primary_idx >= len(items):
-                continue
+            indices = [index for index in group if isinstance(index, int) and not isinstance(index, bool)]
+            members = [index for index in indices if 0 <= index < len(items)]
+            if not members:
+                continue  # references only: nothing to keep or drop
+            primary_idx = members[0]
             primary = items[primary_idx]
-            for dup_idx in group[1:]:
-                if not isinstance(dup_idx, int) or dup_idx < 0 or dup_idx >= len(items):
-                    continue
+            for ref_idx in indices:
+                if len(items) <= ref_idx < len(items) + len(references):
+                    reference = references[ref_idx - len(items)]
+                    corroborating = primary.metadata.setdefault("corroborating_urls", [])
+                    if str(reference.url) != str(primary.url) and str(reference.url) not in corroborating:
+                        corroborating.append(str(reference.url))
+                        if log:
+                            self.console.print(
+                                f"   [dim]corroboration: [{primary_idx}] {primary.title}[/dim]\n"
+                                f"   [dim]       also reported by {reference.url}[/dim]"
+                            )
+            for dup_idx in members[1:]:
                 if dup_idx == primary_idx:
                     continue
                 dup = items[dup_idx]
@@ -936,11 +964,7 @@ class PipelineOrchestrator:
             if self.passes_profile_filter(item, threshold):
                 threshold_items.append(item)
         threshold_items.sort(
-            key=lambda item: (
-                item.processing.analysis.score
-                if item.processing and item.processing.analysis and item.processing.analysis.score is not None
-                else -1
-            ),
+            key=self._rank_key,
             reverse=True,
         )
 
@@ -951,6 +975,7 @@ class PipelineOrchestrator:
             )
 
         deduped_items = threshold_items
+        references = self._corroboration_references(threshold_items, items)
         if topic_dedup and deduped_items:
             profile_groups: Dict[str, List[ContentItem]] = defaultdict(list)
             for item in deduped_items:
@@ -964,19 +989,16 @@ class PipelineOrchestrator:
             for profile_id, profile_items in profile_groups.items():
                 settings = self.config.processing.profile_settings.get(profile_id)
                 if settings is None or settings.topic_dedup:
+                    # References only when there are some: overrides of this stage
+                    # (tests, integrations) may not accept them.
+                    extra = {"references": references[profile_id]} if references.get(profile_id) else {}
                     deduped_items.extend(
-                        await self.merge_topic_duplicates(profile_items, log=log)
+                        await self.merge_topic_duplicates(profile_items, log=log, **extra)
                     )
                 else:
                     deduped_items.extend(profile_items)
             deduped_items.sort(
-                key=lambda item: (
-                    item.processing.analysis.score
-                    if item.processing
-                    and item.processing.analysis
-                    and item.processing.analysis.score is not None
-                    else -1
-                ),
+                key=self._rank_key,
                 reverse=True,
             )
         topic_dedup_removed = len(threshold_items) - len(deduped_items)
@@ -1027,13 +1049,7 @@ class PipelineOrchestrator:
             if self.passes_profile_filter(item, threshold)
         ]
         eligible.sort(
-            key=lambda item: (
-                item.processing.analysis.score
-                if item.processing
-                and item.processing.analysis
-                and item.processing.analysis.score is not None
-                else -1
-            ),
+            key=self._rank_key,
             reverse=True,
         )
         balanced = self.apply_balanced_digest(eligible, log=log)
@@ -1102,11 +1118,7 @@ class PipelineOrchestrator:
 
         sorted_items = sorted(
             items,
-            key=lambda item: (
-                item.processing.analysis.score
-                if item.processing and item.processing.analysis and item.processing.analysis.score is not None
-                else -1
-            ),
+            key=self._rank_key,
             reverse=True,
         )
 
@@ -1381,6 +1393,75 @@ class PipelineOrchestrator:
             for item in items
             if item.processing and languages <= set(item.processing.artifacts)
         ]
+
+    def _rank_key(self, item: ContentItem) -> tuple[float, float]:
+        """Digest order: AI score first; source quality only breaks ties."""
+        analysis = item.processing.analysis if item.processing else None
+        score = analysis.score if analysis and analysis.score is not None else -1
+        quality = getattr(self, "source_quality", {}).get(item_source_key(item), 0.5)
+        return score, quality
+
+    def _load_archive_signals(self, run_items: List[ContentItem]) -> None:
+        """Load source quality and earlier reports from the archive (best effort)."""
+        self.source_quality = {}
+        self.archived_references = []
+        archive = getattr(self, "archive", None)
+        if archive is None:
+            return
+        now = datetime.now(timezone.utc)
+        days = self.config.digest.source_quality_days
+        lookback = self.config.reliability.corroboration_lookback_hours
+        try:
+            if days:
+                history = archive.items_between(now - timedelta(days=days))
+                self.source_quality = {
+                    key: quality.score
+                    for key, quality in compute_source_quality(
+                        history, self.reliability_policy
+                    ).items()
+                }
+            if lookback and self.config.reliability.corroboration_max_references:
+                current = {item.id for item in run_items}
+                self.archived_references = [
+                    item
+                    for item in archive.items_between(now - timedelta(hours=lookback))
+                    if item.id not in current
+                ]
+        except Exception as exc:
+            logger.warning("Could not load archive signals: %s", exc)
+
+    def _corroboration_references(
+        self, candidates: List[ContentItem], analyzed: List[ContentItem]
+    ) -> Dict[str, List[ContentItem]]:
+        """Per profile, other official/reputable reports that may corroborate candidates.
+
+        Analyzed items of this run left out of the candidates (below the threshold)
+        and archived items from the lookback window, most recent first.
+        """
+        reliability_config = getattr(self.config, "reliability", None)
+        limit = getattr(reliability_config, "corroboration_max_references", 0)
+        if not limit:
+            return {}
+        policy = getattr(self, "reliability_policy", None) or ReliabilityPolicy()
+        candidate_ids = {item.id for item in candidates}
+        seen: set[str] = set()
+        by_profile: Dict[str, List[ContentItem]] = defaultdict(list)
+        pool = [*analyzed, *getattr(self, "archived_references", [])]
+        pool.sort(key=lambda item: item.published_at, reverse=True)
+        for item in pool:
+            if item.id in candidate_ids or item.id in seen:
+                continue
+            analysis = item.processing.analysis if item.processing else None
+            if analysis is None or analysis.score is None:
+                continue
+            tier = source_tier_for(item, policy)[0]
+            if tier not in (SourceTier.OFFICIAL, SourceTier.REPUTABLE):
+                continue
+            profile_refs = by_profile[item.processing.classification.profile]
+            if len(profile_refs) < limit:
+                seen.add(item.id)
+                profile_refs.append(item)
+        return dict(by_profile)
 
     # SourceTier is declared from most to least trusted.
     _TIER_ORDER = {tier: rank for rank, tier in enumerate(SourceTier)}

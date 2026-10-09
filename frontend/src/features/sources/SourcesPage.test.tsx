@@ -49,3 +49,20 @@ test('summarises health, charts runs and filters sources', async () => {
   fireEvent.click(screen.getByRole('button', { name: '30 jours' }))
   expect(fetchMock).toHaveBeenCalledWith('/api/sources?days=30', expect.anything())
 })
+
+test('shows the source quality score and explains it is only a tie-breaker', async () => {
+  const [first, ...rest] = fixtures.sources.sources
+  mockApi({
+    sources: {
+      ...fixtures.sources,
+      quality_days: 30,
+      sources: [{ ...first, quality: { score: 0.612, items: 4, mean_score: 5, trusted_share: 1 } }, ...rest],
+    },
+  })
+  renderAt('/sources?lang=fr')
+
+  const table = await screen.findByRole('table')
+  expect(within(table).getByRole('columnheader', { name: 'Qualité' })).toBeInTheDocument()
+  expect(within(table).getByTitle('Score moyen 5.0/10 · 100 % confirmées ou fiables · 4 news')).toHaveTextContent('61')
+  expect(screen.getByText(/Elle ne sert qu’à départager deux news de même score/)).toHaveTextContent('sur 30 jours')
+})

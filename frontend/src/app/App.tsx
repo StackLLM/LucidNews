@@ -33,7 +33,7 @@ export function Shell() {
     <>
       <Backdrop />
       <TopBar />
-      <main className="mx-auto w-full max-w-6xl px-4 pb-32 pt-8 sm:px-6 sm:pt-10 md:pb-24">
+      <main className="mx-auto w-full max-w-6xl px-4 pb-32 pt-8 sm:px-6 sm:pt-10 lg:pb-24">
         <Suspense fallback={<PageSkeleton />}>
           <Routes>
             <Route path="/" element={<EditionPage />} />

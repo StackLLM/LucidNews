@@ -41,6 +41,16 @@ uv run lucidnews-sources --json       # pour un outil ou un tableau de bord
 
 Les seuils sont des constantes en tête de `src/source_health.py`.
 
+### Score de qualité
+
+Le rapport donne aussi une **qualité** de 0 à 100 par source, calculée sur les 30 derniers jours de l'archive (`digest.source_quality_days`) :
+
+- la moitié vient du score IA moyen de ses news ;
+- l'autre moitié vient de la part de ses news « Confirmé » ou « Fiable », recalculée avec le registre actuel ;
+- une source avec peu de news reste proche de 50, pour qu'une seule news ne décide pas.
+
+Le score sert **seulement à départager** deux news de même score IA : il ne fait jamais passer une news devant une news mieux notée.
+
 ## Types de sources
 
 | Type | Clé de config | Ce qui est collecté | Prérequis |

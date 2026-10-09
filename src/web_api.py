@@ -45,7 +45,9 @@ from .i18n import DEFAULT_LANGUAGE, is_supported
 from .models import ContentItem
 from .processing import ProfileRegistry
 from .reliability import SourceTier
+from .reliability.assess import ReliabilityPolicy
 from .source_health import assess_health, configured_source_keys, health_to_dict
+from .source_quality import DEFAULT_DAYS, compute_source_quality, quality_to_dict
 from .storage.manager import StorageManager
 from .subscribers_api import SubscriberService
 from .taxonomy import importance_from_score
@@ -70,6 +72,9 @@ class ApiContext:
     # None when the API is not bound to loopback: subscriber routes are then refused.
     subscribers: Optional[SubscriberService] = None
     evaluation: Optional[EvaluationService] = None
+    # Source quality as the pipeline computes it (current registry, same window).
+    reliability_policy: Optional[ReliabilityPolicy] = None
+    source_quality_days: int = DEFAULT_DAYS
 
 
 def _profile_id(item: ContentItem) -> str:
@@ -217,9 +222,21 @@ def source_health_payload(ctx: ApiContext, days: int) -> Dict[str, Any]:
         for run in ctx.archive.list_runs(limit=500)
         if run.status != "running" and run.started_at >= since.isoformat()
     ]
+    quality = (
+        compute_source_quality(
+            ctx.archive.items_between(datetime.now(timezone.utc) - timedelta(days=ctx.source_quality_days)),
+            ctx.reliability_policy,
+        )
+        if ctx.source_quality_days
+        else {}
+    )
     return {
         "days": days,
-        "sources": [health_to_dict(health) for health in report],
+        "quality_days": ctx.source_quality_days,
+        "sources": [
+            {**health_to_dict(health), "quality": quality_to_dict(quality.get(health.source_key))}
+            for health in report
+        ],
         "configured_without_history": sorted(set(ctx.configured_sources) - seen),
         "runs": [run_payload(run) for run in reversed(runs)],  # oldest first
     }
@@ -422,6 +439,10 @@ def build_context(data_dir: str, config_path: Optional[str], *, local_features: 
         profile_order=list(config.digest.profile_order),
         default_language=(config.ai.languages or [DEFAULT_LANGUAGE])[0],
         configured_sources=configured_source_keys(config),
+        reliability_policy=ReliabilityPolicy.with_overrides(
+            config.reliability.domains, config.reliability.accounts
+        ),
+        source_quality_days=config.digest.source_quality_days,
         subscribers=(
             SubscriberService(storage.subscribers, config.ai.languages, configured_source_keys(config))
             if local_features

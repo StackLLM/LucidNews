@@ -599,7 +599,9 @@ See [fiabilite.md](fiabilite.md) for the model. Configuration:
   "reliability": {
     "domains": { "internal-blog.example": "official" },
     "accounts": { "x:openai": "official" },
-    "exclude_labels": ["rumor"]
+    "exclude_labels": ["rumor"],
+    "corroboration_lookback_hours": 72,
+    "corroboration_max_references": 30
   }
 }
 ```
@@ -607,7 +609,18 @@ See [fiabilite.md](fiabilite.md) for the model. Configuration:
 - `domains`: add or override publisher tiers (`official`, `reputable`, `community`, `unknown`). Subdomains are covered; the most specific entry wins.
 - `accounts`: tiers for social accounts, keyed `platform:handle` (`x:openai`, `mastodon:user@server`, `bluesky:handle`, `telegram:channel`). A registered account outranks the platform it posts on.
 - `exclude_labels`: reliability labels (`confirmed`, `reliable`, `unverified`, `rumor`) removed from the digest. Empty by default: unconfirmed items are published but explicitly flagged.
+- `corroboration_lookback_hours` (default `72`): official or reputable items archived in this window can corroborate today's digest items. `0` keeps only the current run (items below the threshold still count).
+- `corroboration_max_references` (default `30`): maximum reference items sent with each topic dedup call, most recent first. `0` disables wider corroboration.
 - RSS feeds accept `"trust": "<tier>"` to pin the tier of their items.
+- After changing `domains` or `accounts`, `uv run lucidnews-reassess` previews the new labels of archived items and `--apply` writes them (no AI call).
+
+### Source quality
+
+`digest.source_quality_days` (default `30`, `0` disables it): window of archived
+items used to score each source from 0 to 100 (mean AI score and share of
+confirmed or reliable items, smoothed while a source has few items). The score
+only breaks ties between items with the same AI score; it is shown by
+`lucidnews-sources` and on the Sources screen.
 
 ## Filtering
 

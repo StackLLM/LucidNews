@@ -73,13 +73,13 @@ function SourcesView({ report, period }: { report: SourceReport; period: ReactNo
       </motion.div>
 
       <motion.div variants={riseIn}>
-        <SourceTable sources={report.sources} />
+        <SourceTable sources={report.sources} qualityDays={report.quality_days} />
       </motion.div>
     </motion.div>
   )
 }
 
-function SourceTable({ sources }: { sources: SourceHealth[] }) {
+function SourceTable({ sources, qualityDays }: { sources: SourceHealth[]; qualityDays: number }) {
   const { language, t } = useLanguage()
   const [filter, setFilter] = useState<HealthStatus | 'all'>('all')
   const visible = filter === 'all' ? sources : sources.filter((source) => source.status === filter)
@@ -105,50 +105,57 @@ function SourceTable({ sources }: { sources: SourceHealth[] }) {
       ) : (
         <>
           {/* Desktop: table. Phone: one card per source. */}
-          <table className="mt-5 hidden w-full text-[14px] md:table">
-            <thead>
-              <tr className="border-b border-line text-left text-[12px] text-faint">
-                <th className="py-3 pr-4 font-semibold">{t('sources.col.source')}</th>
-                <th className="py-3 pr-4 font-semibold">{t('sources.col.status')}</th>
-                <th className="py-3 pr-4 text-right font-semibold">{t('sources.col.runs')}</th>
-                <th className="py-3 pr-4 text-right font-semibold">{t('sources.col.failures')}</th>
-                <th className="py-3 pr-4 text-right font-semibold">{t('sources.col.perRun')}</th>
-                <th className="py-3 pr-4 text-right font-semibold">{t('sources.col.selected')}</th>
-                <th className="py-3 pr-4 font-semibold">{t('sources.col.lastSuccess')}</th>
-                <th className="py-3 font-semibold">{t('sources.col.detail')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((source) => (
-                <tr key={source.source} className="border-b border-line/70 transition-colors duration-150 last:border-0 hover:bg-canvas/60">
-                  <td className="max-w-56 py-3.5 pr-4">
-                    <p className="truncate font-semibold" title={source.source}>
-                      {sourceLabel(source)}
-                    </p>
-                    <p className="text-[12px] text-faint">{sourceName(source.type)}</p>
-                  </td>
-                  <td className="py-3.5 pr-4">
-                    <HealthBadge status={source.status} />
-                  </td>
-                  <td className="py-3.5 pr-4 text-right tabular-nums">{source.runs}</td>
-                  <td className="py-3.5 pr-4 text-right tabular-nums">{source.failures}</td>
-                  <td className="py-3.5 pr-4 text-right tabular-nums">{(source.items / Math.max(source.runs, 1)).toFixed(1)}</td>
-                  <td className="py-3.5 pr-4 text-right tabular-nums">
-                    {source.selected}
-                    {source.items > 0 && (
-                      <span className="ml-1 text-faint">({formatPercent(source.selection_rate, language)})</span>
-                    )}
-                  </td>
-                  <td className="py-3.5 pr-4 whitespace-nowrap text-muted">
-                    {source.last_success_at ? formatItemTime(source.last_success_at, language) : t('sources.never')}
-                  </td>
-                  <td className="max-w-64 py-3.5 text-[13px] text-muted">
-                    <SourceDetail source={source} />
-                  </td>
+          {/* Between md and xl the 9 columns can be wider than the card: scroll inside it. */}
+          <div className="mt-5 hidden overflow-x-auto md:block">
+            <table className="w-full text-[14px]">
+              <thead>
+                <tr className="border-b border-line text-left text-[12px] text-faint">
+                  <th className="py-3 pr-4 font-semibold">{t('sources.col.source')}</th>
+                  <th className="py-3 pr-4 font-semibold">{t('sources.col.status')}</th>
+                  <th className="py-3 pr-4 text-right font-semibold">{t('sources.col.runs')}</th>
+                  <th className="py-3 pr-4 text-right font-semibold">{t('sources.col.failures')}</th>
+                  <th className="py-3 pr-4 text-right font-semibold">{t('sources.col.perRun')}</th>
+                  <th className="py-3 pr-4 text-right font-semibold">{t('sources.col.selected')}</th>
+                  <th className="py-3 pr-4 text-right font-semibold">{t('sources.col.quality')}</th>
+                  <th className="py-3 pr-4 font-semibold">{t('sources.col.lastSuccess')}</th>
+                  <th className="py-3 font-semibold">{t('sources.col.detail')}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {visible.map((source) => (
+                  <tr key={source.source} className="border-b border-line/70 transition-colors duration-150 last:border-0 hover:bg-canvas/60">
+                    <td className="max-w-56 py-3.5 pr-4">
+                      <p className="truncate font-semibold" title={source.source}>
+                        {sourceLabel(source)}
+                      </p>
+                      <p className="text-[12px] text-faint">{sourceName(source.type)}</p>
+                    </td>
+                    <td className="py-3.5 pr-4">
+                      <HealthBadge status={source.status} />
+                    </td>
+                    <td className="py-3.5 pr-4 text-right tabular-nums">{source.runs}</td>
+                    <td className="py-3.5 pr-4 text-right tabular-nums">{source.failures}</td>
+                    <td className="py-3.5 pr-4 text-right tabular-nums">{(source.items / Math.max(source.runs, 1)).toFixed(1)}</td>
+                    <td className="py-3.5 pr-4 text-right tabular-nums">
+                      {source.selected}
+                      {source.items > 0 && (
+                        <span className="ml-1 text-faint">({formatPercent(source.selection_rate, language)})</span>
+                      )}
+                    </td>
+                    <td className="py-3.5 pr-4 text-right">
+                      <QualityScore source={source} />
+                    </td>
+                    <td className="py-3.5 pr-4 whitespace-nowrap text-muted">
+                      {source.last_success_at ? formatItemTime(source.last_success_at, language) : t('sources.never')}
+                    </td>
+                    <td className="max-w-64 py-3.5 text-[13px] text-muted">
+                      <SourceDetail source={source} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           <ul className="mt-5 space-y-3 md:hidden">
             {visible.map((source) => (
@@ -163,6 +170,11 @@ function SourceTable({ sources }: { sources: SourceHealth[] }) {
                 <p className="mt-2 text-[13px] text-muted tabular-nums">
                   {t('sources.col.runs')} {source.runs} · {t('sources.col.failures')} {source.failures} ·{' '}
                   {t('sources.col.selected')} {source.selected}
+                  {source.quality && (
+                    <>
+                      {' '}· {t('sources.col.quality')} <QualityScore source={source} />
+                    </>
+                  )}
                 </p>
                 <p className="mt-1 text-[13px] text-muted">
                   <SourceDetail source={source} />
@@ -170,9 +182,32 @@ function SourceTable({ sources }: { sources: SourceHealth[] }) {
               </li>
             ))}
           </ul>
+          <p className="mt-4 text-[12.5px] leading-relaxed text-muted">{t('sources.qualityHint', { days: qualityDays })}</p>
         </>
       )}
     </section>
+  )
+}
+
+function QualityScore({ source }: { source: SourceHealth }) {
+  const { language, t } = useLanguage()
+  const quality = source.quality
+  if (!quality) return <span className="text-faint">–</span>
+  const value = Math.round(quality.score * 100)
+  return (
+    <span
+      className="inline-flex items-center gap-2 tabular-nums"
+      title={t('sources.qualityTitle', {
+        mean: quality.mean_score.toFixed(1),
+        trusted: formatPercent(quality.trusted_share, language),
+        count: quality.items,
+      })}
+    >
+      <span aria-hidden className="hidden h-1.5 w-10 overflow-hidden rounded-full bg-accent-soft lg:block">
+        <span className="block h-full rounded-full bg-accent" style={{ width: `${value}%` }} />
+      </span>
+      <span className="font-semibold">{value}</span>
+    </span>
   )
 }
 

@@ -65,10 +65,16 @@ const sourceHealthSchema = z.object({
   selection_rate: z.number(),
   last_success_at: z.string().nullable(),
   last_error: z.string().nullable(),
+  /** 0..1, from the archive; only breaks ties between items of equal AI score. */
+  quality: z
+    .object({ score: z.number(), items: z.number(), mean_score: z.number(), trusted_share: z.number() })
+    .nullable()
+    .default(null),
 })
 
 export const sourceReportSchema = z.object({
   days: z.number(),
+  quality_days: z.number().default(30),
   sources: z.array(sourceHealthSchema),
   configured_without_history: z.array(z.string()),
   runs: z.array(runSchema),

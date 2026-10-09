@@ -27,7 +27,7 @@ export function TopBar() {
             <span className="text-[17px] font-bold tracking-tight">LucidNews</span>
           </Link>
 
-          <nav className="ml-6 hidden items-center gap-1 md:flex" aria-label={t('nav.main')}>
+          <nav className="ml-6 hidden items-center gap-1 lg:flex" aria-label={t('nav.main')}>
             {navItems.map(({ key, icon: Icon, to, matches }) => {
               const active = matches(pathname)
               return (
@@ -88,10 +88,10 @@ export function TopBar() {
         </div>
       </header>
 
-      {/* Phone: the same destinations in a floating bar at the bottom. */}
+      {/* Phone and tablet: the same destinations in a floating bar at the bottom. */}
       <nav
         aria-label={t('nav.main')}
-        className="glass fixed inset-x-4 bottom-4 z-30 flex justify-around rounded-full px-2 py-1.5 md:hidden"
+        className="glass fixed inset-x-4 bottom-4 z-30 flex justify-around rounded-full px-2 py-1.5 lg:hidden"
         style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
       >
         {navItems.map(({ key, icon: Icon, to, matches }) => {

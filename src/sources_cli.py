@@ -11,7 +11,9 @@ from rich.table import Table
 
 from ._cli import add_data_dir_arguments
 from .archive import ItemArchive
+from .reliability.assess import ReliabilityPolicy
 from .source_health import HealthStatus, assess_health, configured_source_keys, health_to_dict
+from .source_quality import DEFAULT_DAYS, compute_source_quality, quality_to_dict
 from .storage.manager import StorageManager
 
 STATUS_STYLES = {
@@ -45,12 +47,16 @@ def main(argv: list[str] | None = None) -> int:
     storage = StorageManager(data_dir=args.data_dir, config_path=args.config)
     archive_path = Path(args.data_dir) / "archive.sqlite3"
     configured: dict[str, str] = {}
+    policy = ReliabilityPolicy()
+    quality_days = DEFAULT_DAYS
     try:
         config = storage.load_config()
         archive_path = Path(config.archive.path)
         if not archive_path.is_absolute():
             archive_path = Path(args.data_dir) / archive_path
         configured = configured_source_keys(config)
+        policy = ReliabilityPolicy.with_overrides(config.reliability.domains, config.reliability.accounts)
+        quality_days = config.digest.source_quality_days
     except FileNotFoundError:
         pass
     if not archive_path.exists():
@@ -58,7 +64,15 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     since = datetime.now(timezone.utc) - timedelta(days=args.days)
-    report = assess_health(ItemArchive(archive_path).source_run_rows(since))
+    archive = ItemArchive(archive_path)
+    report = assess_health(archive.source_run_rows(since))
+    quality = (
+        compute_source_quality(
+            archive.items_between(datetime.now(timezone.utc) - timedelta(days=quality_days)), policy
+        )
+        if quality_days
+        else {}
+    )
     never_seen = sorted(set(configured) - {health.source_key for health in report})
     if configured and not args.all:
         report = [health for health in report if health.source_key in configured]
@@ -70,7 +84,11 @@ def main(argv: list[str] | None = None) -> int:
             json.dumps(
                 {
                     "days": args.days,
-                    "sources": [health_to_dict(h) for h in report],
+                    "quality_days": quality_days,
+                    "sources": [
+                        {**health_to_dict(h), "quality": quality_to_dict(quality.get(h.source_key))}
+                        for h in report
+                    ],
                     "configured_without_history": never_seen,
                 },
                 indent=2,
@@ -80,8 +98,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     table = Table(title=f"Source health — last {args.days} days")
-    for column in ("Source", "Status", "Runs", "Failures", "Items/run", "Selected", "Last success", "Detail"):
-        table.add_column(column, justify="right" if column in {"Runs", "Failures", "Items/run", "Selected"} else "left")
+    numeric = {"Runs", "Failures", "Items/run", "Selected", "Quality"}
+    for column in ("Source", "Status", "Runs", "Failures", "Items/run", "Selected", "Quality", "Last success", "Detail"):
+        table.add_column(column, justify="right" if column in numeric else "left")
     for h in report:
         detail = "; ".join(h.reasons)
         if h.last_error and h.status in (HealthStatus.DEAD, HealthStatus.FAILING):
@@ -93,10 +112,16 @@ def main(argv: list[str] | None = None) -> int:
             str(h.failures),
             f"{h.items_per_run:.1f}",
             f"{h.selected} ({h.selection_rate:.0%})" if h.items else "0",
+            f"{quality[h.source_key].score * 100:.0f}" if h.source_key in quality else "–",
             (h.last_success_at or "never")[:16].replace("T", " "),
             detail,
         )
     console.print(table)
+    if quality_days:
+        console.print(
+            f"[dim]Quality (0-100, last {quality_days} days): mean AI score and share of "
+            "confirmed or reliable items; it only breaks ties between equal scores.[/dim]"
+        )
     if never_seen:
         console.print(
             f"[dim]{len(never_seen)} configured source(s) have no history yet: "

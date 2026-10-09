@@ -618,6 +618,9 @@ class DigestConfig(BaseModel):
     # Only when the AI quota runs out: how many items the AI could not analyze are
     # still published, in a separate "not analyzed" section. 0 publishes none.
     unanalyzed_max_items: int = Field(default=15, ge=0)
+    # Window of archived items used for the source quality score (tie-breaker
+    # between items of equal AI score). 0 disables it.
+    source_quality_days: int = Field(default=30, ge=0)
 
     @field_validator("profile_order")
     @classmethod
@@ -656,6 +659,11 @@ class ReliabilityConfig(BaseModel):
     # Social accounts as publishers: {"x:openai": "official", "mastodon:user@host": "reputable"}
     accounts: Dict[str, SourceTier] = Field(default_factory=dict)
     exclude_labels: List[ReliabilityLabel] = Field(default_factory=list)
+    # Wider corroboration: official/reputable reports below the threshold or from
+    # earlier runs (archive, this many hours back) can corroborate a digest item.
+    corroboration_lookback_hours: int = Field(default=72, ge=0)
+    # Max reference reports sent with each topic dedup call. 0 disables it.
+    corroboration_max_references: int = Field(default=30, ge=0)
 
     @field_validator("accounts")
     @classmethod
