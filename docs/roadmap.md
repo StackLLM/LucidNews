@@ -21,7 +21,7 @@ Priorités, dans cet ordre : **fiabilité → qualité des données → qualité
 - **Archive d'items** *(fait)* : runs et news analysées stockés dans SQLite ; les analyses de news inchangées sont réutilisées. Ouvre la voie à l'envoi hebdomadaire, aux statistiques et à la reprise.
 - **Robustesse IA** *(fait)* : nouvelle tentative en fin d'étape pour l'analyse et l'enrichissement, puis reprise des news non notées aux runs suivants depuis l'archive. Reste à faire : budget de tokens par run.
 - **Évaluation** *(outil fait)* : annotation à l'aveugle dans l'écran Qualité, commande `lucidnews-eval` (sélection, importance, thèmes, affirmation, faux fiables), re-analyse avec `--rerun` pour tester un changement de consigne. Reste à faire : annoter au moins 30 news. Voir `docs/evaluation.md`.
-- Enrichir le registre de confiance (éditeurs français, autorités européennes) et `trust` pour les comptes X/Telegram officiels.
+- **Registre de confiance enrichi** *(fait)* : comptes de réseaux sociaux (X, Mastodon, Bluesky, Telegram) jugés sur leur compte et non sur la plateforme, éditeurs français et européens, autorités françaises et européennes, sites officiels de projets repérés dans l'archive. Reste à faire : poursuivre au fil des domaines inconnus.
 
 ## Phase 3 — Newsletter
 

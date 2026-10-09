@@ -231,7 +231,9 @@ class PipelineOrchestrator:
                 for profile in self.profiles.profiles
                 if profile.id not in configured_profiles
             )
-        self.reliability_policy = ReliabilityPolicy.with_overrides(config.reliability.domains)
+        self.reliability_policy = ReliabilityPolicy.with_overrides(
+            config.reliability.domains, config.reliability.accounts
+        )
         self.email_manager = EmailManager(config.email, console=self.console) if config.email else None
         self.webhook_notifier = (
             WebhookNotifier(config.webhook, console=self.console, icons=self.icons)

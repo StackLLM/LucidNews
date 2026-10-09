@@ -217,7 +217,9 @@ def evaluate(
         if item is None or analysis is None:
             report.missing.append(item_id)
             continue
-        reliability = item.processing.reliability or assess_item(item, policy)
+        # Recomputed with the current registry (deterministic, no AI call), so a
+        # registry change shows up in the report without re-running the pipeline.
+        reliability = assess_item(item, policy)
         report.compared.append(
             ItemComparison(
                 item_id=item_id,

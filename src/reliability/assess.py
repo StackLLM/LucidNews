@@ -25,25 +25,39 @@ from .models import (
     ReliabilityLabel,
     SourceTier,
 )
-from .registry import DEFAULT_DOMAIN_TIERS
+from .accounts import account_of, normalize_account
+from .registry import DEFAULT_ACCOUNT_TIERS, DEFAULT_DOMAIN_TIERS
 
 _GITHUB_RELEASE_PATH = re.compile(r"^/[^/]+/[^/]+/releases(?:/|$)")
 
 
 @dataclass(frozen=True)
 class ReliabilityPolicy:
-    """Domain registry plus project overrides."""
+    """Domain and account registries plus project overrides."""
 
     domain_tiers: Mapping[str, SourceTier] = field(
         default_factory=lambda: dict(DEFAULT_DOMAIN_TIERS)
     )
+    account_tiers: Mapping[str, SourceTier] = field(
+        default_factory=lambda: dict(DEFAULT_ACCOUNT_TIERS)
+    )
 
     @classmethod
-    def with_overrides(cls, overrides: Optional[Mapping[str, SourceTier]] = None) -> "ReliabilityPolicy":
+    def with_overrides(
+        cls,
+        overrides: Optional[Mapping[str, SourceTier]] = None,
+        accounts: Optional[Mapping[str, SourceTier]] = None,
+    ) -> "ReliabilityPolicy":
         tiers = dict(DEFAULT_DOMAIN_TIERS)
         for domain, tier in (overrides or {}).items():
             tiers[normalize_domain(domain)] = SourceTier(tier)
-        return cls(domain_tiers=tiers)
+        account_tiers = dict(DEFAULT_ACCOUNT_TIERS)
+        for account, tier in (accounts or {}).items():
+            account_tiers[normalize_account(account)] = SourceTier(tier)
+        return cls(domain_tiers=tiers, account_tiers=account_tiers)
+
+    def tier_for_account(self, account: Optional[str]) -> Optional[SourceTier]:
+        return self.account_tiers.get(account) if account else None
 
     def tier_for_domain(self, host: str) -> SourceTier:
         host = normalize_domain(host)
@@ -79,23 +93,35 @@ def tier_for_url(url: str, policy: ReliabilityPolicy) -> tuple[SourceTier, str]:
     domain = normalize_domain(parsed.hostname or "")
     if domain == "github.com" and _GITHUB_RELEASE_PATH.match(parsed.path):
         return SourceTier.OFFICIAL, domain
+    account_tier = policy.tier_for_account(account_of(url))
+    if account_tier is not None:
+        # A registered account outranks the platform it posts on.
+        return account_tier, domain
     return policy.tier_for_domain(domain), domain
+
+
+def publisher_key(url: str) -> str:
+    """Who published ``url``: the social account if any, else the registrable site.
+
+    Two posts by different accounts on the same platform are independent publishers.
+    """
+    return account_of(url) or site_of(urlsplit(url).hostname or "")
 
 
 def independent_corroboration(
     item: ContentItem, policy: ReliabilityPolicy
 ) -> List[Tuple[str, SourceTier]]:
     """Distinct official/reputable sites, other than the item's own, reporting the same event."""
-    seen = {site_of(urlsplit(str(item.url)).hostname or "")}
+    seen = {publisher_key(str(item.url))}
     result: List[Tuple[str, SourceTier]] = []
     for url in item.metadata.get("corroborating_urls") or []:
         tier, domain = tier_for_url(str(url), policy)
-        site = site_of(domain)
-        if not domain or site in seen:
+        publisher = publisher_key(str(url))
+        if not domain or publisher in seen:
             continue
         if tier in (SourceTier.OFFICIAL, SourceTier.REPUTABLE):
-            seen.add(site)
-            result.append((domain, tier))
+            seen.add(publisher)
+            result.append((account_of(str(url)) or domain, tier))
     return result
 
 
@@ -111,6 +137,9 @@ def source_tier_for(item: ContentItem, policy: ReliabilityPolicy) -> tuple[Sourc
             pass
 
     tier, domain = tier_for_url(str(item.url), policy)
+    account = account_of(str(item.url))
+    if account and policy.tier_for_account(account) is not None:
+        return tier, domain, f"account {account} is registered as {tier.value}"
     if tier is SourceTier.OFFICIAL and domain == "github.com":
         return tier, domain, "release published in the project's own repository"
     if tier is SourceTier.UNKNOWN:

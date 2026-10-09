@@ -640,7 +640,16 @@ class ReliabilityConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     domains: Dict[str, SourceTier] = Field(default_factory=dict)
+    # Social accounts as publishers: {"x:openai": "official", "mastodon:user@host": "reputable"}
+    accounts: Dict[str, SourceTier] = Field(default_factory=dict)
     exclude_labels: List[ReliabilityLabel] = Field(default_factory=list)
+
+    @field_validator("accounts")
+    @classmethod
+    def normalize_accounts(cls, value: Dict[str, SourceTier]) -> Dict[str, SourceTier]:
+        from .reliability.accounts import normalize_account
+
+        return {normalize_account(account): tier for account, tier in value.items()}
 
 
 class Config(BaseModel):

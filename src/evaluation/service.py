@@ -73,8 +73,8 @@ class EvaluationService:
             profile: settings.threshold for profile, settings in config.processing.profile_settings.items()
         }
         exclude: Sequence[ReliabilityLabel] = config.reliability.exclude_labels if config.reliability else ()
-        domains = config.reliability.domains if config.reliability else None
-        return cls(archive, store, pipeline_selection_rule(thresholds, exclude), ReliabilityPolicy.with_overrides(domains))
+        policy = ReliabilityPolicy.with_overrides(config.reliability.domains, config.reliability.accounts)
+        return cls(archive, store, pipeline_selection_rule(thresholds, exclude), policy)
 
     def analyzed_items(self) -> Dict[str, ContentItem]:
         items = self.archive.items_between(datetime(1970, 1, 1, tzinfo=timezone.utc))

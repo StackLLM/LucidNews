@@ -21,7 +21,37 @@ Règles de résolution :
 - C'est l'**URL de l'article** qui compte, pas le canal de découverte.
 - Le domaine le plus spécifique gagne : `lilianweng.github.io` (reconnu) l'emporte sur `github.io` (communautaire).
 - `github.com/<owner>/<repo>/releases/...` est `official` : c'est une publication du projet lui-même.
-- Ordre de priorité : `trust` du flux RSS > `reliability.domains` de la config > registre intégré (`src/reliability/registry.py`).
+- Un **compte de réseau social enregistré** l'emporte sur la plateforme (voir ci-dessous).
+- Ordre de priorité : `trust` du flux RSS > comptes (`reliability.accounts`, puis registre) > `reliability.domains` de la config > registre intégré des domaines (`src/reliability/registry.py`).
+
+### Comptes de réseaux sociaux
+
+Un message publié sur un réseau social est jugé sur **son compte**, pas sur la
+plateforme. `mastodon.social` est une plateforme communautaire, mais
+`@bagder@mastodon.social` est l'auteur de curl qui parle de curl.
+
+| Plateforme | Identifiant | Reconnu dans les URL |
+|---|---|---|
+| X | `x:<compte>` | `x.com/<compte>/…`, `twitter.com/<compte>/…` |
+| Mastodon (fédiverse) | `mastodon:<utilisateur>@<serveur>` | `<serveur>/@<utilisateur>/…` |
+| Bluesky | `bluesky:<identifiant>` | `bsky.app/profile/<identifiant>/…` |
+| Telegram | `telegram:<canal>` | `t.me/<canal>/…`, `t.me/s/<canal>/…` |
+
+- Registre intégré : seulement des comptes **vérifiés à la main** sur leur page publique (octobre 2026) : `mastodon:bagder@mastodon.social` (curl), `telegram:durov` (Telegram), `bluesky:bsky.app` (Bluesky).
+- Les comptes X ne sont pas vérifiables sans connexion : aucun n'est inscrit par défaut. Les ajouter par projet avec `reliability.accounts`.
+- Deux comptes différents d'une même plateforme comptent comme deux éditeurs indépendants pour la corroboration.
+- Limite : « officiel » vaut pour tout ce que publie le compte. Garder la liste aux comptes qui parlent surtout de leur propre travail.
+
+### Couverture du registre
+
+Domaines et comptes, par famille : laboratoires d'IA, éditeurs cloud et logiciels,
+projets open source, organismes de normalisation, autorités (États-Unis, Royaume-Uni,
+France avec tout `gouv.fr`, CNIL, ARCEP, ANSSI ; Union européenne avec tout
+`europa.eu` ; Allemagne, Pays-Bas, Italie, Espagne), recherche (dont Inria et CNRS),
+presse technique anglophone, française (LeMagIT, JDN, L'Usine Digitale, Silicon,
+Clubic, Frandroid, Les Numériques, Next, Numerama…) et européenne (heise, Golem,
+Euractiv, Politico Europe), plateformes communautaires (dont LinuxFr, Developpez,
+Journal du hacker, Korben).
 
 ## 2. Statut de l'affirmation (`ClaimStatus`)
 
@@ -75,6 +105,7 @@ Le digest l'affiche, par exemple `Fiable · source communautaire · corroboré p
 ```json
 "reliability": {
   "domains": { "internal-blog.example": "official", "some-tabloid.example": "community" },
+  "accounts": { "x:openai": "official", "mastodon:someone@fosstodon.org": "reputable" },
   "exclude_labels": []
 },
 "sources": { "rss": [ { "name": "Python Insider", "url": "https://pythoninsider.blogspot.com/feeds/posts/default", "trust": "official" } ] }
@@ -84,4 +115,5 @@ Le digest l'affiche, par exemple `Fiable · source communautaire · corroboré p
 
 - La vérification s'appuie sur le contenu collecté. L'IA ne consulte pas d'autres sources pendant l'analyse ; la recherche web n'intervient qu'à l'enrichissement.
 - La corroboration ne porte que sur les news qui ont passé le seuil de score et sur un même run : un article reconnu mal noté, ou publié la veille, n'est pas encore pris en compte (voir la [roadmap](roadmap.md)).
-- Le registre intégré est une base de départ et doit être enrichi au fil de l'usage.
+- Le registre intégré est une base de départ et doit être enrichi au fil de l'usage. La commande `lucidnews-sources` et l'écran Qualité aident à repérer les domaines encore inconnus.
+- Un changement de registre s'applique aux **prochains runs**. Les étiquettes déjà publiées (digests, archive) ne sont pas réécrites. L'écran Qualité, lui, recalcule toujours avec le registre actuel.

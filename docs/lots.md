@@ -3,7 +3,7 @@
 Ce document regroupe tous les lots : ceux qui sont **clôturés** et ceux qui
 **restent à faire**. Il complète la [roadmap](roadmap.md), qui donne les priorités.
 
-État au 9 octobre 2026. Dernier commit : `337b0a2`.
+État au 9 octobre 2026. Dernier lot clôturé : lot 13.
 
 Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ proposé, en attente de décision · 📋 planifié.
 
@@ -25,11 +25,11 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 - [Lot 9 — Fiche d'une news](#lot-9--fiche-dune-news) ✅
 - [Lot 10 — Écran Préférences (version locale)](#lot-10--écran-préférences-version-locale) ✅
 - [Lot 11 — Mesure de la qualité](#lot-11--mesure-de-la-qualité) 🟡
+- [Lot 13 — Registre de confiance enrichi](#lot-13--registre-de-confiance-enrichi) ✅
 
 **Lots suivants**
 
 - [Lot 12 — Annoter au moins 30 news](#lot-12--annoter-au-moins-30-news) 🟡
-- [Lot 13 — Registre de confiance enrichi](#lot-13--registre-de-confiance-enrichi) ⏳
 - [Lot 14 — Fin de la phase 2 (données et sources)](#lot-14--fin-de-la-phase-2-données-et-sources) 📋
 - [Lot 15 — Finitions de l'interface](#lot-15--finitions-de-linterface) 📋
 - [Lot 16 — Newsletter (phase 3)](#lot-16--newsletter-phase-3) 📋
@@ -280,6 +280,40 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 
 ---
 
+## Lot 13 — Registre de confiance enrichi
+
+✅ Clôturé · Étape 6 de la phase 2. Fait avant la fin du lot 12, car indépendant des annotations.
+
+**Objectif** : mieux reconnaître qui publie, pour que l'étiquette de fiabilité soit juste.
+
+**Fait**
+
+| Sujet | Contenu |
+|---|---|
+| Comptes de réseaux sociaux | Un message est jugé sur **son compte**, pas sur la plateforme. Formats reconnus : X, Mastodon (tout le fédiverse), Bluesky, Telegram. Un compte enregistré l'emporte sur la plateforme. Deux comptes d'une même plateforme comptent comme deux éditeurs indépendants pour la corroboration. |
+| Comptes intégrés | Seulement des comptes vérifiés à la main sur leur page publique : curl (Daniel Stenberg, Mastodon), Telegram (Pavel Durov), Bluesky (compte officiel). Aucun compte X : non vérifiable sans connexion. |
+| Config | Nouveau réglage `reliability.accounts` (exemple : `"x:openai": "official"`), avec contrôle du format. |
+| Autorités | Tout `gouv.fr`, CNIL, ARCEP ; tout `europa.eu` (déjà présent) ; BSI (Allemagne), NCSC (Pays-Bas), Garante (Italie), AEPD (Espagne). |
+| Presse française | LeMagIT, JDN, L'Usine Digitale, Silicon, Siècle Digital, Clubic, Frandroid, Les Numériques, Les Échos, Le Figaro, Libération, franceinfo, AFP. |
+| Presse européenne | heise, Golem, Euractiv, Politico Europe. |
+| Recherche | Inria, CNRS. |
+| Communautés françaises | LinuxFr, Developpez, Journal du hacker, Korben. |
+| Sites repérés dans l'archive | Vérifiés puis ajoutés : pola.rs, gleam.run, reflection.ai, vals.ai (officiels) ; lucumr.pocoo.org, techdirt.com (reconnus). |
+| Mesure de la qualité | L'étiquette de l'IA est recalculée avec le registre actuel : un changement de registre se voit sans relancer le pipeline. |
+
+**Effet mesuré sur les 48 news de l'archive** (sans appel IA)
+
+| Avant | Après |
+|---|---|
+| 4 Confirmé · 24 Fiable · 20 Non vérifié | 9 Confirmé · 21 Fiable · 18 Non vérifié |
+| 20 éditeurs inconnus | 13 éditeurs inconnus |
+
+- 8 news changent d'étiquette. Exemples : curl (Communautaire / Non vérifié → Officiel / Confirmé), Polars 2.0, Gleam et Reflection (Fiable → Confirmé).
+- Aucune news ne descend.
+- Les étiquettes déjà publiées ne sont pas réécrites. Le nouveau registre s'applique aux prochains runs.
+
+---
+
 # Lots suivants
 
 ## Lot 12 — Annoter au moins 30 news
@@ -293,16 +327,6 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 
 ---
 
-## Lot 13 — Registre de confiance enrichi
-
-⏳ Proposé, en attente de décision · Étape 6 de la phase 2.
-
-- Ajouter les éditeurs français et les autorités européennes au registre de confiance.
-- Reconnaître les comptes officiels (X, Telegram, Mastodon). Cas réel : le message du créateur de curl sur Mastodon est classé « source communautaire » alors qu'il vient de l'acteur concerné.
-- Mesurer l'effet avec les annotations du lot 12.
-
----
-
 ## Lot 14 — Fin de la phase 2 (données et sources)
 
 📋 Planifié.
@@ -311,6 +335,7 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 - Donner à chaque source un score de qualité, utilisé dans la sélection.
 - Fixer un budget de tokens par run.
 - Réutiliser l'enrichissement (résumé traduit, contexte) des news inchangées, comme déjà fait pour l'analyse.
+- Option pour recalculer les étiquettes de l'archive avec le registre actuel (sans appel IA), si l'on veut que l'interface reflète un changement de registre sur les anciennes éditions.
 
 ---
 
@@ -366,7 +391,9 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 |---|---|---|
 | 18 sources sur 29 n'ont rien collecté sur les 8 runs archivés. | Lot 8 | À confirmer avec des runs quotidiens. Elles passeront « silencieuses » après 5 runs vides. |
 | La corroboration n'a pas encore joué sur un vrai run. | Lot 5 | À observer quand deux médias couvriront le même événement. |
-| Un compte officiel est vu comme une source communautaire (cas curl). | Lot 9 | Lot 13. |
+| Un compte officiel est vu comme une source communautaire (cas curl). | Lot 9 | ✅ Réglé au lot 13. |
+| 13 domaines de l'archive restent inconnus du registre (blogs personnels, sites de projets, phys.org…). | Lot 13 | À trier au fil des runs, après vérification de chaque site. |
+| Aucun compte X officiel n'est inscrit (non vérifiable sans connexion). | Lot 13 | À ajouter dans `reliability.accounts` par la personne qui gère le projet. |
 | Les comptes GitHub suivis ne sont pas filtrables dans les préférences (leurs news portent le dépôt). | Lot 10 | À revoir si le besoin apparaît. |
 | Quota journalier exact de `gemini-3.5-flash-lite` sur l'offre gratuite. | Lot 5 | À confirmer. Un run de 24 h a consommé environ 140 000 tokens. |
 | Choix de l'offre IA pour la production. | Lot 1 | Décision à prendre. |
@@ -386,6 +413,7 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 | Lot après Archives et Sources | Fiche d'une news |
 | Préférences | Version locale, sans comptes (A) |
 | Lot après Préférences | Mesure de la qualité (A) |
+| Registre de confiance | Lancé avant la fin des annotations ; seulement des comptes et sites vérifiés à la main |
 | Style des réponses | Skill explainer : français simple, sections, questions oui/non |
 
 ## Historique des commits

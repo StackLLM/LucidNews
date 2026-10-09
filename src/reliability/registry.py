@@ -4,6 +4,9 @@ Entries match the host and any subdomain (``openai.com`` covers
 ``platform.openai.com``). The longest matching suffix wins, so a specific
 subdomain can override its parent. Projects extend or override this list with
 ``reliability.domains`` in the config, and RSS feeds can pin a tier with ``trust``.
+
+``DEFAULT_ACCOUNT_TIERS`` does the same for social accounts (see ``accounts.py``),
+extended with ``reliability.accounts``. Only accounts checked by hand belong here.
 """
 
 from .models import SourceTier
@@ -24,6 +27,8 @@ DEFAULT_DOMAIN_TIERS: dict[str, SourceTier] = {
     "huggingface.co": OFFICIAL,
     "qwenlm.github.io": OFFICIAL,
     "deepseek.com": OFFICIAL,
+    "reflection.ai": OFFICIAL,
+    "vals.ai": OFFICIAL,  # benchmark publisher: official for its own results
     "x.ai": OFFICIAL,
     "nvidia.com": OFFICIAL,
     "developer.nvidia.com": OFFICIAL,
@@ -84,6 +89,8 @@ DEFAULT_DOMAIN_TIERS: dict[str, SourceTier] = {
     "opensource.org": OFFICIAL,
     "vllm.ai": OFFICIAL,
     "pytorch.org": OFFICIAL,
+    "pola.rs": OFFICIAL,
+    "gleam.run": OFFICIAL,
     # Standards bodies, security authorities
     "w3.org": OFFICIAL,
     "whatwg.org": OFFICIAL,
@@ -95,7 +102,14 @@ DEFAULT_DOMAIN_TIERS: dict[str, SourceTier] = {
     "ncsc.gov.uk": OFFICIAL,
     "cyber.gouv.fr": OFFICIAL,
     "ssi.gouv.fr": OFFICIAL,
-    "europa.eu": OFFICIAL,
+    "europa.eu": OFFICIAL,  # EU institutions and agencies (ENISA, EDPB, EUR-Lex…)
+    "gouv.fr": OFFICIAL,  # French government sites (numerique.gouv.fr, legifrance.gouv.fr…)
+    "cnil.fr": OFFICIAL,
+    "arcep.fr": OFFICIAL,
+    "bsi.bund.de": OFFICIAL,
+    "ncsc.nl": OFFICIAL,
+    "garanteprivacy.it": OFFICIAL,
+    "aepd.es": OFFICIAL,
     "nobelprize.org": OFFICIAL,
     # Research
     "arxiv.org": REPUTABLE,
@@ -105,6 +119,8 @@ DEFAULT_DOMAIN_TIERS: dict[str, SourceTier] = {
     "nature.com": REPUTABLE,
     "science.org": REPUTABLE,
     "bair.berkeley.edu": REPUTABLE,
+    "inria.fr": REPUTABLE,
+    "cnrs.fr": REPUTABLE,
     "ai.stanford.edu": REPUTABLE,
     # Technical press and recognized experts
     "lwn.net": REPUTABLE,
@@ -130,6 +146,8 @@ DEFAULT_DOMAIN_TIERS: dict[str, SourceTier] = {
     "theinformation.com": REPUTABLE,
     "semianalysis.com": REPUTABLE,
     "simonwillison.net": REPUTABLE,
+    "lucumr.pocoo.org": REPUTABLE,  # Armin Ronacher (Flask, Jinja)
+    "techdirt.com": REPUTABLE,
     "pragmaticengineer.com": REPUTABLE,
     "brendangregg.com": REPUTABLE,
     "lilianweng.github.io": REPUTABLE,
@@ -146,6 +164,24 @@ DEFAULT_DOMAIN_TIERS: dict[str, SourceTier] = {
     "nextinpact.com": REPUTABLE,
     "next.ink": REPUTABLE,
     "zdnet.fr": REPUTABLE,
+    "lemagit.fr": REPUTABLE,
+    "journaldunet.com": REPUTABLE,
+    "usine-digitale.fr": REPUTABLE,
+    "silicon.fr": REPUTABLE,
+    "siecledigital.fr": REPUTABLE,
+    "clubic.com": REPUTABLE,
+    "frandroid.com": REPUTABLE,
+    "lesnumeriques.com": REPUTABLE,
+    "lesechos.fr": REPUTABLE,
+    "lefigaro.fr": REPUTABLE,
+    "liberation.fr": REPUTABLE,
+    "francetvinfo.fr": REPUTABLE,
+    "afp.com": REPUTABLE,
+    # European technology press
+    "heise.de": REPUTABLE,
+    "golem.de": REPUTABLE,
+    "euractiv.com": REPUTABLE,
+    "politico.eu": REPUTABLE,
     "techfundingnews.com": REPUTABLE,
     # Community, aggregators, social and open publishing platforms
     "news.ycombinator.com": COMMUNITY,
@@ -168,4 +204,21 @@ DEFAULT_DOMAIN_TIERS: dict[str, SourceTier] = {
     "youtube.com": COMMUNITY,
     "youtu.be": COMMUNITY,
     "news.google.com": COMMUNITY,
+    # French-speaking community sites
+    "linuxfr.org": COMMUNITY,
+    "developpez.com": COMMUNITY,
+    "journalduhacker.net": COMMUNITY,
+    "korben.info": COMMUNITY,
+}
+
+# Social accounts of the party concerned, keyed ``platform:handle``. Each one was
+# checked on its public profile page (October 2026). X accounts cannot be checked
+# without signing in: add them per project with ``reliability.accounts``.
+# "Official" means: the account speaks for its own project or company. A post on
+# another subject is still labelled by this tier: keep the list to accounts that
+# mostly post about their own work.
+DEFAULT_ACCOUNT_TIERS: dict[str, SourceTier] = {
+    "mastodon:bagder@mastodon.social": OFFICIAL,  # Daniel Stenberg, author of curl
+    "telegram:durov": OFFICIAL,  # Pavel Durov, founder of Telegram (verified channel)
+    "bluesky:bsky.app": OFFICIAL,  # official Bluesky account
 }

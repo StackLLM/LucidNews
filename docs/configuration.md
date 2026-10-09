@@ -569,12 +569,14 @@ See [fiabilite.md](fiabilite.md) for the model. Configuration:
 {
   "reliability": {
     "domains": { "internal-blog.example": "official" },
+    "accounts": { "x:openai": "official" },
     "exclude_labels": ["rumor"]
   }
 }
 ```
 
 - `domains`: add or override publisher tiers (`official`, `reputable`, `community`, `unknown`). Subdomains are covered; the most specific entry wins.
+- `accounts`: tiers for social accounts, keyed `platform:handle` (`x:openai`, `mastodon:user@server`, `bluesky:handle`, `telegram:channel`). A registered account outranks the platform it posts on.
 - `exclude_labels`: reliability labels (`confirmed`, `reliable`, `unverified`, `rumor`) removed from the digest. Empty by default: unconfirmed items are published but explicitly flagged.
 - RSS feeds accept `"trust": "<tier>"` to pin the tier of their items.
 

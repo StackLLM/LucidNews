@@ -32,7 +32,7 @@ frontend). Pour chaque news de l'archive, quatre questions :
 | Importance | Le score 0-10 tombe-t-il dans votre niveau ? Accord exact, à un niveau près, écart moyen. |
 | Thèmes | Mêmes catégories ? Précision, rappel, F1, ensembles identiques. |
 | Affirmation | Même statut de vérification ? Exactitude, matrice vous / IA, nombre d'avis trop confiants (vous : non vérifiée ou rumeur ; IA : confirmée ou rapportée). |
-| Fiabilité | Étiquette finale recalculée avec **votre** statut d'affirmation. **Faux fiables** = news affichées « Confirmé » ou « Fiable » alors que votre jugement donne « Non vérifié » ou « Rumeur ». C'est l'erreur la plus grave : une info non confirmée présentée comme un fait. |
+| Fiabilité | Étiquette de l'IA recalculée avec le registre de confiance **actuel**, et étiquette recalculée avec **votre** statut d'affirmation. **Faux fiables** = news affichées « Confirmé » ou « Fiable » alors que votre jugement donne « Non vérifié » ou « Rumeur ». C'est l'erreur la plus grave : une info non confirmée présentée comme un fait. |
 
 Écran **Qualité → Résultats**, ou en terminal :
 
