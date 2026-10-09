@@ -292,6 +292,34 @@ model); a full run needs roughly two calls per fetched item plus enrichment
 calls per selected item and language, so use a paid tier or a model with a
 larger quota for production.
 
+### Token budget and exhausted quota
+
+`ai.max_tokens_per_run` (default `null`, no budget) caps the tokens one run may
+use across every AI stage. A typical 24-hour run with two languages used about
+140,000 tokens; `200000` leaves some margin:
+
+```json
+{
+  "ai": {
+    "max_tokens_per_run": 200000
+  }
+}
+```
+
+The AI is out of quota for the rest of a run when the run reaches this budget,
+or when the provider says its quota is used up (Gemini daily quota, OpenAI
+`insufficient_quota`, Anthropic or DeepSeek balance). From then on:
+
+- no AI call is made any more: nothing waits, nothing is retried, the run ends normally;
+- items not analyzed yet are marked `ai_skipped` and retried in the next run (this uses none of `archive.max_analysis_attempts`);
+- items already analyzed keep their analysis, without enrichment if it was not done yet;
+- up to `digest.unanalyzed_max_items` (default `15`, `0` to publish none) unanalyzed items are published in a separate **Not analyzed by the AI** section: original headline, source and link only, always labeled `unverified`, best-known publishers first.
+
+A per-minute rate limit (`429` with a per-minute quota) is not an exhausted
+quota: it is retried as before, and an item that still fails is left out.
+Each run records why the AI stopped (`ai_limit`), the tokens used and the number
+of unanalyzed items.
+
 ### Failed-item retry
 
 `ai.failed_retry_delay_sec` (default `30`): items whose analysis or enrichment
@@ -559,6 +587,7 @@ No API key is required.
 - `path`: SQLite file; relative paths resolve under the data directory.
 - `retry_failed_analysis`, `retry_window_hours`, `max_analysis_attempts`: an item the AI failed to score is kept as pending and retried in later runs (even outside the time window) while it was first seen less than `retry_window_hours` ago and has failed fewer than `max_analysis_attempts` runs.
 - `reuse_analysis`: reuse the stored analysis of an item that comes back unchanged (same title, URL, content and routing) instead of calling the AI again. Turn it off after changing analysis prompts to force a fresh analysis.
+- `reuse_enrichment` (default `true`): with a reused analysis, also reuse the stored enrichment (translated title, summary, context) when it exists in every configured language. Adding a language enriches the item again in all languages.
 - Archive failures never stop a run; they are logged as warnings.
 
 ## Reliability

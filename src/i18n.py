@@ -76,6 +76,12 @@ _EN: Dict[str, str] = {
     "tier_community": "community source",
     "tier_unknown": "unrecognized source",
     "corroborated": "corroborated by {count} independent source(s)",
+    "unanalyzed_title": "Not analyzed by the AI",
+    "unanalyzed_notice": (
+        "The AI quota ran out during this run. These {count} item(s) were not analyzed: "
+        "no summary, no score, no claim check. Original headlines, to be verified."
+    ),
+    "unanalyzed_only": "The AI quota ran out: {count} item(s) are listed without analysis.",
 }
 
 _FR: Dict[str, str] = {
@@ -116,6 +122,12 @@ _FR: Dict[str, str] = {
     "tier_community": "source communautaire",
     "tier_unknown": "source non référencée",
     "corroborated": "corroboré par {count} source(s) indépendante(s)",
+    "unanalyzed_title": "Sans analyse IA",
+    "unanalyzed_notice": (
+        "Le quota IA a été épuisé pendant ce run. Ces {count} news n'ont pas été analysées : "
+        "ni résumé, ni score, ni vérification. Titres d'origine, à vérifier."
+    ),
+    "unanalyzed_only": "Le quota IA est épuisé : {count} news sont listées sans analyse.",
 }
 
 _ZH: Dict[str, str] = {

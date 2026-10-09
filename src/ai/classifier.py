@@ -5,6 +5,7 @@ import logging
 from pydantic import BaseModel, Field, ValidationError
 from tenacity import retry, retry_if_not_exception_type, stop_after_attempt, wait_exponential
 
+from .budget import QuotaExhausted
 from .client import AIClient
 from .prompting.classification import (
     classification_system_prompt,
@@ -74,6 +75,8 @@ class ContentClassifier:
                 confidence=result.confidence,
                 reason=result.reason,
             )
+        except QuotaExhausted:
+            raise  # no fallback profile: the item is left for a run with AI quota
         except Exception as exc:
             fallback_id = (
                 self.profiles.default_profile
@@ -116,7 +119,7 @@ class ContentClassifier:
     # falling back to the default profile. Invalid responses raise ValueError and
     # fall back immediately.
     @retry(
-        retry=retry_if_not_exception_type(ValueError),
+        retry=retry_if_not_exception_type((ValueError, QuotaExhausted)),
         stop=stop_after_attempt(3),
         wait=wait_exponential(min=2, max=10),
         reraise=True,

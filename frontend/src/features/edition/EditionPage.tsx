@@ -8,6 +8,7 @@ import { listStagger, riseIn, useMotionPreference } from '../../lib/motion'
 import { EditionHero } from './EditionHero'
 import { EditionSidebar } from './EditionSidebar'
 import { ItemCard } from './ItemCard'
+import { UnanalyzedSection } from './UnanalyzedSection'
 
 export function EditionPage() {
   const { editionId = 'latest' } = useParams()
@@ -57,6 +58,7 @@ function EditionView({ edition, archived }: { edition: Edition; archived: boolea
             ))}
           </motion.section>
         ))}
+        {edition.unanalyzed.length > 0 && <UnanalyzedSection items={edition.unanalyzed} editionId={edition.id} />}
       </div>
       <EditionSidebar edition={edition} />
     </motion.div>

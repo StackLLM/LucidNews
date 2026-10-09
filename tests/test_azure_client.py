@@ -103,6 +103,6 @@ class TestFactoryFunction:
         monkeypatch.setenv("AZURE_OPENAI_API_KEY", "test-key")
         monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com")
 
-        client = create_ai_client(_make_config())
+        client = create_ai_client(_make_config()).inner
 
         assert isinstance(client, AzureOpenAIClient)

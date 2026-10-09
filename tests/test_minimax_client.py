@@ -330,7 +330,7 @@ class TestFactoryFunction:
     def test_creates_openai_client_for_minimax(self, monkeypatch):
         monkeypatch.setenv("MINIMAX_API_KEY", "test-key")
         config = _make_config()
-        client = create_ai_client(config)
+        client = create_ai_client(config).inner
         assert isinstance(client, OpenAIClient)
         assert client.provider == "minimax"
 
@@ -373,7 +373,7 @@ class TestFactoryFunction:
                     http_client=http_client,
                 )
                 with patch("src.ai.client.AsyncAnthropic", return_value=sdk_client):
-                    client = create_ai_client(_make_config(base_url=base_url))
+                    client = create_ai_client(_make_config(base_url=base_url)).inner
                     assert isinstance(client, AnthropicClient)
                     return await client.complete(system="test", user="hello")
 
@@ -388,7 +388,7 @@ class TestFactoryFunction:
             provider=AIProvider.DEEPSEEK,
             api_key_env="DEEPSEEK_API_KEY",
         )
-        client = create_ai_client(config)
+        client = create_ai_client(config).inner
         assert isinstance(client, OpenAIClient)
         assert client.provider == "deepseek"
 

@@ -28,6 +28,8 @@ Subscriber
 3. Pour chaque groupe, `select_items` filtre le digest du jour (déjà trié par score) : catégories, sources, importance, fiabilité, plafond.
 4. Le digest est rendu dans la langue du groupe et envoyé avec un sujet localisé.
 
+Si le quota IA a été épuisé pendant le run, les news non analysées sont ajoutées dans une section à part, « Sans analyse IA ». Comme elles n'ont ni catégorie, ni importance, ni vérification, un abonné ne les reçoit que s'il ne filtre ni par catégorie ni par importance et accepte les infos non confirmées. Son filtre de sources et son plafond `max_items` s'appliquent toujours (les news analysées passent en premier).
+
 Un abonné ne reçoit que sa langue. Les abonnés `weekly` sont signalés comme non servis, sans erreur.
 
 ## Plans Free / Premium

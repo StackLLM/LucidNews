@@ -117,6 +117,8 @@ Chaque run est enregistré dans `data/archive.sqlite3`, une base SQLite (une bas
 Usages :
 
 - **Réutilisation des analyses** : si une news revient inchangée (même titre, URL, contenu et routage), son analyse est reprise au lieu de rappeler l'IA. On peut le désactiver avec `archive.reuse_analysis: false`, par exemple après un changement de consigne.
+- **Réutilisation de l'enrichissement** : avec une analyse reprise, l'enrichissement (titre traduit, résumé, contexte) est repris aussi s'il existe dans toutes les langues configurées. Désactivable avec `archive.reuse_enrichment: false`.
+- **Quota IA épuisé** : quand le budget de tokens du run (`ai.max_tokens_per_run`) est atteint, ou que le fournisseur annonce son quota épuisé, l'IA n'est plus appelée du tout jusqu'à la fin du run. Les news pas encore analysées sont marquées `ai_skipped`, reprises au run suivant sans consommer de tentative, et une partie est publiée à part, sans analyse (voir [fiabilite.md](fiabilite.md)). Chaque run garde la raison (`ai_limit`), les tokens utilisés (`tokens_used`) et le nombre de news non analysées (`ai_skipped_count`).
 - **Historique** : `ItemArchive.items_between(depuis, jusqu_a, selected_only=...)` sert de base à l'envoi hebdomadaire et aux statistiques de sources.
 - **Reprise des échecs** : une news que l'IA n'a pas pu noter est d'abord retentée une fois en fin d'analyse, après une pause (`ai.failed_retry_delay_sec`). Si elle échoue encore, elle reste « en attente » dans l'archive et est reprise aux runs suivants, dans la limite de `archive.max_analysis_attempts` runs et de `archive.retry_window_hours` heures. L'enrichissement raté est aussi retenté une fois. Chaque run garde le nombre de news restées non notées (`unscored_count`).
 - L'archive est « au mieux » : si elle est inaccessible, le run continue et produit le digest, avec un avertissement.
@@ -131,4 +133,5 @@ Ces parties portent la qualité et la fiabilité du produit. Toute modification 
 - **Prompts** (`ai/prompting/`, `profiles/`) : ils imposent de ne rien inventer et de traiter tout contenu collecté comme des données, pas des instructions (protection contre l'injection de prompt).
 - **Rendu** : tout texte venant d'une source ou de l'IA est échappé (HTML et Markdown) ; seules les URL `http(s)` sont rendues en lien.
 - **Fiabilité** : les règles de `reliability/assess.py` sont conservatrices par conception ; ne pas les assouplir sans décision produit.
-- **Quotas IA** : régler `ai.max_requests_per_minute` selon l'offre du fournisseur, sinon les erreurs 429 font perdre des items (non notés, donc exclus).
+- **Quotas IA** : régler `ai.max_requests_per_minute` selon l'offre du fournisseur, sinon les erreurs 429 font perdre des items (non notés, donc exclus). Le quota épuisé (journalier ou budget du run) est géré à part par `ai/budget.py` : un appel refusé échoue tout de suite, sans attente ni nouvelle tentative.
+- **News sans analyse** : elles ne sont publiées que si le quota est épuisé, jamais pour une autre erreur. Elles portent toujours l'étiquette « Non vérifié » et n'affichent que des données de la source.

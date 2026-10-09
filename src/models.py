@@ -6,6 +6,7 @@ import re
 from typing import Annotated, Literal, Optional, List, Dict, Any, NamedTuple, Union
 from pydantic import BaseModel, ConfigDict, HttpUrl, Field, ValidationError, field_validator, model_validator
 
+from .ai.budget import AILimit
 from .reliability.models import (
     ClaimAssessment,
     ReliabilityAssessment,
@@ -56,7 +57,8 @@ class ClassificationResult(BaseModel):
     """Resolved processing profile for a content item."""
 
     profile: str
-    method: Literal["source_override", "ai_match"]
+    # "unclassified": placeholder profile for an item the AI could not reach (quota).
+    method: Literal["source_override", "ai_match", "unclassified"]
     confidence: Optional[float] = Field(default=None, ge=0, le=1)
     reason: Optional[str] = None
 
@@ -125,6 +127,8 @@ class ProcessingResult(BaseModel):
     analysis: Optional[ContentAnalysis] = None
     reliability: Optional[ReliabilityAssessment] = None
     artifacts: Dict[str, ContentArtifact] = Field(default_factory=dict)
+    # Set when the item was not analyzed because the run ran out of AI quota.
+    ai_skipped: Optional[AILimit] = None
 
 
 class ContentItem(BaseModel):
@@ -224,6 +228,9 @@ class AIConfig(BaseModel):
     throttle_sec: float = 0.0
     # Provider quota, e.g. 5 for Gemini free tier on gemini-2.5-flash. None = unlimited.
     max_requests_per_minute: Optional[int] = Field(default=None, gt=0)
+    # Token budget for one run (all AI stages). Once reached, the AI is no longer
+    # called and the rest of the run goes on without it. None = no budget.
+    max_tokens_per_run: Optional[int] = Field(default=None, gt=0)
     # Items whose analysis or enrichment failed are retried once at the end of the
     # stage after this pause (lets per-minute quotas reset). None disables it.
     failed_retry_delay_sec: Optional[float] = Field(default=30.0, ge=0)
@@ -608,6 +615,9 @@ class DigestConfig(BaseModel):
     default_group: str = "other"
     default_group_limit: Optional[int] = Field(default=None, gt=0)
     profile_order: List[str] = Field(default_factory=list)
+    # Only when the AI quota runs out: how many items the AI could not analyze are
+    # still published, in a separate "not analyzed" section. 0 publishes none.
+    unanalyzed_max_items: int = Field(default=15, ge=0)
 
     @field_validator("profile_order")
     @classmethod
@@ -628,6 +638,9 @@ class ArchiveConfig(BaseModel):
     path: str = "archive.sqlite3"  # relative paths resolve under the data directory
     # Reuse a stored analysis when the same item comes back unchanged (saves AI quota).
     reuse_analysis: bool = True
+    # Also reuse its enrichment (translated summary, context) when every configured
+    # language is already there.
+    reuse_enrichment: bool = True
     # Items whose analysis failed are retried in later runs, even outside the window.
     retry_failed_analysis: bool = True
     retry_window_hours: int = Field(default=48, gt=0)

@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { ArrowLeft, ChevronRight, Hash, TriangleAlert } from 'lucide-react'
+import { ArrowLeft, ChevronRight, Hash, Hourglass, TriangleAlert } from 'lucide-react'
 import { motion } from 'motion/react'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { ApiErrorCard, PageSkeleton } from '../../design/PageState'
@@ -35,7 +35,8 @@ function ItemView({ item }: { item: ItemDetail }) {
   const contentLanguage = isLanguage(item.language) ? item.language : language
   const fromEdition = item.editions.find((edition) => edition.id === from) ?? item.editions[0]
   const reliability = item.reliability
-  const unconfirmed = reliability?.label === 'unverified' || reliability?.label === 'rumor'
+  // A skipped item has its own notice instead of the generic "unverified" hint.
+  const unconfirmed = !item.ai_skipped && (reliability?.label === 'unverified' || reliability?.label === 'rumor')
 
   return (
     <motion.div variants={listStagger} initial={enabled ? 'hidden' : false} animate="visible" className="space-y-6">
@@ -83,37 +84,39 @@ function ItemView({ item }: { item: ItemDetail }) {
             </dl>
           </header>
 
-          {/* Key facts band. */}
-          <div className="relative isolate mt-7 overflow-hidden rounded-[20px] bg-gradient-to-br from-accent to-accent-deep px-6 py-5 text-white">
-            <span aria-hidden className="absolute -right-16 -top-20 -z-10 h-56 w-56 rounded-full bg-white/[0.08]" />
-            <span aria-hidden className="absolute -bottom-24 right-32 -z-10 h-44 w-44 rounded-full bg-white/[0.05]" />
-            <dl className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
-              <div>
-                <dt className="text-[13px] font-semibold text-white/70">{t('detail.score')}</dt>
-                <dd className="mt-0.5 flex items-baseline gap-2">
-                  <span className="text-[30px] leading-none font-bold">{formatScore(item.score)}</span>
-                  <span className="text-white/60">/10</span>
-                  {item.importance && (
-                    <span className="ml-1 rounded-full bg-white/15 px-2.5 py-0.5 text-[12px] font-semibold">
-                      {t(`importance.${item.importance}` as MessageKey)}
-                    </span>
-                  )}
-                </dd>
-              </div>
-              {item.categories.length > 0 && (
-                <div className="sm:text-right">
-                  <dt className="sr-only">{t('detail.categories')}</dt>
-                  <dd className="flex flex-wrap gap-1.5 sm:justify-end">
-                    {item.categories.map((category) => (
-                      <span key={category} className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[12px] font-medium">
-                        {categoryLabel(language, category)}
+          {/* Key facts band (nothing to show when the AI did not analyze the item). */}
+          {!item.ai_skipped && (
+            <div className="relative isolate mt-7 overflow-hidden rounded-[20px] bg-gradient-to-br from-accent to-accent-deep px-6 py-5 text-white">
+              <span aria-hidden className="absolute -right-16 -top-20 -z-10 h-56 w-56 rounded-full bg-white/[0.08]" />
+              <span aria-hidden className="absolute -bottom-24 right-32 -z-10 h-44 w-44 rounded-full bg-white/[0.05]" />
+              <dl className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+                <div>
+                  <dt className="text-[13px] font-semibold text-white/70">{t('detail.score')}</dt>
+                  <dd className="mt-0.5 flex items-baseline gap-2">
+                    <span className="text-[30px] leading-none font-bold">{formatScore(item.score)}</span>
+                    <span className="text-white/60">/10</span>
+                    {item.importance && (
+                      <span className="ml-1 rounded-full bg-white/15 px-2.5 py-0.5 text-[12px] font-semibold">
+                        {t(`importance.${item.importance}` as MessageKey)}
                       </span>
-                    ))}
+                    )}
                   </dd>
                 </div>
-              )}
-            </dl>
-          </div>
+                {item.categories.length > 0 && (
+                  <div className="sm:text-right">
+                    <dt className="sr-only">{t('detail.categories')}</dt>
+                    <dd className="flex flex-wrap gap-1.5 sm:justify-end">
+                      {item.categories.map((category) => (
+                        <span key={category} className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[12px] font-medium">
+                          {categoryLabel(language, category)}
+                        </span>
+                      ))}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
 
           <h1 className="mt-8 font-serif text-[30px] leading-[1.15] font-medium tracking-[-0.01em] sm:text-[38px]">
             {item.title}
@@ -138,8 +141,17 @@ function ItemView({ item }: { item: ItemDetail }) {
             </p>
           )}
 
-          <p className="mt-5 font-serif text-[19px] leading-[1.65] text-ink/85">{item.summary}</p>
-          {!item.translated && <p className="mt-2 text-[13px] italic text-faint">{t('item.notTranslated')}</p>}
+          {item.ai_skipped ? (
+            <p className="mt-5 flex items-start gap-2.5 rounded-control bg-unverified/[0.07] px-4 py-3 text-[14.5px] leading-relaxed text-unverified">
+              <Hourglass size={16} className="mt-0.5 shrink-0" aria-hidden />
+              {t('unanalyzed.detail')}
+            </p>
+          ) : (
+            <>
+              <p className="mt-5 font-serif text-[19px] leading-[1.65] text-ink/85">{item.summary}</p>
+              {!item.translated && <p className="mt-2 text-[13px] italic text-faint">{t('item.notTranslated')}</p>}
+            </>
+          )}
 
           {item.sections.length > 0 && (
             <div className="mt-8 space-y-7 border-t border-line pt-8">

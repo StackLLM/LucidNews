@@ -3,7 +3,7 @@
 Ce document regroupe tous les lots : ceux qui sont **clôturés** et ceux qui
 **restent à faire**. Il complète la [roadmap](roadmap.md), qui donne les priorités.
 
-État au 9 octobre 2026. Dernier lot clôturé : lot 13.
+État au 9 octobre 2026. Dernier lot clôturé : lot 14.
 
 Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ proposé, en attente de décision · 📋 planifié.
 
@@ -26,11 +26,12 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 - [Lot 10 — Écran Préférences (version locale)](#lot-10--écran-préférences-version-locale) ✅
 - [Lot 11 — Mesure de la qualité](#lot-11--mesure-de-la-qualité) 🟡
 - [Lot 13 — Registre de confiance enrichi](#lot-13--registre-de-confiance-enrichi) ✅
+- [Lot 14 — Budget IA et quota épuisé](#lot-14--budget-ia-et-quota-épuisé) ✅
 
 **Lots suivants**
 
 - [Lot 12 — Annoter au moins 30 news](#lot-12--annoter-au-moins-30-news) 🟡
-- [Lot 14 — Fin de la phase 2 (données et sources)](#lot-14--fin-de-la-phase-2-données-et-sources) 📋
+- [Lot 14 bis — Fin de la phase 2 (données et sources)](#lot-14-bis--fin-de-la-phase-2-données-et-sources) 📋
 - [Lot 15 — Finitions de l'interface](#lot-15--finitions-de-linterface) 📋
 - [Lot 16 — Newsletter (phase 3)](#lot-16--newsletter-phase-3) 📋
 - [Lot 17 — Comptes et SaaS (phase 4)](#lot-17--comptes-et-saas-phase-4) 📋
@@ -314,6 +315,39 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 
 ---
 
+## Lot 14 — Budget IA et quota épuisé
+
+✅ Clôturé · Première moitié de la fin de la phase 2 (choix A). Le reste est au lot 14 bis.
+
+**Objectif** : protéger le quota IA, réduire le coût de chaque run, et ne jamais bloquer l'application quand le quota est épuisé.
+
+**Règle validée** : quand le quota est épuisé, l'application affiche les news **sans analyse IA**. Seulement dans ce cas : toute autre erreur d'analyse garde la news hors du digest, comme avant.
+
+**Fait**
+
+| Sujet | Contenu |
+|---|---|
+| Budget de tokens | Nouveau réglage `ai.max_tokens_per_run`. Une fois atteint, l'IA n'est plus appelée jusqu'à la fin du run. Valeur proposée dans la config d'exemple : 200 000 (un run de 24 h en consomme environ 140 000). |
+| Quota du fournisseur | Reconnu à son message d'erreur : quota journalier Gemini, `insufficient_quota` (OpenAI), solde insuffisant (Anthropic, DeepSeek). Une limite **par minute** n'est pas un quota épuisé : elle reste retentée comme avant. |
+| Pas de blocage | Dès que le quota est épuisé, chaque appel IA échoue tout de suite : plus d'attente, plus de nouvelle tentative, plus de pause de 30 s. Le run se termine normalement. |
+| News non analysées | Marquées « non analysées » dans l'archive. Elles sont reprises au run suivant, sans consommer de tentative. Une news déjà analysée garde son analyse (sans enrichissement s'il n'était pas fait). |
+| Publication à part | Jusqu'à 15 news non analysées (`digest.unanalyzed_max_items`, 0 pour aucune), dans une section « Sans analyse IA » : titre d'origine, source, lien. Toujours « Non vérifié », même d'une source officielle. Les sources les mieux connues passent en premier. |
+| Digest et e-mail | Section dédiée avec un avertissement. Un abonné ne la reçoit que s'il ne filtre ni par catégorie ni par importance et accepte les infos non confirmées. |
+| Interface | Bandeau dans l'édition (« Le quota IA a été épuisé pendant ce run »), section « Sans analyse IA » en fin d'édition et dans le sommaire, fiche d'une news avec un avertissement à la place du résumé, badge « Quota IA épuisé » dans les archives. |
+| Suivi par run | L'archive garde, pour chaque run, la raison de l'arrêt de l'IA, les tokens utilisés et le nombre de news non analysées. |
+| Réutilisation de l'enrichissement | Une news inchangée reprend aussi son enrichissement (titre traduit, résumé, contexte) s'il existe dans toutes les langues. Désactivable avec `archive.reuse_enrichment`. |
+
+**Vérifié sur des runs simulés** (faux fournisseur IA, sans appel réel)
+
+| Scénario | Résultat |
+|---|---|
+| Quota épuisé après 2 appels | Run terminé en moins d'une seconde, 3 appels IA au total. 5 news publiées « Sans analyse IA ». |
+| Quota épuisé en cours de route | 4 news analysées dans le digest, 2 à part. |
+| Budget de 1 500 tokens | Arrêt à 1 500 tokens, 3 news analysées, 3 à part. |
+| Même lot de news au run suivant | Enrichissement repris : 19 appels IA → 1 seul. |
+
+---
+
 # Lots suivants
 
 ## Lot 12 — Annoter au moins 30 news
@@ -327,14 +361,12 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 
 ---
 
-## Lot 14 — Fin de la phase 2 (données et sources)
+## Lot 14 bis — Fin de la phase 2 (données et sources)
 
-📋 Planifié.
+📋 Planifié. Partie B du lot 14 (la partie A, budget IA, est clôturée).
 
 - Étendre la corroboration aux news sous le seuil et aux runs précédents, grâce à l'archive.
 - Donner à chaque source un score de qualité, utilisé dans la sélection.
-- Fixer un budget de tokens par run.
-- Réutiliser l'enrichissement (résumé traduit, contexte) des news inchangées, comme déjà fait pour l'analyse.
 - Option pour recalculer les étiquettes de l'archive avec le registre actuel (sans appel IA), si l'on veut que l'interface reflète un changement de registre sur les anciennes éditions.
 
 ---
@@ -397,6 +429,8 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 | Les comptes GitHub suivis ne sont pas filtrables dans les préférences (leurs news portent le dépôt). | Lot 10 | À revoir si le besoin apparaît. |
 | Quota journalier exact de `gemini-3.5-flash-lite` sur l'offre gratuite. | Lot 5 | À confirmer. Un run de 24 h a consommé environ 140 000 tokens. |
 | Choix de l'offre IA pour la production. | Lot 1 | Décision à prendre. |
+| Message exact d'un quota épuisé chez chaque fournisseur. | Lot 14 | Gemini : format de l'erreur vérifié dans le code du SDK. Autres fournisseurs : d'après leur documentation. À confirmer lors d'un vrai épuisement. |
+| Une édition passée montre l'état le plus récent de ses news : une news publiée « Sans analyse IA » y apparaît avec son analyse après le run qui l'a analysée, même si son score est bas. | Lot 14 | Comportement de l'archive (une ligne par news). À figer par édition si cela gêne. |
 
 ## Décisions prises
 
@@ -414,6 +448,8 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 | Préférences | Version locale, sans comptes (A) |
 | Lot après Préférences | Mesure de la qualité (A) |
 | Registre de confiance | Lancé avant la fin des annotations ; seulement des comptes et sites vérifiés à la main |
+| Lot après le registre | Budget IA et réutilisation de l'enrichissement d'abord (A) |
+| Quota IA épuisé | L'application continue et affiche les news sans analyse IA, seulement dans ce cas |
 | Style des réponses | Skill explainer : français simple, sections, questions oui/non |
 
 ## Historique des commits
@@ -438,3 +474,5 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 | `2e77a82` | 2026-10-08 | 9 | item detail page with full reliability breakdown |
 | `efc5fbb` | 2026-10-08 | 10 | local subscriber preferences screen |
 | `337b0a2` | 2026-10-08 | 11 | hand-annotation quality evaluation |
+| `b7abe50` | 2026-10-09 | — | lots overview (closed and upcoming work) |
+| `b1c18cf` | 2026-10-09 | 13 | social accounts as publishers and wider trust registry |

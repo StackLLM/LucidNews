@@ -46,3 +46,26 @@ def select_items(items: Iterable[ContentItem], prefs: DigestPreferences) -> List
     if prefs.max_items is not None:
         selected = selected[: prefs.max_items]
     return selected
+
+
+def matches_unanalyzed(item: ContentItem, prefs: DigestPreferences) -> bool:
+    """Whether an item the AI could not analyze (quota) fits the preferences.
+
+    Without analysis there is no category, importance or claim check, so only a
+    subscriber who filters on none of these and accepts unconfirmed news gets it.
+    """
+    if not (item.processing and item.processing.ai_skipped):
+        return False
+    if not prefs.include_unconfirmed or prefs.categories or prefs.min_importance is not None:
+        return False
+    return not prefs.sources or bool({s.lower() for s in prefs.sources} & _source_keys(item))
+
+
+def select_unanalyzed(
+    items: Iterable[ContentItem], prefs: DigestPreferences, already: int = 0
+) -> List[ContentItem]:
+    """Unanalyzed items for these preferences, within what max_items leaves after ``already``."""
+    selected = [item for item in items if matches_unanalyzed(item, prefs)]
+    if prefs.max_items is not None:
+        selected = selected[: max(0, prefs.max_items - already)]
+    return selected

@@ -98,6 +98,7 @@ Le digest l'affiche, par exemple `Fiable · source communautaire · corroboré p
 - **Enrichissement** : l'étiquette est transmise à l'IA. Pour `unverified` ou `rumor`, elle doit attribuer l'affirmation (« selon… », « une fuite suggère… »), signaler qu'elle n'est pas confirmée et nuancer le titre.
 - **Filtrage global** : `reliability.exclude_labels` retire des étiquettes du digest, par exemple `["rumor"]`.
 - **Newsletter** : chaque abonné peut refuser les items non confirmés (`include_unconfirmed: false`).
+- **Quota IA épuisé** : une news que l'IA n'a pas pu lire (quota ou budget de tokens épuisé) prend toujours l'étiquette « Non vérifié », même venant d'une source officielle, car personne n'a vérifié l'affirmation. Elle est publiée à part, dans une section « Sans analyse IA », avec seulement son titre d'origine, sa source et son lien. Aucun texte de l'IA, aucun score. Cela n'arrive **que** si le quota est épuisé : une autre erreur d'analyse garde la news hors du digest.
 - **Traçabilité** : `processing.reliability.reasons` explique la décision (domaine, statut, preuve citée par l'IA). Ces raisons sont visibles dans les étapes MCP.
 
 ## Configuration

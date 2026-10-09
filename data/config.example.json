@@ -12,7 +12,8 @@
       "en",
       "fr"
     ],
-    "failed_retry_delay_sec": 30
+    "failed_retry_delay_sec": 30,
+    "max_tokens_per_run": 200000
   },
   "sources": {
     "github": [

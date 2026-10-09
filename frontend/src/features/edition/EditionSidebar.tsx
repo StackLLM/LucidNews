@@ -33,6 +33,19 @@ export function EditionSidebar({ edition }: { edition: Edition }) {
               </a>
             </li>
           ))}
+          {edition.unanalyzed.length > 0 && (
+            <li>
+              <a
+                href="#section-unanalyzed"
+                className="group flex items-center justify-between rounded-control px-3 py-2.5 text-[14px] font-medium text-muted transition-colors duration-150 hover:bg-white hover:text-ink"
+              >
+                {t('unanalyzed.title')}
+                <span className="grid h-6 min-w-6 place-items-center rounded-full bg-ink/5 px-1.5 text-[12px] font-bold text-ink/60 tabular-nums">
+                  {edition.unanalyzed.length}
+                </span>
+              </a>
+            </li>
+          )}
         </ul>
       </nav>
 

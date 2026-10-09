@@ -3,7 +3,7 @@
 import html
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence
 from urllib.parse import quote, urlsplit
 
 from .localization import normalize_language
@@ -188,6 +188,7 @@ class DailySummarizer:
         date: str,
         total_fetched: int,
         language: str = "en",
+        unanalyzed: Sequence[ContentItem] = (),
     ) -> str:
         """Generate daily summary in Markdown format.
 
@@ -203,8 +204,16 @@ class DailySummarizer:
             str: Markdown formatted summary
         """
         labels = messages(language)
+        unanalyzed_section = self._format_unanalyzed(unanalyzed, labels, language)
 
         if not items:
+            if unanalyzed_section:
+                return normalize_language(
+                    f"# {labels['header']} - {date}\n\n"
+                    f"> {labels['unanalyzed_only'].format(count=len(unanalyzed))}\n\n"
+                    "---\n\n" + unanalyzed_section,
+                    language,
+                )
             return self._generate_empty_summary(date, total_fetched, labels)
 
         header = (
@@ -246,7 +255,39 @@ class DailySummarizer:
             )
 
         toc = "\n\n".join(toc_sections) + "\n\n---\n\n"
-        return normalize_language(header + toc + "".join(body_sections), language)
+        return normalize_language(
+            header + toc + "".join(body_sections) + unanalyzed_section, language
+        )
+
+    @staticmethod
+    def _format_unanalyzed(
+        items: Sequence[ContentItem], labels: dict, language: str
+    ) -> str:
+        """Items the AI could not analyze: original headline, source and link only.
+
+        Nothing here comes from the AI, and nothing is presented as a fact.
+        """
+        if not items:
+            return ""
+        lines = [
+            f"## \u26a0\ufe0f {labels['unanalyzed_title']}",
+            "",
+            f"> {labels['unanalyzed_notice'].format(count=len(items))}",
+            "",
+        ]
+        for item in items:
+            title = _escape_markdown(item.title)
+            url = _safe_url(item.url)
+            parts = [f"[{title}]({url})" if url else title]
+            meta = item.metadata
+            parts.append(_escape_markdown(meta.get("feed_name") or item.author or item.source_type.value))
+            if item.published_at:
+                parts.append(format_timestamp(item.published_at, language))
+            reliability = item.processing.reliability if item.processing else None
+            if reliability is not None:
+                parts.append(labels[f"tier_{reliability.source_tier.value}"])
+            lines.append("- " + " \u00b7 ".join(parts))
+        return "\n".join(lines) + "\n"
 
     def generate_webhook_overview(
         self,

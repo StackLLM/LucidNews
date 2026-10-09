@@ -6,15 +6,17 @@ from typing import List, Optional
 from pydantic import ValidationError
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, MofNCompleteColumn
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_not_exception_type, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
 
+from . import budget
+from .budget import AILimit, QuotaExhausted
 from .client import AIClient
 from .classifier import ContentClassifier
 from .prompting.analysis import analysis_system_prompt, analysis_user_prompt
 from .utils import parse_json_response
-from ..models import ContentAnalysis, ContentItem
+from ..models import ClassificationResult, ContentAnalysis, ContentItem, ProcessingResult
 from ..processing.content import select_content, split_content
 from ..processing.profiles import ProfileRegistry
 from ..reliability.assess import ReliabilityPolicy, assess_item
@@ -66,9 +68,14 @@ class ContentAnalyzer:
             async with semaphore:
                 try:
                     await self._analyze_item(item)
+                    if item.processing:
+                        item.processing.ai_skipped = None
+                except QuotaExhausted as exc:
+                    self.mark_skipped(item, exc.limit)
                 except Exception as e:
                     logger.error("Error analyzing item %s: %s", item.id, e)
                     if item.processing:
+                        item.processing.ai_skipped = None
                         item.processing.analysis = ContentAnalysis(
                             score=None,
                             reason="Analysis failed",
@@ -76,7 +83,7 @@ class ContentAnalyzer:
                         )
                 if item.processing:
                     item.processing.reliability = assess_item(item, self.reliability_policy)
-                if throttle_sec > 0 and index < len(items) - 1:
+                if throttle_sec > 0 and index < len(items) - 1 and budget.exhausted() is None:
                     await asyncio.sleep(throttle_sec)
             progress.advance(progress_task)
             return item
@@ -97,7 +104,33 @@ class ContentAnalyzer:
 
         return analyzed_items
 
+    def mark_skipped(self, item: ContentItem, limit: AILimit) -> None:
+        """Record that the AI quota ran out before this item could be analyzed.
+
+        The item keeps no analysis, so it never enters the normal digest; it is
+        retried in a later run and may be shown in the "not analyzed" section.
+        """
+        if item.processing is None:
+            item.processing = ProcessingResult(classification=self._placeholder_classification(item))
+        analysis = item.processing.analysis
+        if analysis is not None and analysis.score is not None:
+            return  # a re-analysis (e.g. with replies) keeps the analysis it already has
+        item.processing.analysis = None
+        item.processing.artifacts.clear()
+        item.processing.ai_skipped = limit
+
+    def _placeholder_classification(self, item: ContentItem) -> ClassificationResult:
+        requested = item.profile
+        if isinstance(requested, str) and requested.strip() in self.profiles.ids:
+            return ClassificationResult(profile=requested.strip(), method="source_override")
+        default = self.profiles.default_profile
+        if isinstance(requested, list) and requested and default not in requested:
+            default = requested[0].strip()
+        # "unclassified" makes the classifier run again once the AI is back.
+        return ClassificationResult(profile=default, method="unclassified")
+
     @retry(
+        retry=retry_if_not_exception_type(QuotaExhausted),
         stop=stop_after_attempt(3),
         wait=wait_exponential(min=2, max=10)
     )

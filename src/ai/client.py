@@ -15,6 +15,7 @@ from google.genai import types
 import logging
 
 from ..models import AIConfig, AIProvider, AI_PROVIDER_DEFAULTS
+from . import budget
 from .tokens import record_usage
 
 logger = logging.getLogger(__name__)
@@ -731,9 +732,39 @@ class RateLimitedClient(AIClient):
         max_tokens: Optional[int] = None,
     ) -> str:
         await self.limiter.acquire()
+        budget.ensure_available()  # the quota may have run out while this call waited
         return await self.inner.complete(
             system=system, user=user, temperature=temperature, max_tokens=max_tokens
         )
+
+
+class QuotaGuardClient(AIClient):
+    """Fail fast once the run is out of AI quota (see ``budget``)."""
+
+    def __init__(self, inner: AIClient):
+        self.inner = inner
+        self.config = getattr(inner, "config", None)
+
+    async def complete(
+        self,
+        system: str,
+        user: str,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+    ) -> str:
+        budget.ensure_available()
+        try:
+            return await self.inner.complete(
+                system=system, user=user, temperature=temperature, max_tokens=max_tokens
+            )
+        except budget.QuotaExhausted:
+            raise
+        except Exception as exc:
+            if budget.is_quota_exhausted_error(exc):
+                budget.mark_exhausted(budget.AILimit.PROVIDER_QUOTA, str(exc))
+                logger.warning("AI quota exhausted, continuing without AI: %s", exc)
+                raise budget.QuotaExhausted(budget.AILimit.PROVIDER_QUOTA) from exc
+            raise
 
 
 def create_ai_client(config: AIConfig) -> AIClient:
@@ -754,4 +785,4 @@ def create_ai_client(config: AIConfig) -> AIClient:
         client = _create_single_client(config)
     if config.max_requests_per_minute:
         client = RateLimitedClient(client, _rate_limiter_for(config))
-    return client
+    return QuotaGuardClient(client)

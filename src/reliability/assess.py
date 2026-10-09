@@ -197,8 +197,14 @@ def assess_item(item: ContentItem, policy: Optional[ReliabilityPolicy] = None) -
         evidence = analysis.claim.evidence.strip() if analysis and analysis.claim else ""
         reasons.append(f"claim {claim.value}" + (f": {evidence}" if evidence else ""))
 
+    label = combine(tier, claim, [tier for _, tier in corroboration])
+    if item.processing and item.processing.ai_skipped:
+        # Nobody checked the claim: an unanalyzed headline is never shown as a fact.
+        label = ReliabilityLabel.UNVERIFIED
+        reasons.append("not analyzed: the AI quota was exhausted")
+
     return ReliabilityAssessment(
-        label=combine(tier, claim, [tier for _, tier in corroboration]),
+        label=label,
         source_tier=tier,
         source_domain=domain,
         claim_status=claim,

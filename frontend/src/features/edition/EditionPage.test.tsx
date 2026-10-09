@@ -1,5 +1,5 @@
 import { fireEvent, screen, within } from '@testing-library/react'
-import { mockApi, renderAt } from '../../test/render'
+import { fixtures, mockApi, renderAt } from '../../test/render'
 
 test('renders the edition with sections, figures and reliability labels', async () => {
   const fetchMock = mockApi()
@@ -44,4 +44,47 @@ test('explains how to start the API when it is down', async () => {
   renderAt('/?lang=en')
 
   expect(await screen.findByRole('alert')).toHaveTextContent('uv run lucidnews-api')
+})
+
+test('lists items the AI could not analyze apart, only when the quota ran out', async () => {
+  const base = fixtures.editionFr
+  const raw = {
+    ...base.sections[0].items[0],
+    id: 'rss:test:raw',
+    title: 'Titre brut non analysé',
+    score: null,
+    importance: null,
+    summary: '',
+    sections: [],
+    categories: [],
+    translated: false,
+    ai_skipped: true,
+    reliability: { ...base.sections[0].items[0].reliability, label: 'unverified' },
+  }
+  mockApi({
+    edition: { ...base, selected_count: base.selected_count + 1, ai_limit: 'provider_quota', unanalyzed: [raw] },
+  })
+  renderAt('/?lang=fr')
+
+  expect(await screen.findByText(/Le quota IA a été épuisé pendant ce run\./)).toHaveTextContent(
+    '1 news est listée sans analyse, en fin d’édition.',
+  )
+  const section = screen.getByRole('region', { name: /Sans analyse IA/ })
+  expect(within(section).getByRole('link', { name: 'Titre brut non analysé' })).toBeInTheDocument()
+  expect(within(section).getByText(/ni résumé, ni score, ni vérification/)).toBeInTheDocument()
+  expect(within(section).queryByText('/10')).toBeNull()
+  // The 13 analyzed items stay in their sections; the raw one is not an article card.
+  expect(screen.getAllByRole('article')).toHaveLength(13)
+  expect(screen.getAllByText('contenus collectés').length).toBeGreaterThan(0)
+  const index = screen.getByRole('navigation', { name: 'Dans cette édition' })
+  expect(within(index).getByRole('link', { name: 'Sans analyse IA1' })).toHaveAttribute('href', '#section-unanalyzed')
+})
+
+test('shows no quota notice on a normal edition', async () => {
+  mockApi()
+  renderAt('/?lang=fr')
+  await screen.findByRole('heading', { level: 1 })
+
+  expect(screen.queryByText(/quota IA/)).toBeNull()
+  expect(screen.queryByRole('region', { name: /Sans analyse IA/ })).toBeNull()
 })

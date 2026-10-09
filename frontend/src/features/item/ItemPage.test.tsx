@@ -54,3 +54,27 @@ test('explains a missing item', async () => {
 
   expect(await screen.findByRole('alert', {}, { timeout: 5000 })).toHaveTextContent('This item is not in the archive.')
 })
+
+test('an item the AI could not analyze says so instead of showing a summary', async () => {
+  mockApi({
+    item: {
+      ...curl,
+      score: null,
+      importance: null,
+      summary: '',
+      sections: [],
+      categories: [],
+      tags: [],
+      claim: null,
+      ai_skipped: true,
+    },
+  })
+  renderAt(`/items/${encodeURIComponent(curl.id)}?lang=fr`)
+
+  expect(
+    await screen.findByText(/Cette news n’a pas été analysée : le quota IA était épuisé\./, {}, { timeout: 5000 }),
+  ).toBeInTheDocument()
+  expect(screen.queryByText('Score')).toBeNull()
+  // The label hint stays in the reliability panel only, not as a second warning under the title.
+  expect(screen.getAllByText('Pas confirmé par une source officielle ou reconnue.')).toHaveLength(1)
+})

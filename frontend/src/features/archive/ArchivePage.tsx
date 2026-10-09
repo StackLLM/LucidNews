@@ -1,6 +1,6 @@
 import 'react-day-picker/style.css'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, Clock } from 'lucide-react'
+import { ArrowRight, Clock, Hourglass } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { DayPicker } from 'react-day-picker'
@@ -119,6 +119,12 @@ function EditionRow({ run }: { run: Run }) {
             fetched: run.fetched_count,
           })}
         </p>
+        {run.ai_limit && (
+          <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-unverified/10 px-2.5 py-0.5 text-[12px] font-semibold text-unverified">
+            <Hourglass size={12} aria-hidden />
+            {t('archive.quota')}
+          </p>
+        )}
         {/* Meter: selected share of collected items. */}
         <span className="mt-2.5 block h-1.5 w-full max-w-60 overflow-hidden rounded-full bg-accent-soft" aria-hidden>
           <span className="block h-full rounded-full bg-accent" style={{ width: `${Math.max(share * 100, 3)}%` }} />

@@ -22,7 +22,10 @@ from typing import Iterable, List, Optional, Sequence
 from ..models import ContentItem
 from ..source_health import SourceRunOutcome
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
+
+# last_error of an item left unanalyzed because the AI quota ran out (not a failure).
+AI_SKIPPED_PREFIX = "ai_skipped:"
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -84,6 +87,10 @@ _MIGRATIONS = {
     },
     "runs": {
         "unscored_count": "INTEGER NOT NULL DEFAULT 0",
+        # AI availability: why the AI stopped (provider_quota, token_budget) and usage.
+        "ai_limit": "TEXT",
+        "tokens_used": "INTEGER NOT NULL DEFAULT 0",
+        "ai_skipped_count": "INTEGER NOT NULL DEFAULT 0",
     },
 }
 
@@ -118,6 +125,9 @@ class RunRecord:
     selected_count: int
     error: Optional[str]
     unscored_count: int = 0
+    ai_limit: Optional[str] = None
+    tokens_used: int = 0
+    ai_skipped_count: int = 0
 
 
 class ItemArchive:
@@ -162,10 +172,16 @@ class ItemArchive:
         *,
         fetch_report: Optional[dict] = None,
         error: Optional[str] = None,
+        ai_limit: Optional[str] = None,
+        tokens_used: int = 0,
     ) -> None:
         with closing(self._connect()) as conn, conn:
             conn.execute(
                 """UPDATE runs SET finished_at = ?, status = ?, error = ?,
+                       ai_limit = ?, tokens_used = ?,
+                       ai_skipped_count = (SELECT COUNT(*) FROM run_items JOIN items ON items.id = run_items.item_id
+                                           WHERE run_items.run_id = ?
+                                             AND json_extract(items.payload, '$.processing.ai_skipped') IS NOT NULL),
                        fetch_report = COALESCE(?, fetch_report),
                        fetched_count = (SELECT COUNT(*) FROM run_items WHERE run_id = ?),
                        selected_count = (SELECT COUNT(*) FROM run_items WHERE run_id = ? AND selected = 1),
@@ -176,6 +192,9 @@ class ItemArchive:
                     _now(),
                     status,
                     error,
+                    ai_limit,
+                    tokens_used,
+                    run_id,
                     json.dumps(fetch_report) if fetch_report is not None else None,
                     run_id,
                     run_id,
@@ -188,7 +207,7 @@ class ItemArchive:
         with closing(self._connect()) as conn:
             row = conn.execute(
                 """SELECT id, started_at, finished_at, status, since, fetched_count,
-                          selected_count, error, unscored_count FROM runs WHERE id = ?""",
+                          selected_count, error, unscored_count, ai_limit, tokens_used, ai_skipped_count FROM runs WHERE id = ?""",
                 (run_id,),
             ).fetchone()
         return RunRecord(**dict(row)) if row else None
@@ -197,7 +216,7 @@ class ItemArchive:
         with closing(self._connect()) as conn:
             rows = conn.execute(
                 """SELECT id, started_at, finished_at, status, since, fetched_count,
-                          selected_count, error, unscored_count FROM runs ORDER BY started_at DESC LIMIT ?""",
+                          selected_count, error, unscored_count, ai_limit, tokens_used, ai_skipped_count FROM runs ORDER BY started_at DESC LIMIT ?""",
                 (limit,),
             ).fetchall()
         return [RunRecord(**dict(row)) for row in rows]
@@ -207,7 +226,7 @@ class ItemArchive:
         with closing(self._connect()) as conn:
             row = conn.execute(
                 """SELECT id, started_at, finished_at, status, since, fetched_count,
-                          selected_count, error, unscored_count FROM runs
+                          selected_count, error, unscored_count, ai_limit, tokens_used, ai_skipped_count FROM runs
                    WHERE status = 'success' AND selected_count > 0
                    ORDER BY started_at DESC LIMIT 1"""
             ).fetchone()
@@ -218,7 +237,8 @@ class ItemArchive:
         with closing(self._connect()) as conn:
             rows = conn.execute(
                 """SELECT r.id, r.started_at, r.finished_at, r.status, r.since, r.fetched_count,
-                          r.selected_count, r.error, r.unscored_count
+                          r.selected_count, r.error, r.unscored_count, r.ai_limit, r.tokens_used,
+                          r.ai_skipped_count
                    FROM runs r JOIN run_items ri ON ri.run_id = r.id
                    WHERE ri.item_id = ? AND ri.selected = 1 AND r.status = 'success'
                    ORDER BY r.started_at DESC""",
@@ -272,6 +292,9 @@ class ItemArchive:
             if analysis is not None:
                 failed = analysis.score is None
                 outcomes.append((item.id, int(failed), analysis.reason if failed else None))
+            elif processing is not None and processing.ai_skipped is not None:
+                # Not a failure: no attempt is used, but the item is retried later.
+                outcomes.append((item.id, 0, AI_SKIPPED_PREFIX + processing.ai_skipped.value))
         if not rows:
             return
         with closing(self._connect()) as conn, conn:
@@ -374,15 +397,20 @@ class ItemArchive:
         max_attempts: int,
         exclude_ids: Iterable[str] = (),
     ) -> List[ContentItem]:
-        """Items whose analysis failed and that still have retries left, oldest first."""
+        """Items to analyze again, oldest first.
+
+        Those whose analysis failed and that still have attempts left, and those left
+        unanalyzed because the AI quota ran out (which uses no attempt).
+        """
         excluded = set(exclude_ids)
         with closing(self._connect()) as conn:
             rows = conn.execute(
                 """SELECT id, payload FROM items
-                   WHERE score IS NULL AND analysis_attempts BETWEEN 1 AND ?
+                   WHERE score IS NULL AND analysis_attempts < ?
+                     AND (analysis_attempts >= 1 OR last_error LIKE ?)
                      AND first_seen_at >= ?
                    ORDER BY first_seen_at""",
-                (max_attempts - 1, _iso(first_seen_after)),
+                (max_attempts, AI_SKIPPED_PREFIX + "%", _iso(first_seen_after)),
             ).fetchall()
         return [
             ContentItem.model_validate_json(row["payload"])

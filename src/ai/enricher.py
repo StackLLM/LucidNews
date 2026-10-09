@@ -16,8 +16,9 @@ from rich.progress import (
     TaskID,
     TextColumn,
 )
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_not_exception_type, stop_after_attempt, wait_exponential
 
+from .budget import QuotaExhausted
 from .client import AIClient
 from .localization import normalize_language
 from .prompting.enrichment import (
@@ -143,7 +144,12 @@ class ContentEnricher:
         config = getattr(self.client, "config", None)
         return max(getattr(config, "enrichment_concurrency", 1), 1)
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=10), reraise=True)
+    @retry(
+        retry=retry_if_not_exception_type(QuotaExhausted),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(min=2, max=10),
+        reraise=True,
+    )
     async def _complete(self, **kwargs: Any) -> str:
         return await self.client.complete(**kwargs)
 
@@ -187,6 +193,8 @@ class ContentEnricher:
             async with semaphore:
                 try:
                     await self._enrich_item(item)
+                except QuotaExhausted as exc:
+                    return item.id, exc  # the item keeps its analysis, without enrichment
                 except Exception as exc:
                     logger.error("Error enriching item %s: %s", item.id, exc)
                     return item.id, exc

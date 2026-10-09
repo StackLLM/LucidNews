@@ -1,18 +1,21 @@
-import { CalendarDays } from 'lucide-react'
+import { CalendarDays, Hourglass } from 'lucide-react'
 import { motion } from 'motion/react'
 import { CountUp } from '../../design/CountUp'
 import type { Edition } from '../../lib/api'
 import { capitalize, formatEditionDate } from '../../lib/format'
-import { isLanguage, useLanguage } from '../../lib/i18n'
+import { isLanguage, translatePlural, useLanguage } from '../../lib/i18n'
 import { riseIn } from '../../lib/motion'
 
 /** The edition banner: accent card with soft circles, date and run figures. */
 export function EditionHero({ edition, archived = false }: { edition: Edition; archived?: boolean }) {
   const { language, t } = useLanguage()
+  const unanalyzed = edition.unanalyzed.length
   const stats = [
-    { value: edition.fetched_count, label: t('edition.analyzed') },
-    { value: edition.selected_count, label: t('edition.selected') },
+    // When the AI stopped early, not every collected item was analyzed.
+    { value: edition.fetched_count, label: t(edition.ai_limit ? 'edition.collected' : 'edition.analyzed') },
+    { value: edition.selected_count - unanalyzed, label: t('edition.selected') },
     { value: edition.sections.length, label: t('edition.sections') },
+    ...(unanalyzed > 0 ? [{ value: unanalyzed, label: t('edition.unanalyzed') }] : []),
   ]
 
   return (
@@ -31,6 +34,16 @@ export function EditionHero({ edition, archived = false }: { edition: Edition; a
       <h1 className="mt-3 font-serif text-[34px] leading-[1.1] font-medium tracking-[-0.01em] sm:text-[44px]">
         {capitalize(formatEditionDate(edition.started_at, isLanguage(edition.language) ? edition.language : language))}
       </h1>
+
+      {edition.ai_limit && (
+        <p className="mt-5 flex max-w-2xl items-start gap-2.5 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-[14px] leading-relaxed backdrop-blur-sm">
+          <Hourglass size={16} className="mt-0.5 shrink-0" aria-hidden />
+          <span>
+            {t(`quota.${edition.ai_limit}`)}
+            {unanalyzed > 0 && <> {translatePlural(language, 'quota.hero', unanalyzed, { count: unanalyzed })}</>}
+          </span>
+        </p>
+      )}
 
       <dl className="mt-8 flex flex-wrap gap-3">
         {stats.map(({ value, label }) => (

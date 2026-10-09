@@ -44,6 +44,7 @@ from .evaluation.service import EvaluationService
 from .i18n import DEFAULT_LANGUAGE, is_supported
 from .models import ContentItem
 from .processing import ProfileRegistry
+from .reliability import SourceTier
 from .source_health import assess_health, configured_source_keys, health_to_dict
 from .storage.manager import StorageManager
 from .subscribers_api import SubscriberService
@@ -111,6 +112,8 @@ def item_payload(item: ContentItem, language: str) -> Dict[str, Any]:
         "published_at": item.published_at.isoformat(),
         "discussion_url": item.metadata.get("discussion_url"),
         "translated": artifact is not None,
+        # Left unanalyzed because the AI quota ran out: original headline, no AI content.
+        "ai_skipped": bool(processing and processing.ai_skipped),
     }
 
 
@@ -137,6 +140,9 @@ def run_payload(run: RunRecord) -> Dict[str, Any]:
         "finished_at": run.finished_at,
         "fetched_count": run.fetched_count,
         "selected_count": run.selected_count,
+        "ai_limit": run.ai_limit,
+        "tokens_used": run.tokens_used,
+        "ai_skipped_count": run.ai_skipped_count,
     }
 
 
@@ -150,7 +156,19 @@ def list_editions(ctx: ApiContext, limit: int = 30) -> Dict[str, Any]:
 
 
 def edition_payload(ctx: ApiContext, run: RunRecord, language: str) -> Dict[str, Any]:
-    items = list(ctx.archive.get_items(ctx.archive.run_item_ids(run.id, selected_only=True)).values())
+    selected = ctx.archive.get_items(ctx.archive.run_item_ids(run.id, selected_only=True)).values()
+    items = [item for item in selected if not (item.processing and item.processing.ai_skipped)]
+    # Same order as the digest: best-known publishers first, then most recent.
+    tier_rank = {tier: rank for rank, tier in enumerate(SourceTier)}
+    unanalyzed = sorted(
+        (item for item in selected if item.processing and item.processing.ai_skipped),
+        key=lambda item: (
+            tier_rank[item.processing.reliability.source_tier]
+            if item.processing.reliability
+            else len(tier_rank),
+            -item.published_at.timestamp(),
+        ),
+    )
     items.sort(
         key=lambda item: (
             -(item.processing.analysis.score or 0)
@@ -181,6 +199,7 @@ def edition_payload(ctx: ApiContext, run: RunRecord, language: str) -> Dict[str,
             }
             for profile_id, group_items in ordered
         ],
+        "unanalyzed": [item_payload(item, language) for item in unanalyzed],
     }
 
 
@@ -244,7 +263,8 @@ def resolve(ctx: ApiContext, path: str, query: Dict[str, List[str]]) -> tuple[in
         if not ITEM_ID.match(item_id):
             return HTTPStatus.BAD_REQUEST, {"error": "invalid item id"}
         item = ctx.archive.get_item(item_id)
-        if item is None or not item.processing or not item.processing.analysis:
+        # Unanalyzed items (AI quota) have a page too: the edition links to it.
+        if item is None or not item.processing or not (item.processing.analysis or item.processing.ai_skipped):
             return HTTPStatus.NOT_FOUND, {"error": "item not found"}
         return HTTPStatus.OK, item_detail_payload(ctx, item, language)
     if path.startswith("/api/editions/"):

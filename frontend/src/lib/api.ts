@@ -30,7 +30,11 @@ const itemSchema = z.object({
   published_at: z.string(),
   discussion_url: z.string().nullable().optional(),
   translated: z.boolean(),
+  /** Not analyzed: the AI quota ran out. Original headline, no AI content. */
+  ai_skipped: z.boolean().default(false),
 })
+
+export const aiLimits = ['provider_quota', 'token_budget'] as const
 
 const runSchema = z.object({
   id: z.string(),
@@ -38,6 +42,10 @@ const runSchema = z.object({
   finished_at: z.string().nullable(),
   fetched_count: z.number(),
   selected_count: z.number(),
+  /** Why the AI stopped during the run: daily quota, or the run's token budget. */
+  ai_limit: z.enum(aiLimits).nullable().default(null),
+  tokens_used: z.number().default(0),
+  ai_skipped_count: z.number().default(0),
 })
 
 export const editionListSchema = z.object({ editions: z.array(runSchema) })
@@ -72,6 +80,8 @@ export const editionSchema = runSchema.extend({
   sections: z.array(
     z.object({ profile: z.string(), name: z.string(), items: z.array(itemSchema) }),
   ),
+  /** Items published without analysis because the AI quota ran out. */
+  unanalyzed: z.array(itemSchema).default([]),
 })
 
 export const claimStatuses = ['confirmed', 'reported', 'unverified', 'rumor'] as const
@@ -88,6 +98,7 @@ export const itemDetailSchema = itemSchema.extend({
 export type ItemDetail = z.infer<typeof itemDetailSchema>
 export type ClaimStatus = (typeof claimStatuses)[number]
 export type Run = z.infer<typeof runSchema>
+export type AiLimit = (typeof aiLimits)[number]
 export type Edition = z.infer<typeof editionSchema>
 export type SourceReport = z.infer<typeof sourceReportSchema>
 export type SourceHealth = z.infer<typeof sourceHealthSchema>

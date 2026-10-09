@@ -31,9 +31,10 @@ def test_factory_wraps_only_when_quota_configured(monkeypatch) -> None:
     monkeypatch.setenv("TEST_OPENAI_KEY", "test")
     base = {"provider": "openai", "model": "m", "api_key_env": "TEST_OPENAI_KEY"}
 
-    plain = create_ai_client(AIConfig(**base))
-    limited = create_ai_client(AIConfig(**base, max_requests_per_minute=5))
-    again = create_ai_client(AIConfig(**base, max_requests_per_minute=5))
+    # The factory always adds the quota guard outermost; the rate limiter sits inside it.
+    plain = create_ai_client(AIConfig(**base)).inner
+    limited = create_ai_client(AIConfig(**base, max_requests_per_minute=5)).inner
+    again = create_ai_client(AIConfig(**base, max_requests_per_minute=5)).inner
 
     assert not isinstance(plain, RateLimitedClient)
     assert isinstance(limited, RateLimitedClient)

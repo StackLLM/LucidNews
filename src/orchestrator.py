@@ -26,6 +26,7 @@ from .scrapers.twitter_playwright import TwitterPlaywrightScraper
 from .scrapers.ossinsight import OSSInsightScraper
 from .scrapers.gdelt import GDELTScraper
 from .scrapers.google_news import GoogleNewsScraper
+from .ai import budget
 from .ai.client import create_ai_client
 from .ai.analyzer import ContentAnalyzer
 from .ai.summarizer import DailySummarizer
@@ -34,6 +35,7 @@ from .ai.tokens import get_usage_snapshot
 from .processing import ProfileRegistry
 from .processing.tools import ToolRegistry
 from .reliability.assess import ReliabilityPolicy, assess_item
+from .reliability.models import SourceTier
 from .i18n import messages
 from .newsletter import DeliveryPlan, plan_deliveries
 from .archive import ItemArchive, content_hash
@@ -293,6 +295,7 @@ class PipelineOrchestrator:
             self.email_manager.check_subscriptions(self.storage)
 
         try:
+            budget.start_run(getattr(getattr(self.config, "ai", None), "max_tokens_per_run", None))
             # 1. Determine time window
             since = self._determine_time_window(force_hours)
             self.archive = self._open_archive()
@@ -340,6 +343,8 @@ class PipelineOrchestrator:
                 analyzed_items,
             )
             important_items = filtering_result.items
+            # Only when the AI ran out of quota: items it could not analyze.
+            unanalyzed = self.select_unanalyzed_items(analyzed_items)
 
             # Show per-sub-source selection breakdown
             selected_counts: Dict[str, int] = defaultdict(int)
@@ -353,6 +358,7 @@ class PipelineOrchestrator:
             # 6. Search related stories + enrich with background knowledge (2nd AI pass)
             await self.enrich_items(important_items)
             self._archive("record_items", important_items, selected=True)
+            self._archive("record_items", unanalyzed, selected=True)
 
             # 7. Generate and save daily summaries for each configured language
             today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -361,7 +367,9 @@ class PipelineOrchestrator:
                     profile_names=self.profiles.names,
                     profile_order=self.config.digest.profile_order,
                 )
-                summary = await summarizer.generate_summary(important_items, today, len(all_items), language=lang)
+                summary = await summarizer.generate_summary(
+                    important_items, today, len(all_items), language=lang, unanalyzed=unanalyzed
+                )
 
                 # Save to data/summaries/
                 summary_path = self.storage.save_daily_summary(today, summary, language=lang)
@@ -381,9 +389,11 @@ class PipelineOrchestrator:
                     )
 
             if self.email_manager and self.config.email and self.config.email.enabled:
-                await self.send_newsletters(important_items, today, len(all_items))
+                await self.send_newsletters(
+                    important_items, today, len(all_items), unanalyzed=unanalyzed
+                )
 
-            self._finish_archive("success", all_items, important_items)
+            self._finish_archive("success", all_items, important_items + unanalyzed)
 
             self.console.print(
                 f"[bold green]{self.icons['success']} "
@@ -391,10 +401,12 @@ class PipelineOrchestrator:
             )
             usage = get_usage_snapshot()
             if usage.total_tokens > 0:
+                max_tokens = getattr(self.config.ai, "max_tokens_per_run", None)
                 self.console.print(
                     f"\n{self.icons['tokens']} Token usage this run: "
                     f"{usage.total_tokens} tokens "
                     f"(input: {usage.total_input_tokens}, output: {usage.total_output_tokens})"
+                    + (f", budget {max_tokens}" if max_tokens else "")
                 )
                 for provider, u in sorted(usage.per_provider.items()):
                     if u.total <= 0:
@@ -426,10 +438,14 @@ class PipelineOrchestrator:
         items: List[ContentItem],
         date: str,
         total_fetched: int,
+        unanalyzed: Optional[List[ContentItem]] = None,
     ) -> DeliveryPlan:
         """Render and email one digest per distinct subscriber preference set."""
         plan = plan_deliveries(
-            self.storage.subscribers.load(), items, self.config.ai.languages
+            self.storage.subscribers.load(),
+            items,
+            self.config.ai.languages,
+            unanalyzed=unanalyzed or (),
         )
         if plan.skipped_weekly:
             self.console.print(
@@ -449,12 +465,17 @@ class PipelineOrchestrator:
         for delivery in plan.deliveries:
             language = delivery.preferences.language
             summary = await summarizer.generate_summary(
-                delivery.items, date, total_fetched, language=language
+                delivery.items,
+                date,
+                total_fetched,
+                language=language,
+                unanalyzed=delivery.unanalyzed,
             )
             subject = messages(language)["email_subject"].format(date=date)
             self.console.print(
                 f"{self.icons['email']} Sending {language.upper()} digest "
-                f"({len(delivery.items)} items) to {len(delivery.recipients)} subscriber(s)..."
+                f"({len(delivery.items) + len(delivery.unanalyzed)} items) "
+                f"to {len(delivery.recipients)} subscriber(s)..."
             )
             self.email_manager.send_daily_summary(summary, subject, delivery.recipients)
         return plan
@@ -485,8 +506,14 @@ class PipelineOrchestrator:
             configured, fetched_items, selected_items, source_errors, failed_types
         )
         self._archive("record_source_runs", outcomes)
+        limit = budget.exhausted()
         self._archive(
-            "finish_run", status, fetch_report=self._fetch_report_dict(), error=error
+            "finish_run",
+            status,
+            fetch_report=self._fetch_report_dict(),
+            error=error,
+            ai_limit=limit.value if limit else None,
+            tokens_used=budget.tokens_used(),
         )
         if status != "failed":
             self._warn_unhealthy_sources()
@@ -545,7 +572,8 @@ class PipelineOrchestrator:
                 and content_hash(stored) == content_hash(item)
             ):
                 item.processing = stored.processing.model_copy(deep=True)
-                item.processing.artifacts.clear()
+                if not getattr(self.config.archive, "reuse_enrichment", True):
+                    item.processing.artifacts.clear()
                 item.processing.reliability = assess_item(item, self.reliability_policy)
             else:
                 remaining.append(item)
@@ -581,7 +609,7 @@ class PipelineOrchestrator:
 
     async def _pause_before_retry(self, count: int, stage: str) -> bool:
         delay = getattr(self.config.ai, "failed_retry_delay_sec", None)
-        if delay is None or count == 0:
+        if delay is None or count == 0 or budget.exhausted() is not None:
             return False
         self.console.print(
             f"[yellow]{self.icons['warning']} {count} item(s) failed {stage}; "
@@ -1247,6 +1275,15 @@ class PipelineOrchestrator:
         self.console.print(
             f"{self.icons['enrich']} Enriching with background knowledge..."
         )
+        reused = self._reusable_enrichments(items)
+        if reused:
+            self.console.print(
+                f"   {self.icons['detail']} Reused {len(reused)} enrichments from the archive"
+            )
+            items = [item for item in items if item.id not in reused]
+            if not items:
+                self.console.print("")
+                return EnrichmentBatchResult(succeeded_ids=list(reused))
         ai_client = create_ai_client(self.config.ai)
         enricher = ContentEnricher(
             ai_client,
@@ -1266,7 +1303,13 @@ class PipelineOrchestrator:
         self.console.print(
             f"   Enriched {result.succeeded_count}/{len(items)} items"
         )
-        if result.failed_count:
+        result.succeeded_ids = list(reused) + result.succeeded_ids
+        if budget.exhausted() is not None and result.failed_count:
+            self.console.print(
+                f"   [yellow]AI quota exhausted: {result.failed_count} item(s) keep their "
+                "analysis, without enrichment[/yellow]"
+            )
+        elif result.failed_count:
             self.console.print(
                 f"   [yellow]Skipped {result.failed_count} items after enrichment "
                 f"failed: {', '.join(result.failed_ids)}[/yellow]"
@@ -1303,13 +1346,78 @@ class PipelineOrchestrator:
         if await self._pause_before_retry(len(failed), "analysis"):
             await analyzer.analyze_batch(failed)
 
-        unscored = sum(self._is_unscored(item) for item in items)
+        skipped = sum(bool(item.processing and item.processing.ai_skipped) for item in items)
+        unscored = sum(self._is_unscored(item) for item in items) - skipped
+        if skipped:
+            limit = budget.exhausted()
+            reason = (
+                "token budget for this run reached"
+                if limit is budget.AILimit.TOKEN_BUDGET
+                else "provider quota exhausted"
+            )
+            self.console.print(
+                f"[yellow]{self.icons['warning']} AI unavailable ({reason}): {skipped} item(s) "
+                "not analyzed; they are retried in the next run[/yellow]"
+            )
         if unscored:
             self.console.print(
                 f"[yellow]{self.icons['warning']} {unscored} item(s) could not be scored "
                 "and are left out of this digest[/yellow]"
             )
         return items
+
+    def _reusable_enrichments(self, items: List[ContentItem]) -> List[str]:
+        """Ids of items that already carry an enrichment in every configured language.
+
+        Only an analysis reused from the archive keeps its artifacts (a new analysis
+        clears them), so these are unchanged items enriched in an earlier run.
+        """
+        settings = getattr(self.config, "archive", None)
+        if settings is None or not settings.reuse_enrichment:
+            return []
+        languages = set(self.config.ai.languages)
+        return [
+            item.id
+            for item in items
+            if item.processing and languages <= set(item.processing.artifacts)
+        ]
+
+    # SourceTier is declared from most to least trusted.
+    _TIER_ORDER = {tier: rank for rank, tier in enumerate(SourceTier)}
+
+    def select_unanalyzed_items(self, items: List[ContentItem]) -> List[ContentItem]:
+        """Items left unanalyzed because the AI quota ran out, to publish apart.
+
+        Only when the quota ran out during this run (any other analysis failure keeps
+        an item out of the digest). Best-known publishers first, then most recent;
+        reliability exclusions still apply (these items are always "unverified").
+        """
+        if budget.exhausted() is None:
+            return []
+        limit = getattr(getattr(self.config, "digest", None), "unanalyzed_max_items", 15)
+        reliability_config = getattr(self.config, "reliability", None)
+        excluded = set(reliability_config.exclude_labels if reliability_config else [])
+        skipped = [
+            item
+            for item in items
+            if item.processing
+            and item.processing.ai_skipped
+            and item.processing.reliability is not None
+            and item.processing.reliability.label not in excluded
+        ]
+        skipped.sort(
+            key=lambda item: (
+                self._TIER_ORDER[item.processing.reliability.source_tier],
+                -item.published_at.timestamp(),
+            )
+        )
+        selected = skipped[:limit] if limit else []
+        if selected:
+            self.console.print(
+                f"{self.icons['warning']} Publishing {len(selected)} item(s) without AI "
+                "analysis in a separate section\n"
+            )
+        return selected
 
     @staticmethod
     def _is_unscored(item: ContentItem) -> bool:

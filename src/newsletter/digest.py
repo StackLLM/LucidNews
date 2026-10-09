@@ -6,7 +6,7 @@ from typing import Dict, Iterable, List, Sequence, Tuple
 from ..models import ContentItem
 from .models import DigestPreferences, Frequency, Subscriber
 from .plans import effective_preferences
-from .selection import select_items
+from .selection import select_items, select_unanalyzed
 
 
 @dataclass
@@ -14,6 +14,8 @@ class Delivery:
     preferences: DigestPreferences  # language already resolved to an available one
     items: List[ContentItem]
     recipients: List[str] = field(default_factory=list)
+    # Items the AI could not analyze (quota exhausted), shown in their own section.
+    unanalyzed: List[ContentItem] = field(default_factory=list)
 
 
 @dataclass
@@ -29,6 +31,7 @@ def plan_deliveries(
     available_languages: Sequence[str],
     *,
     frequency: Frequency = Frequency.DAILY,
+    unanalyzed: Sequence[ContentItem] = (),
 ) -> DeliveryPlan:
     """Group subscribers by effective preferences and select their items.
 
@@ -53,7 +56,12 @@ def plan_deliveries(
 
         delivery = groups.get(prefs)
         if delivery is None:
-            delivery = Delivery(preferences=prefs, items=select_items(items, prefs))
+            selected = select_items(items, prefs)
+            delivery = Delivery(
+                preferences=prefs,
+                items=selected,
+                unanalyzed=select_unanalyzed(unanalyzed, prefs, already=len(selected)),
+            )
             groups[prefs] = delivery
         delivery.recipients.append(subscriber.email)
 
