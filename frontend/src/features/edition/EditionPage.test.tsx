@@ -34,7 +34,7 @@ test('switches language and expands an item', async () => {
   await screen.findByRole('link', { name: /Polars 2.0 Released/ })
 
   const first = screen.getAllByRole('article')[0]
-  fireEvent.click(within(first).getByRole('button', { name: /read more/i }))
+  fireEvent.click(within(first).getByRole('button', { name: /details/i }))
   expect(within(first).getByRole('button', { name: /show less/i })).toHaveAttribute('aria-expanded', 'true')
   expect(within(first).getByRole('heading', { level: 4, name: 'Background' })).toBeInTheDocument()
 })

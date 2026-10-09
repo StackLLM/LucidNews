@@ -1,12 +1,13 @@
 import { ArrowUpRight, ChevronDown, Clock, FileText, MessageSquare, TriangleAlert } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { useId, useState } from 'react'
+import { useId, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { Link } from 'react-router'
 import { ReliabilityBadge } from '../../design/ReliabilityBadge'
 import type { EditionItem } from '../../lib/api'
 import { formatItemTime, formatScore, hostOf, itemPath, sourceName } from '../../lib/format'
 import { categoryLabel, labelHintKey, tierKey, useLanguage, type MessageKey } from '../../lib/i18n'
 import { expand, riseIn } from '../../lib/motion'
+import { ItemDetails } from './ItemDetails'
 
 const importanceTone: Record<string, string> = {
   critical: 'bg-ink text-white',
@@ -15,18 +16,39 @@ const importanceTone: Record<string, string> = {
   low: 'bg-ink/5 text-faint',
 }
 
+// Clicks on these keep their own behaviour instead of opening the card.
+const INTERACTIVE = 'a, button, input, select, textarea, label, summary, [role="button"]'
+
 export function ItemCard({ item, editionId }: { item: EditionItem; editionId?: string }) {
   const { language, t } = useLanguage()
   const [open, setOpen] = useState(false)
   const detailsId = useId()
+  const toggleRef = useRef<HTMLButtonElement>(null)
   const reliability = item.reliability
   const unconfirmed = reliability?.label === 'unverified' || reliability?.label === 'rumor'
+
+  // The whole card opens with the mouse; the keyboard uses the "Details" button.
+  const onCardClick = (event: MouseEvent<HTMLElement>) => {
+    if ((event.target as HTMLElement).closest(INTERACTIVE)) return
+    if (window.getSelection()?.toString()) return // the reader is selecting text
+    setOpen((value) => !value)
+  }
+  const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key === 'Escape' && open) {
+      setOpen(false)
+      toggleRef.current?.focus()
+    }
+  }
 
   return (
     <motion.article
       variants={riseIn}
       id={`item-${item.id}`}
-      className="group scroll-mt-28 rounded-card bg-surface p-5 shadow-card ring-1 ring-ink/[0.03] transition-[box-shadow,translate] duration-300 ease-soft hover:-translate-y-0.5 hover:shadow-card-hover sm:p-8"
+      onClick={onCardClick}
+      onKeyDown={onKeyDown}
+      className={`group scroll-mt-28 cursor-pointer rounded-card bg-surface p-5 shadow-card ring-1 transition-[box-shadow,translate] duration-300 ease-soft hover:-translate-y-0.5 hover:shadow-card-hover sm:p-8 ${
+        open ? 'shadow-card-hover ring-accent/20' : 'ring-ink/[0.03]'
+      }`}
     >
       <div className="flex flex-wrap items-center gap-2">
         {item.importance && (
@@ -68,12 +90,16 @@ export function ItemCard({ item, editionId }: { item: EditionItem; editionId?: s
         </p>
       )}
 
-      <p className="mt-3 font-serif text-[17.5px] leading-[1.6] text-ink/80">{item.summary}</p>
+      {item.summary ? (
+        <p className="mt-3 font-serif text-[17.5px] leading-[1.6] text-ink/80">{item.summary}</p>
+      ) : (
+        <p className="mt-3 text-[14px] italic text-faint">{t('card.noSummary')}</p>
+      )}
 
-      {!item.translated && <p className="mt-2 text-[13px] italic text-faint">{t('item.notTranslated')}</p>}
+      {item.summary && !item.translated && <p className="mt-2 text-[13px] italic text-faint">{t('item.notTranslated')}</p>}
 
       {item.categories.length > 0 && (
-        <ul className="mt-5 flex flex-wrap gap-1.5">
+        <ul className="mt-5 flex flex-wrap gap-1.5" aria-label={t('detail.categories')}>
           {item.categories.map((category) => (
             <li key={category} className="rounded-full bg-canvas px-2.5 py-1 text-[12px] font-medium text-muted">
               {categoryLabel(language, category)}
@@ -93,20 +119,7 @@ export function ItemCard({ item, editionId }: { item: EditionItem; editionId?: s
             transition={expand}
             className="overflow-hidden"
           >
-            <div className="mt-6 grid gap-5 border-t border-line pt-6 md:grid-cols-2">
-              {item.sections.map((section) => (
-                <section key={section.id}>
-                  <h4 className="text-[12px] font-bold uppercase tracking-[0.08em] text-faint">{section.title}</h4>
-                  <p className="mt-1.5 text-[14.5px] leading-[1.65] text-ink/75">{section.content}</p>
-                </section>
-              ))}
-              {reliability && reliability.corroborated_by.length > 0 && (
-                <p className="text-[13.5px] text-muted md:col-span-2">
-                  {t('item.corroborated', { count: reliability.corroborated_by.length })} —{' '}
-                  {reliability.corroborated_by.join(', ')}
-                </p>
-              )}
-            </div>
+            <ItemDetails item={item} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -151,22 +164,21 @@ export function ItemCard({ item, editionId }: { item: EditionItem; editionId?: s
             <FileText size={14} aria-hidden />
             {t('item.details')}
           </Link>
-        {item.sections.length > 0 && (
           <button
+            ref={toggleRef}
             type="button"
             aria-expanded={open}
             aria-controls={detailsId}
             onClick={() => setOpen((value) => !value)}
             className="flex items-center gap-1.5 rounded-full bg-accent-soft px-3.5 py-1.5 text-[13px] font-semibold text-accent transition-all duration-150 ease-soft hover:bg-accent hover:text-white active:scale-95"
           >
-            {t(open ? 'item.readLess' : 'item.readMore')}
+            {t(open ? 'item.readLess' : 'card.open')}
             <ChevronDown
               size={14}
               aria-hidden
               className={`transition-transform duration-250 ease-soft ${open ? 'rotate-180' : ''}`}
             />
           </button>
-        )}
         </span>
       </footer>
     </motion.article>
