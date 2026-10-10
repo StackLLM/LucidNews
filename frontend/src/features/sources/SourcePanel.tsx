@@ -336,7 +336,7 @@ function SourceField({
   )
 }
 
-function TestBlock({ running, result, onRun }: { running: boolean; result: SourceTest | null; onRun: () => void }) {
+export function TestBlock({ running, result, onRun }: { running: boolean; result: SourceTest | null; onRun: () => void }) {
   const { language, t } = useLanguage()
   const tone = !result ? '' : !result.ok ? 'text-rumor' : result.count === 0 ? 'text-unverified' : 'text-confirmed'
   const Icon = !result ? null : !result.ok ? CircleX : result.count === 0 ? TriangleAlert : CircleCheck

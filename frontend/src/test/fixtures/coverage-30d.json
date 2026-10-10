@@ -1,0 +1,382 @@
+{
+  "days": 30,
+  "watched": [
+    "ai",
+    "software-development",
+    "cloud",
+    "devops",
+    "data",
+    "cybersecurity",
+    "web",
+    "open-source",
+    "developer-tools",
+    "databases",
+    "infrastructure",
+    "emerging-tech"
+  ],
+  "only_watched": false,
+  "min_sources": 2,
+  "min_items": 3,
+  "analyzed": 48,
+  "unanalyzed": 0,
+  "uncategorized": 0,
+  "categories": [
+    {
+      "category": "ai",
+      "watched": true,
+      "gap": false,
+      "gap_reasons": [],
+      "items": 14,
+      "published": 5,
+      "active_sources": 7,
+      "sources": [
+        {
+          "source": "hackernews",
+          "items": 6,
+          "configured": true
+        },
+        {
+          "source": "rss/OpenAI Blog",
+          "items": 2,
+          "configured": true
+        },
+        {
+          "source": "rss/Simon Willison",
+          "items": 2,
+          "configured": true
+        },
+        {
+          "source": "rss/Lobsters",
+          "items": 1,
+          "configured": true
+        },
+        {
+          "source": "rss/Machine Learning Mastery",
+          "items": 1,
+          "configured": true
+        },
+        {
+          "source": "rss/Interconnects",
+          "items": 1,
+          "configured": true
+        }
+      ],
+      "latest_at": "2026-10-06T18:27:16+00:00",
+      "trusted_share": 0.6429
+    },
+    {
+      "category": "software-development",
+      "watched": true,
+      "gap": false,
+      "gap_reasons": [],
+      "items": 19,
+      "published": 7,
+      "active_sources": 6,
+      "sources": [
+        {
+          "source": "rss/Lobsters",
+          "items": 12,
+          "configured": true
+        },
+        {
+          "source": "hackernews",
+          "items": 3,
+          "configured": true
+        },
+        {
+          "source": "rss/Simon Willison",
+          "items": 1,
+          "configured": true
+        },
+        {
+          "source": "rss/Machine Learning Mastery",
+          "items": 1,
+          "configured": true
+        },
+        {
+          "source": "rss/The Pragmatic Engineer",
+          "items": 1,
+          "configured": true
+        },
+        {
+          "source": "rss/LWN.net",
+          "items": 1,
+          "configured": true
+        }
+      ],
+      "latest_at": "2026-10-06T18:29:11+00:00",
+      "trusted_share": 0.4737
+    },
+    {
+      "category": "cloud",
+      "watched": true,
+      "gap": true,
+      "gap_reasons": [
+        "items"
+      ],
+      "items": 2,
+      "published": 2,
+      "active_sources": 2,
+      "sources": [
+        {
+          "source": "rss/Lobsters",
+          "items": 1,
+          "configured": true
+        },
+        {
+          "source": "rss/Simon Willison",
+          "items": 1,
+          "configured": true
+        }
+      ],
+      "latest_at": "2026-10-06T18:11:34+00:00",
+      "trusted_share": 1.0
+    },
+    {
+      "category": "devops",
+      "watched": true,
+      "gap": true,
+      "gap_reasons": [
+        "sources",
+        "items"
+      ],
+      "items": 1,
+      "published": 1,
+      "active_sources": 1,
+      "sources": [
+        {
+          "source": "rss/Lobsters",
+          "items": 1,
+          "configured": true
+        }
+      ],
+      "latest_at": "2026-10-06T18:11:34+00:00",
+      "trusted_share": 1.0
+    },
+    {
+      "category": "data",
+      "watched": true,
+      "gap": true,
+      "gap_reasons": [
+        "items"
+      ],
+      "items": 2,
+      "published": 2,
+      "active_sources": 2,
+      "sources": [
+        {
+          "source": "hackernews",
+          "items": 1,
+          "configured": true
+        },
+        {
+          "source": "rss/Lobsters",
+          "items": 1,
+          "configured": true
+        }
+      ],
+      "latest_at": "2026-10-06T14:30:40+00:00",
+      "trusted_share": 1.0
+    },
+    {
+      "category": "cybersecurity",
+      "watched": true,
+      "gap": false,
+      "gap_reasons": [],
+      "items": 8,
+      "published": 3,
+      "active_sources": 5,
+      "sources": [
+        {
+          "source": "rss/LWN.net",
+          "items": 3,
+          "configured": true
+        },
+        {
+          "source": "rss/Lobsters",
+          "items": 2,
+          "configured": true
+        },
+        {
+          "source": "rss/Schneier on Security",
+          "items": 1,
+          "configured": true
+        },
+        {
+          "source": "rss/Interconnects",
+          "items": 1,
+          "configured": true
+        },
+        {
+          "source": "hackernews",
+          "items": 1,
+          "configured": true
+        }
+      ],
+      "latest_at": "2026-10-06T18:00:33+00:00",
+      "trusted_share": 0.75
+    },
+    {
+      "category": "web",
+      "watched": true,
+      "gap": false,
+      "gap_reasons": [],
+      "items": 3,
+      "published": 0,
+      "active_sources": 2,
+      "sources": [
+        {
+          "source": "rss/Lobsters",
+          "items": 2,
+          "configured": true
+        },
+        {
+          "source": "hackernews",
+          "items": 1,
+          "configured": true
+        }
+      ],
+      "latest_at": "2026-10-06T18:29:11+00:00",
+      "trusted_share": 0.3333
+    },
+    {
+      "category": "open-source",
+      "watched": true,
+      "gap": false,
+      "gap_reasons": [],
+      "items": 16,
+      "published": 6,
+      "active_sources": 5,
+      "sources": [
+        {
+          "source": "rss/Lobsters",
+          "items": 6,
+          "configured": true
+        },
+        {
+          "source": "hackernews",
+          "items": 5,
+          "configured": true
+        },
+        {
+          "source": "rss/LWN.net",
+          "items": 2,
+          "configured": true
+        },
+        {
+          "source": "github/@torvalds",
+          "items": 2,
+          "configured": true
+        },
+        {
+          "source": "rss/Latent Space",
+          "items": 1,
+          "configured": true
+        }
+      ],
+      "latest_at": "2026-10-06T18:27:16+00:00",
+      "trusted_share": 0.75
+    },
+    {
+      "category": "developer-tools",
+      "watched": true,
+      "gap": false,
+      "gap_reasons": [],
+      "items": 8,
+      "published": 0,
+      "active_sources": 4,
+      "sources": [
+        {
+          "source": "rss/Lobsters",
+          "items": 5,
+          "configured": true
+        },
+        {
+          "source": "hackernews",
+          "items": 1,
+          "configured": true
+        },
+        {
+          "source": "rss/Simon Willison",
+          "items": 1,
+          "configured": true
+        },
+        {
+          "source": "rss/OpenAI Blog",
+          "items": 1,
+          "configured": true
+        }
+      ],
+      "latest_at": "2026-10-06T18:27:16+00:00",
+      "trusted_share": 0.625
+    },
+    {
+      "category": "databases",
+      "watched": true,
+      "gap": true,
+      "gap_reasons": [
+        "sources",
+        "items"
+      ],
+      "items": 0,
+      "published": 0,
+      "active_sources": 0,
+      "sources": [],
+      "latest_at": null,
+      "trusted_share": null
+    },
+    {
+      "category": "infrastructure",
+      "watched": true,
+      "gap": false,
+      "gap_reasons": [],
+      "items": 12,
+      "published": 4,
+      "active_sources": 4,
+      "sources": [
+        {
+          "source": "rss/Lobsters",
+          "items": 5,
+          "configured": true
+        },
+        {
+          "source": "hackernews",
+          "items": 3,
+          "configured": true
+        },
+        {
+          "source": "rss/LWN.net",
+          "items": 3,
+          "configured": true
+        },
+        {
+          "source": "github/@torvalds",
+          "items": 1,
+          "configured": true
+        }
+      ],
+      "latest_at": "2026-10-06T18:11:34+00:00",
+      "trusted_share": 0.9167
+    },
+    {
+      "category": "emerging-tech",
+      "watched": true,
+      "gap": true,
+      "gap_reasons": [
+        "sources"
+      ],
+      "items": 5,
+      "published": 1,
+      "active_sources": 1,
+      "sources": [
+        {
+          "source": "hackernews",
+          "items": 5,
+          "configured": true
+        }
+      ],
+      "latest_at": "2026-10-06T11:34:14+00:00",
+      "trusted_share": 0.6
+    }
+  ]
+}

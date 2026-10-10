@@ -1,6 +1,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { ApiErrorCard, PageHeader, PageSkeleton, Segmented } from '../../design/PageState'
 import { ApiError, fetchSourceConfig, fetchSourceReport, healthStatuses, type HealthStatus, type SourceHealth, type SourceReport } from '../../lib/api'
 import { formatItemTime, formatPercent, sourceName } from '../../lib/format'
@@ -9,35 +10,72 @@ import { listStagger, riseIn, useMotionPreference } from '../../lib/motion'
 import { sourceLabel } from './healthStyles'
 import { RunVolumeChart } from './RunVolumeChart'
 import { HealthBadge, QualityScore, SourceDetail } from './SourceBits'
+import { DomainsView } from './DomainsView'
 import { SourceManager } from './SourceManager'
 
 const PERIODS = [7, 14, 30] as const
+type Tab = 'sources' | 'domains'
 
+/** Sources: their health and configuration, or how they cover the watched domains. */
 export function SourcesPage() {
   const { t } = useLanguage()
+  const [params, setParams] = useSearchParams()
+  const tab: Tab = params.get('tab') === 'domains' ? 'domains' : 'sources'
   const [days, setDays] = useState<number>(14)
+  const setTab = (next: Tab) =>
+    setParams(
+      (current) => {
+        if (next === 'domains') current.set('tab', next)
+        else current.delete('tab')
+        return current
+      },
+      { replace: true },
+    )
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title={t('sources.page')}
+        subtitle={tab === 'domains' ? t('domains.subtitle') : t('sources.subtitle')}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Segmented
+              id="sources-tab"
+              label={t('sources.tab')}
+              value={tab}
+              onChange={setTab}
+              options={[
+                { value: 'sources' as const, label: t('sources.tab.sources') },
+                { value: 'domains' as const, label: t('sources.tab.domains') },
+              ]}
+            />
+            <Segmented
+              id="period"
+              label={t('sources.period')}
+              value={days}
+              onChange={setDays}
+              options={PERIODS.map((value) => ({ value, label: t('sources.days', { days: value }) }))}
+            />
+          </div>
+        }
+      />
+      {tab === 'domains' ? <DomainsView days={days} /> : <SourcesHealth days={days} />}
+    </div>
+  )
+}
+
+function SourcesHealth({ days }: { days: number }) {
   const query = useQuery({
     queryKey: ['sources', days],
     queryFn: ({ signal }) => fetchSourceReport(days, signal),
     placeholderData: keepPreviousData,
   })
-
-  const period = (
-    <Segmented
-      id="period"
-      label={t('sources.period')}
-      value={days}
-      onChange={setDays}
-      options={PERIODS.map((value) => ({ value, label: t('sources.days', { days: value }) }))}
-    />
-  )
-
   if (query.isPending) return <PageSkeleton />
   if (query.isError) return <ApiErrorCard error={query.error} onRetry={() => query.refetch()} />
-  return <SourcesView report={query.data} period={period} />
+  return <SourcesView report={query.data} />
 }
 
-function SourcesView({ report, period }: { report: SourceReport; period: ReactNode }) {
+function SourcesView({ report }: { report: SourceReport }) {
   const { t } = useLanguage()
   const { enabled } = useMotionPreference()
   // Local API only: elsewhere the page stays the read-only health view.
@@ -58,8 +96,6 @@ function SourcesView({ report, period }: { report: SourceReport; period: ReactNo
 
   return (
     <motion.div variants={listStagger} initial={enabled ? 'hidden' : false} animate="visible" className="space-y-6">
-      <PageHeader title={t('sources.title')} subtitle={t('sources.subtitle')} actions={period} />
-
       <motion.dl variants={riseIn} className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {tiles.map((tile) => (
           <div key={tile.label} className="glass rounded-card px-5 py-4">

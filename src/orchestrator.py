@@ -1073,6 +1073,11 @@ class PipelineOrchestrator:
         if score is None:
             # The AI could not score this item; never publish it unreviewed.
             return False
+        digest = getattr(self.config, "digest", None)
+        if getattr(digest, "only_watched_categories", False):
+            # Only the domains the reader follows (the AI's categories decide).
+            if not set(digest.watched_categories) & set(item.processing.analysis.categories):
+                return False
         reliability_config = getattr(self.config, "reliability", None)
         reliability = item.processing.reliability
         if (

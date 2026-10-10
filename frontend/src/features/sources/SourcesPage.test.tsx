@@ -26,9 +26,9 @@ test('summarises health, charts runs and filters sources', async () => {
   const fetchMock = mockApi({ sources: withProblems })
   renderAt('/sources?lang=fr')
 
-  expect(await screen.findByRole('heading', { level: 1, name: 'Santé des sources' })).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { level: 1, name: 'Sources' })).toBeInTheDocument()
   expect(fetchMock).toHaveBeenCalledWith('/api/sources?days=14', expect.anything())
-  expect(screen.getByText('Sources suivies').nextElementSibling).toHaveTextContent('30')
+  expect((await screen.findByText('Sources suivies')).nextElementSibling).toHaveTextContent('30')
   expect(screen.getByText('En échec', { selector: 'dt' }).nextElementSibling).toHaveTextContent('1')
 
   // Localized reason and raw error for the dead source.

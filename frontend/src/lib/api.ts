@@ -484,3 +484,58 @@ export function deleteSource(version: string, key: string): Promise<SourceConfig
 export function testSource(body: { key: string } | { kind: string; values: SourceValues }): Promise<SourceTest> {
   return request('/api/sources/test', sourceTestSchema, { method: 'POST', body: JSON.stringify(body) })
 }
+
+// Domains: coverage of the 12 categories and recommended sources (lot 18).
+
+export const coverageSchema = z.object({
+  days: z.number(),
+  watched: z.array(z.string()),
+  only_watched: z.boolean(),
+  min_sources: z.number(),
+  min_items: z.number(),
+  analyzed: z.number(),
+  unanalyzed: z.number(),
+  uncategorized: z.number(),
+  categories: z.array(
+    z.object({
+      category: z.string(),
+      watched: z.boolean(),
+      gap: z.boolean(),
+      gap_reasons: z.array(z.enum(['sources', 'items'])),
+      items: z.number(),
+      published: z.number(),
+      active_sources: z.number(),
+      sources: z.array(z.object({ source: z.string(), items: z.number(), configured: z.boolean() })),
+      latest_at: z.string().nullable(),
+      trusted_share: z.number().nullable(),
+    }),
+  ),
+})
+
+const catalogEntrySchema = z.object({
+  key: z.string(),
+  kind: z.string(),
+  label: z.string(),
+  category: z.string(),
+  values: z.record(z.string(), z.unknown()),
+  description: z.string().nullable(),
+  origin: z.string(),
+})
+
+export type Coverage = z.infer<typeof coverageSchema>
+export type DomainCoverage = Coverage['categories'][number]
+export type CatalogEntry = z.infer<typeof catalogEntrySchema>
+
+export function fetchCoverage(days: number, signal?: AbortSignal): Promise<Coverage> {
+  return getJson(`/api/coverage?days=${days}`, coverageSchema, signal)
+}
+
+/** Recommended sources: catalog entries absent from the configuration. */
+export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogEntry[]> {
+  return (await getJson('/api/catalog', z.object({ entries: z.array(catalogEntrySchema) }), signal)).entries
+}
+
+/** Some settings only; the others stay as they are in config.json. */
+export function saveSomeSettings(version: string, values: Record<string, Record<string, unknown>>): Promise<Settings> {
+  return request('/api/settings', settingsSchema, { method: 'PUT', body: JSON.stringify({ version, values }) })
+}

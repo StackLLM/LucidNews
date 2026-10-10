@@ -438,3 +438,11 @@ def test_source_routes_are_absent_without_local_features(tmp_path, monkeypatch) 
 
     assert resolve(ctx, "/api/sources/config", {})[0] == 403
     assert resolve(ctx, "/api/sources", {})[0] == 200  # the public health view stays
+
+
+def test_test_titles_are_shown_decoded(service, monkeypatch) -> None:
+    monkeypatch.setattr(sources_api, "_scraper", lambda kind, model, client: FakeScraper([_item("CVE&#x27;s fixed", 1)]))
+
+    _, body = service.test({"kind": "rss", "values": {"name": "T", "url": "https://example.com/rss"}})
+
+    assert body["sample"][0]["title"] == "CVE's fixed"

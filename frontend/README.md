@@ -36,7 +36,7 @@ Premium, calme, fin, professionnel. Impressionnant sans être chargé.
 | Fiche d'une news ✅ | Article complet + colonne Fiabilité (éditeur, affirmation, preuve, corroboration), actions, éditions | API `/api/items/<id>` |
 | Archives ✅ | Retrouver une édition par date (calendrier + liste) | API `/api/editions` |
 | Préférences ✅ | Abonnés (ajout, suppression), langue, thèmes, sources, rythme, importance, infos non confirmées, limite, offre affichée | API `/api/subscribers` (local) |
-| Sources ✅ | Santé (chiffres clés, volume par run), sources configurées par groupe : activer, ajouter, modifier, tester, supprimer | API `/api/sources`, `/api/sources/config`, `/api/sources/test` (local) |
+| Sources ✅ | Onglet Sources : santé (chiffres clés, volume par run), sources configurées par groupe : activer, ajouter, modifier, tester, supprimer. Onglet Domaines : couverture des 12 catégories, lacunes, domaines suivis, sources recommandées | API `/api/sources`, `/api/coverage`, `/api/catalog`, `/api/sources/config`, `/api/sources/test` (local) |
 
 | Qualité ✅ | Annotation à l'aveugle des news, résultats (sélection, importance, thèmes, affirmation, faux fiables) | API `/api/eval/*` (local), voir `docs/evaluation.md` |
 | Réglages ✅ | Clés API (jamais réaffichées), IA, collecte, sélection, fiabilité, archive, versions précédentes | API `/api/settings`, `/api/secrets` (local) |
@@ -74,6 +74,8 @@ et les clés API (`.env` du projet).
 | `GET /api/editions/<id>?lang=fr` | Une édition précise |
 | `GET /api/items/<id>?lang=fr` | Une news : contenu, fiabilité détaillée, éditions qui l'ont publiée |
 | `GET /api/sources?days=14` | Santé des sources configurées (1 à 90 jours) et volume par run |
+| `GET /api/coverage?days=14` | Couverture des 12 catégories d'après l'archive, domaines suivis, seuils de lacune |
+| `GET /api/catalog?category=ai` | Sources recommandées absentes de la config |
 
 | `GET /api/preferences/options` | Langues, thèmes, sources filtrables, offres |
 | `GET /api/subscribers` | Abonnés et leurs préférences |
@@ -122,6 +124,19 @@ et les clés API (`.env` du projet).
 - Le test lance le vrai collecteur sur 7 jours, 45 s au plus, sans IA ni archive, et
   dit combien de contenus tombent dans la fenêtre de collecte. Un jeton d'une
   `${VARIABLE}` n'apparaît jamais dans sa réponse.
+
+### Domaines et couverture
+
+- Tous les chiffres viennent de l'archive : catégories données par l'IA, source qui a
+  collecté la news, publication par un run, étiquette de fiabilité. Une news sans
+  analyse IA n'est pas comptée (le nombre est affiché).
+- Une source active est une source configurée et activée qui a alimenté le domaine
+  sur la période. Une source qui ne l'est plus reste listée, barrée.
+- Une recommandation vient du catalogue livré avec le projet et n'est jamais une
+  source configurée (ni par sa clé, ni par l'adresse de son flux). Elle s'ajoute avec
+  la route du lot 17, après un test.
+- Suivre un domaine, l'option « ne publier que les domaines suivis » et les seuils de
+  lacune passent par `PUT /api/settings` (local).
 
 ### Préférences : version locale, sans comptes
 

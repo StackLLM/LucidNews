@@ -37,7 +37,7 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 - [Navigation visée](#navigation-visée)
 - [Lot 12 — Annoter au moins 30 news](#lot-12--annoter-au-moins-30-news) 🟡
 - [Lot 17 — Gestion des sources](#lot-17--gestion-des-sources) ✅
-- [Lot 18 — Domaines surveillés et couverture](#lot-18--domaines-surveillés-et-couverture) 📋
+- [Lot 18 — Domaines surveillés et couverture](#lot-18--domaines-surveillés-et-couverture) ✅
 - [Lot 19 — Qualité de la veille](#lot-19--qualité-de-la-veille) 📋
 - [Lot 20 — Lancer et planifier les runs](#lot-20--lancer-et-planifier-les-runs) 📋
 - [Lot 21 — Newsletter : contenu et préférences](#lot-21--newsletter--contenu-et-préférences) 📋
@@ -454,6 +454,28 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 
 ---
 
+## Lot 18 — Domaines surveillés et couverture
+
+✅ Clôturé · Décisions : les 12 catégories existantes ; lacune sous 2 sources actives ou 3 news sur la période.
+
+**Objectif** : choisir les domaines suivis et savoir si les sources les couvrent assez.
+
+**Fait**
+
+| Sujet | Contenu |
+|---|---|
+| Onglet Domaines | Page Sources, nouvel onglet (gardé dans l'adresse). Chiffres clés : domaines suivis, bien couverts, lacunes, news analysées. Une carte par catégorie. |
+| Couverture | Calculée seulement sur l'archive de la période : news analysées et publiées, sources actives qui ont alimenté le domaine, dernière news, part confirmée ou fiable (registre actuel). Une source qui n'est plus configurée reste visible, barrée. Les news sans analyse IA ou sans catégorie ne sont pas comptées, et leur nombre est affiché. |
+| Lacunes | Domaine suivi sous l'un des deux seuils, avec la raison (« Moins de 2 sources actives », « Moins de 3 news en 14 jours »). Seuils réglables dans l'onglet. Un domaine non suivi n'est jamais une lacune. |
+| Recommandations | Catalogue livré avec le projet : flux de la config d'exemple et catalogue de l'assistant, rattachés aux 12 catégories (55 sources ; flux à clé et WeChat écartés). Seules les sources absentes de la config sont proposées (par clé et par adresse de flux), avec le badge « Recommandée · non configurée ». Ajout avec l'outil du lot 17, après un test. |
+| Domaines suivis | Interrupteur par domaine. Option « Ne publier que les domaines suivis » : appliquée réellement par la sélection du digest (même règle pour le pipeline et le MCP). Elle demande au moins un domaine suivi. |
+| Réglages | `digest.watched_categories`, `only_watched_categories`, `coverage_min_sources`, `coverage_min_items`, enregistrés par la route des réglages (config brute, sauvegarde, version). |
+| Sans API locale | Couverture et recommandations lisibles, aucune modification possible (message affiché). |
+
+**Vérifié** : 9 tests Python (728 au total), 6 tests d'interface (46 au total), build. Sur une copie de tes données : 5 lacunes réelles (Cloud, DevOps, Data, Bases de données, Technologies émergentes) ; ajout de « PostgreSQL News » depuis la carte Bases de données après un test (7 contenus sur 7 jours) ; seuls les champs cliqués écrits dans le fichier ; avec seulement Cybersécurité suivie, la sélection garde 3 news sur 14 dans l'archive. Affichage vérifié sur ordinateur et à 375 px. Réponses de l'API en moins de 10 ms.
+
+---
+
 # Lots suivants
 
 Plan revu le 9 octobre 2026 pour intégrer le besoin « interface complète et gestion du produit » : piloter LucidNews depuis l'interface, sans terminal pour les opérations courantes. Les anciens lots 15 à 18 sont repris et renumérotés selon le nouvel ordre (voir la correspondance plus bas).
@@ -465,15 +487,15 @@ Plan revu le 9 octobre 2026 pour intégrer le besoin « interface complète et g
 | ✅ | 15 — Cartes d'actualité interactives | — | Clôturé. |
 | ✅ | 16 — Socle de pilotage et Réglages | — | Clôturé. |
 | ✅ | 17 — Gestion des sources | 16 | Clôturé. |
-| 1 | 18 — Domaines surveillés et couverture | 16, 17 | Les recommandations de sources s'ajoutent avec l'outil du lot 17. |
-| 2 | 19 — Qualité de la veille | 18 (couverture), 12 (filtrage) | Rassemble couverture, santé, fraîcheur, doublons et fiabilité sur une page. |
-| 3 | 20 — Lancer et planifier les runs | 16 | Dernier usage qui demande encore le terminal. |
-| 4 | 21 — Newsletter : contenu et préférences | 20 (fréquence) | Hebdomadaire, niveau de détail, aperçu. |
-| 5 | 22 — Newsletter : envoi fiable | 21 | Opt-in, désinscription, fournisseur d'e-mails, journal des envois. |
-| 6 | 23 — Recherche dans l'archive | — | Utile seul ; placé après le cœur du pilotage. |
-| 7 | 24 — Finitions de l'interface | 15 à 23 | Mode sombre et contrastes, une fois toutes les pages créées. |
-| 8 | 25 — Dette technique | — | Renommage du paquet en fin de chantier, pour ne pas gêner les lots en cours. |
-| 9 | 26 — Comptes et SaaS | 22, 25 | Hors périmètre actuel. |
+| ✅ | 18 — Domaines surveillés et couverture | 16, 17 | Clôturé. |
+| 1 | 19 — Qualité de la veille | 18 (couverture), 12 (filtrage) | Rassemble couverture, santé, fraîcheur, doublons et fiabilité sur une page. |
+| 2 | 20 — Lancer et planifier les runs | 16 | Dernier usage qui demande encore le terminal. |
+| 3 | 21 — Newsletter : contenu et préférences | 20 (fréquence) | Hebdomadaire, niveau de détail, aperçu. |
+| 4 | 22 — Newsletter : envoi fiable | 21 | Opt-in, désinscription, fournisseur d'e-mails, journal des envois. |
+| 5 | 23 — Recherche dans l'archive | — | Utile seul ; placé après le cœur du pilotage. |
+| 6 | 24 — Finitions de l'interface | 15 à 23 | Mode sombre et contrastes, une fois toutes les pages créées. |
+| 7 | 25 — Dette technique | — | Renommage du paquet en fin de chantier, pour ne pas gêner les lots en cours. |
+| 8 | 26 — Comptes et SaaS | 22, 25 | Hors périmètre actuel. |
 | En parallèle | 12 — Annoter au moins 30 news | — | Action humaine ; donne les chiffres de filtrage du lot 19. |
 
 **Correspondance avec l'ancien plan** : ancien 15 (finitions) → 24 · ancien 16 (newsletter) → 21 et 22 · ancien 17 (comptes et SaaS) → 26 · ancien 18 (dette technique) → 25.
@@ -501,30 +523,9 @@ On garde les écrans existants et on n'ajoute qu'**une** page : Réglages.
 
 ---
 
-## Lot 18 — Domaines surveillés et couverture
-
-📋 Prochain lot. Décision : les 12 catégories existantes.
-
-- **Objectif** : choisir les domaines technologiques suivis et savoir si les sources les couvrent assez.
-- **Fonctionnalités** :
-  - domaines suivis choisis parmi les 12 catégories de LucidNews (IA et LLM, développement logiciel, Cloud, DevOps, cybersécurité, Data, bases de données, Open Source, infrastructure, outils développeur, Web, technologies émergentes) ;
-  - par domaine : sources qui le couvrent réellement (d'après l'archive), volume de news, fraîcheur de la dernière news, part fiable ;
-  - lacunes : domaines sous un seuil de sources ou de news ;
-  - recommandations : sources du catalogue intégré pour ce domaine, absentes de la config, marquées clairement « recommandée, non configurée » ; ajout en un clic (outil du lot 17) après un test ;
-  - option « ne publier que les domaines suivis », appliquée réellement à la sélection du digest.
-- **Pages** : Sources, onglet « Domaines ».
-- **Frontend** : liste des domaines avec bascule ; carte de couverture par domaine ; badge distinct « disponible » et « recommandée ».
-- **Backend** : réglage `digest.watched_categories` ; calcul de couverture à partir de l'archive (catégories données par l'IA, par source) ; catalogue de recommandations construit à partir des 31 flux vérifiés de la config d'exemple et du catalogue de l'assistant, rattachés aux 12 catégories.
-- **Données et API** : `GET /api/coverage?days=`, `PUT /api/settings` (domaines suivis), `GET /api/catalog?category=`.
-- **Critères de validation** : la couverture vient seulement de l'archive ; une source recommandée n'apparaît jamais comme active ; le filtre des domaines change réellement le digest suivant.
-- **Tests** : calcul de couverture sur une archive de test, détection d'une lacune, recommandation qui exclut les sources déjà configurées, filtre appliqué à la sélection.
-- **Dépendances** : lots 16 et 17.
-
----
-
 ## Lot 19 — Qualité de la veille
 
-📋 Planifié.
+📋 Prochain lot.
 
 - **Objectif** : savoir, sur une seule page, si la veille est pertinente et fiable.
 - **Fonctionnalités** (indicateurs réels, sur une période choisie) :
@@ -676,7 +677,7 @@ Un paramètre n'est ajouté que s'il est réellement appliqué par le système.
 
 | Sujet | Bloque | Recommandation |
 |---|---|---|
-| Lots 16 et 17 terminés mais pas encore commités | Rien, mais à faire avant le lot 18 | Commiter avec le message préparé (un seul commit : les deux lots touchent les mêmes fichiers). |
+| Lot 18 terminé mais pas encore commité | Rien, mais à faire avant le lot 19 | Commiter avec le message préparé. |
 | Annotations du lot 12 | Les chiffres de filtrage du lot 19 (affichés « échantillon insuffisant » d'ici là) | Annoter au fil de l'eau. |
 | Domaines personnalisés au-delà des 12 catégories | Tranché : les 12 catégories (lot 18) | — |
 | Méthode de planification des runs | Tranché : tâche système launchd générée par l'interface (lot 20) | — |
@@ -742,6 +743,7 @@ Un paramètre n'est ajouté que s'il est réellement appliqué par le système.
 | Domaines surveillés | Les 12 catégories existantes (A) |
 | Planification des runs | Tâche système launchd générée par l'interface (B) |
 | X (Twitter) dans l'interface | Lecture seule (cookies ou jeton Apify impossibles à vérifier depuis l'écran) |
+| Seuil de lacune d'un domaine | Moins de 2 sources actives ou moins de 3 news sur la période, réglable dans l'onglet Domaines |
 | Rôle du score de qualité | Départager les news de même score, sans jamais passer devant une news mieux notée |
 | Style des réponses | Skill explainer : français simple, sections, questions oui/non |
 
@@ -770,3 +772,6 @@ Un paramètre n'est ajouté que s'il est réellement appliqué par le système.
 | `b7abe50` | 2026-10-09 | — | lots overview (closed and upcoming work) |
 | `b1c18cf` | 2026-10-09 | 13 | social accounts as publishers and wider trust registry |
 | `7bcd919` | 2026-10-09 | 14 | run token budget, non-blocking quota exhaustion and enrichment reuse |
+| `0429fc7` | 2026-10-09 | 14 bis | wider corroboration, source quality and archive reassessment |
+| `3368611` | 2026-10-09 | 15 | interactive news cards and revised product plan |
+| `1bdaf2b` | 2026-10-10 | 16, 17 | settings, API keys and sources managed from the web app |

@@ -1,0 +1,245 @@
+{
+  "entries": [
+    {
+      "key": "reddit/r/MachineLearning",
+      "kind": "reddit_subreddit",
+      "label": "r/MachineLearning",
+      "category": "ai",
+      "values": {
+        "subreddit": "MachineLearning",
+        "sort": "hot",
+        "fetch_limit": 15,
+        "min_score": 60
+      },
+      "description": "Top ML research discussions",
+      "origin": "presets"
+    },
+    {
+      "key": "github/@karpathy",
+      "kind": "github_user",
+      "label": "@karpathy",
+      "category": "ai",
+      "values": {
+        "username": "karpathy"
+      },
+      "description": "Andrej Karpathy — AI educator and researcher",
+      "origin": "presets"
+    },
+    {
+      "key": "reddit/r/linux",
+      "kind": "reddit_subreddit",
+      "label": "r/linux",
+      "category": "infrastructure",
+      "values": {
+        "subreddit": "linux",
+        "sort": "hot",
+        "fetch_limit": 15,
+        "min_score": 100
+      },
+      "description": "Linux community discussions",
+      "origin": "presets"
+    },
+    {
+      "key": "rss/Brendan Gregg",
+      "kind": "rss",
+      "label": "Brendan Gregg",
+      "category": "infrastructure",
+      "values": {
+        "name": "Brendan Gregg",
+        "url": "https://www.brendangregg.com/blog/rss.xml"
+      },
+      "description": "Brendan Gregg's blog — performance and systems",
+      "origin": "presets"
+    },
+    {
+      "key": "github/@torvalds",
+      "kind": "github_user",
+      "label": "@torvalds",
+      "category": "infrastructure",
+      "values": {
+        "username": "torvalds"
+      },
+      "description": "Linus Torvalds — Linux creator",
+      "origin": "presets"
+    },
+    {
+      "key": "rss/Schneier on Security",
+      "kind": "rss",
+      "label": "Schneier on Security",
+      "category": "cybersecurity",
+      "values": {
+        "name": "Schneier on Security",
+        "url": "https://www.schneier.com/feed/atom/"
+      },
+      "description": "Schneier on Security — security analysis and commentary",
+      "origin": "presets"
+    },
+    {
+      "key": "reddit/r/webdev",
+      "kind": "reddit_subreddit",
+      "label": "r/webdev",
+      "category": "web",
+      "values": {
+        "subreddit": "webdev",
+        "sort": "hot",
+        "fetch_limit": 15,
+        "min_score": 80
+      },
+      "description": "Web development community",
+      "origin": "presets"
+    },
+    {
+      "key": "reddit/r/javascript",
+      "kind": "reddit_subreddit",
+      "label": "r/javascript",
+      "category": "web",
+      "values": {
+        "subreddit": "javascript",
+        "sort": "hot",
+        "fetch_limit": 10,
+        "min_score": 60
+      },
+      "description": "JavaScript discussions and news",
+      "origin": "presets"
+    },
+    {
+      "key": "rss/CSS-Tricks",
+      "kind": "rss",
+      "label": "CSS-Tricks",
+      "category": "web",
+      "values": {
+        "name": "CSS-Tricks",
+        "url": "https://css-tricks.com/feed/"
+      },
+      "description": "CSS-Tricks — frontend tips and techniques",
+      "origin": "presets"
+    },
+    {
+      "key": "reddit/r/ProgrammingLanguages",
+      "kind": "reddit_subreddit",
+      "label": "r/ProgrammingLanguages",
+      "category": "software-development",
+      "values": {
+        "subreddit": "ProgrammingLanguages",
+        "sort": "hot",
+        "fetch_limit": 15,
+        "min_score": 30
+      },
+      "description": "Programming language design and theory",
+      "origin": "presets"
+    },
+    {
+      "key": "reddit/r/rust",
+      "kind": "reddit_subreddit",
+      "label": "r/rust",
+      "category": "software-development",
+      "values": {
+        "subreddit": "rust",
+        "sort": "hot",
+        "fetch_limit": 15,
+        "min_score": 60
+      },
+      "description": "Rust programming community",
+      "origin": "presets"
+    },
+    {
+      "key": "github/rust-lang/rust",
+      "kind": "github_repo",
+      "label": "rust-lang/rust",
+      "category": "software-development",
+      "values": {
+        "repository": "rust-lang/rust"
+      },
+      "description": "Rust language releases",
+      "origin": "presets"
+    },
+    {
+      "key": "github/ziglang/zig",
+      "kind": "github_repo",
+      "label": "ziglang/zig",
+      "category": "software-development",
+      "values": {
+        "repository": "ziglang/zig"
+      },
+      "description": "Zig language releases",
+      "origin": "presets"
+    },
+    {
+      "key": "reddit/r/robotics",
+      "kind": "reddit_subreddit",
+      "label": "r/robotics",
+      "category": "emerging-tech",
+      "values": {
+        "subreddit": "robotics",
+        "sort": "hot",
+        "fetch_limit": 15,
+        "min_score": 30
+      },
+      "description": "Robotics research and projects",
+      "origin": "presets"
+    },
+    {
+      "key": "reddit/r/embedded",
+      "kind": "reddit_subreddit",
+      "label": "r/embedded",
+      "category": "emerging-tech",
+      "values": {
+        "subreddit": "embedded",
+        "sort": "hot",
+        "fetch_limit": 15,
+        "min_score": 30
+      },
+      "description": "Embedded systems development",
+      "origin": "presets"
+    },
+    {
+      "key": "rss/Hackaday",
+      "kind": "rss",
+      "label": "Hackaday",
+      "category": "emerging-tech",
+      "values": {
+        "name": "Hackaday",
+        "url": "https://hackaday.com/feed/"
+      },
+      "description": "Hackaday — hardware hacking and projects",
+      "origin": "presets"
+    },
+    {
+      "key": "rss/GitHub Trending - Daily",
+      "kind": "rss",
+      "label": "GitHub Trending - Daily",
+      "category": "developer-tools",
+      "values": {
+        "name": "GitHub Trending - Daily",
+        "url": "https://mshibanami.github.io/GitHubTrendingRSS/daily/all.xml"
+      },
+      "description": "GitHub Trending — daily popular repositories",
+      "origin": "presets"
+    },
+    {
+      "key": "reddit/r/commandline",
+      "kind": "reddit_subreddit",
+      "label": "r/commandline",
+      "category": "developer-tools",
+      "values": {
+        "subreddit": "commandline",
+        "sort": "hot",
+        "fetch_limit": 10,
+        "min_score": 40
+      },
+      "description": "Command line tools and tips",
+      "origin": "presets"
+    },
+    {
+      "key": "github/neovim/neovim",
+      "kind": "github_repo",
+      "label": "neovim/neovim",
+      "category": "developer-tools",
+      "values": {
+        "repository": "neovim/neovim"
+      },
+      "description": "Neovim editor releases",
+      "origin": "presets"
+    }
+  ]
+}

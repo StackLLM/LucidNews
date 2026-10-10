@@ -643,6 +643,34 @@ confirmed or reliable items, smoothed while a source has few items). The score
 only breaks ties between items with the same AI score; it is shown by
 `lucidnews-sources` and on the Sources screen.
 
+### Watched domains and coverage
+
+```json
+{
+  "digest": {
+    "watched_categories": ["ai", "cybersecurity", "devops"],
+    "only_watched_categories": false,
+    "coverage_min_sources": 2,
+    "coverage_min_items": 3
+  }
+}
+```
+
+- `watched_categories` (default: the 12 categories): domains the reader follows,
+  among the taxonomy IDs (`ai`, `software-development`, `cloud`, `devops`, `data`,
+  `cybersecurity`, `web`, `open-source`, `developer-tools`, `databases`,
+  `infrastructure`, `emerging-tech`). Stored in taxonomy order.
+- `only_watched_categories` (default `false`): the digest keeps only items whose
+  AI categories include a watched one. Needs at least one watched domain. Items
+  the AI could not analyze (quota) are not filtered.
+- `coverage_min_sources`, `coverage_min_items`: a watched domain is a coverage gap
+  when, over the period shown, fewer configured sources fed it or it got fewer
+  analyzed items.
+
+The **Domains** tab of the Sources screen shows the coverage (from the archive
+only) and recommends catalog sources that are not configured: the curated feeds
+of `config.example.json` and the setup wizard catalog (`data/presets.json`).
+
 ## Filtering
 
 Score filtering is configured under `processing.profile_settings` in the runtime

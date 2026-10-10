@@ -49,6 +49,8 @@ LucidNews est une application Python asynchrone en ligne de commande. Elle n'a n
 | `src/source_health.py`, `src/sources_cli.py` | Identifiants de source, résultat par run, classement de santé, commande `lucidnews-sources` |
 | `src/source_quality.py` | Score de qualité par source (départage des news de même score) |
 | `src/settings_api.py` | Réglages et clés API depuis l'interface : édition brute de `config.json`, copies de sauvegarde, `.env` |
+| `src/coverage.py` | Couverture des 12 catégories par les sources, calculée sur l'archive ; lacunes des domaines suivis |
+| `src/source_catalog.py` | Catalogue des sources recommandées (config d'exemple et catalogue de l'assistant), sans les sources déjà configurées |
 | `src/sources_api.py` | Sources depuis l'interface : liste avec la clé de santé, ajout, modification, suppression, test d'une source sans IA |
 | `src/reassess_cli.py` | Commande `lucidnews-reassess` : recalcul des étiquettes de l'archive avec le registre actuel |
 | `src/evaluation/` | Annotations humaines, calcul des scores (sélection, importance, thèmes, affirmation, faux fiables), commande `lucidnews-eval` |

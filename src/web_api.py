@@ -7,6 +7,8 @@ Endpoints (JSON, GET only):
 - ``/api/editions/<run_id>?lang=fr``: one edition.
 - ``/api/items/<item_id>?lang=fr``: one item with its reliability details and editions.
 - ``/api/sources?days=14``: source health (configured sources) and per-run volumes.
+- ``/api/coverage?days=14``: coverage of the 12 categories by the sources (archive).
+- ``/api/catalog?category=ai``: recommended sources absent from the configuration.
 
 Subscriber preferences (local only, see ``subscribers_api``):
 
@@ -45,10 +47,11 @@ from urllib.parse import parse_qs, unquote, urlsplit
 
 from ._cli import add_data_dir_arguments
 from .archive import ItemArchive, RunRecord
+from .coverage import CoverageThresholds, compute_coverage
 from .evaluation import AnnotationStore
 from .evaluation.service import EvaluationService
 from .i18n import DEFAULT_LANGUAGE, is_supported
-from .models import ContentItem
+from .models import Config, ContentItem, DigestConfig
 from .processing import ProfileRegistry
 from .reliability import SourceTier
 from .reliability.assess import ReliabilityPolicy
@@ -56,9 +59,10 @@ from .source_health import assess_health, configured_source_keys, health_to_dict
 from .source_quality import DEFAULT_DAYS, compute_source_quality, quality_to_dict
 from .storage.manager import StorageManager
 from .settings_api import ENV_NAME, SettingsService
+from .source_catalog import CatalogEntry, load_catalog, recommendations
 from .sources_api import SourcesService
 from .subscribers_api import SubscriberService
-from .taxonomy import importance_from_score
+from .taxonomy import Category, importance_from_score
 
 RUN_ID = re.compile(r"^\d{8}T\d{6}Z-[0-9a-f]{8}$")
 ITEM_ID = re.compile(r"^[^\x00-\x1f\x7f]{1,300}$")
@@ -95,6 +99,9 @@ class ApiContext:
     # Settings, API keys and sources (local only, like subscribers).
     settings: Optional[SettingsService] = None
     sources: Optional[SourcesService] = None
+    # The loaded configuration (watched categories, configured sources for the catalog).
+    config: Optional[Config] = None
+    catalog: List[CatalogEntry] = field(default_factory=list)
 
 
 def _profile_id(item: ContentItem) -> str:
@@ -262,6 +269,43 @@ def source_health_payload(ctx: ApiContext, days: int) -> Dict[str, Any]:
     }
 
 
+def coverage_payload(ctx: ApiContext, days: int) -> Dict[str, Any]:
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    digest = ctx.config.digest if ctx.config is not None else DigestConfig()
+    published = {item.id for item in ctx.archive.items_between(since, selected_only=True)}
+    coverage = compute_coverage(
+        ctx.archive.items_between(since),
+        published,
+        ctx.configured_sources,
+        digest.watched_categories,
+        CoverageThresholds(digest.coverage_min_sources, digest.coverage_min_items),
+        ctx.reliability_policy,
+    )
+    return {
+        "days": days,
+        "watched": digest.watched_categories,
+        "only_watched": digest.only_watched_categories,
+        "min_sources": digest.coverage_min_sources,
+        "min_items": digest.coverage_min_items,
+        **coverage,
+    }
+
+
+def catalog_payload(ctx: ApiContext, category: Optional[str]) -> Dict[str, Any]:
+    entries = recommendations(ctx.catalog, ctx.config, category) if ctx.config is not None else [
+        entry for entry in ctx.catalog if category is None or entry.category == category
+    ]
+    return {"entries": [entry.to_dict() for entry in entries]}
+
+
+def _days(query: Dict[str, List[str]]) -> Optional[int]:
+    try:
+        days = int((query.get("days") or ["14"])[0])
+    except ValueError:
+        return None
+    return days if 1 <= days <= MAX_HEALTH_DAYS else None
+
+
 def resolve(ctx: ApiContext, path: str, query: Dict[str, List[str]]) -> tuple[int, Dict[str, Any]]:
     """Route a GET request to a JSON payload: (status, body)."""
     language = (query.get("lang") or [ctx.default_language])[0].lower()
@@ -287,14 +331,18 @@ def resolve(ctx: ApiContext, path: str, query: Dict[str, List[str]]) -> tuple[in
         return HTTPStatus.OK, {"status": "ok"}
     if path == "/api/editions":
         return HTTPStatus.OK, list_editions(ctx)
-    if path == "/api/sources":
-        try:
-            days = int((query.get("days") or ["14"])[0])
-        except ValueError:
-            return HTTPStatus.BAD_REQUEST, {"error": "days must be an integer"}
-        if not 1 <= days <= MAX_HEALTH_DAYS:
-            return HTTPStatus.BAD_REQUEST, {"error": f"days must be between 1 and {MAX_HEALTH_DAYS}"}
+    if path in ("/api/sources", "/api/coverage"):
+        days = _days(query)
+        if days is None:
+            return HTTPStatus.BAD_REQUEST, {"error": f"days must be an integer between 1 and {MAX_HEALTH_DAYS}"}
+        if path == "/api/coverage":
+            return HTTPStatus.OK, coverage_payload(ctx, days)
         return HTTPStatus.OK, source_health_payload(ctx, days)
+    if path == "/api/catalog":
+        category = (query.get("category") or [None])[0]
+        if category is not None and category not in {entry.value for entry in Category}:
+            return HTTPStatus.BAD_REQUEST, {"error": "unknown category"}
+        return HTTPStatus.OK, catalog_payload(ctx, category)
     if path == "/api/preferences/options":
         if ctx.subscribers is None:
             return HTTPStatus.FORBIDDEN, LOCAL_ONLY
@@ -509,6 +557,8 @@ def build_context(data_dir: str, config_path: Optional[str], *, local_features: 
             config.reliability.domains, config.reliability.accounts
         ),
         source_quality_days=config.digest.source_quality_days,
+        config=config,
+        catalog=load_catalog(),
         subscribers=(
             SubscriberService(storage.subscribers, config.ai.languages, configured_source_keys(config))
             if local_features

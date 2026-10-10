@@ -13,7 +13,7 @@ from .reliability.models import (
     ReliabilityLabel,
     SourceTier,
 )
-from .taxonomy import normalize_categories
+from .taxonomy import Category, normalize_categories
 
 
 class SourceType(str, Enum):
@@ -621,6 +621,30 @@ class DigestConfig(BaseModel):
     # Window of archived items used for the source quality score (tie-breaker
     # between items of equal AI score). 0 disables it.
     source_quality_days: int = Field(default=30, ge=0)
+    # Domains (taxonomy categories) the reader follows. Coverage gaps are only
+    # reported for them; with only_watched_categories, the digest keeps only items
+    # the AI placed in at least one of them.
+    watched_categories: List[str] = Field(default_factory=lambda: [category.value for category in Category])
+    only_watched_categories: bool = False
+    # A watched domain is a coverage gap below either threshold (over the period shown).
+    coverage_min_sources: int = Field(default=2, ge=0, le=50)
+    coverage_min_items: int = Field(default=3, ge=0, le=1000)
+
+    @field_validator("watched_categories")
+    @classmethod
+    def validate_watched_categories(cls, value: List[str]) -> List[str]:
+        known = {category.value for category in Category}
+        unknown = [entry for entry in value if entry not in known]
+        if unknown:
+            raise ValueError(f"unknown categories: {', '.join(map(str, unknown))}")
+        # Taxonomy order, no duplicates: the same choice is always written the same way.
+        return [category.value for category in Category if category.value in value]
+
+    @model_validator(mode="after")
+    def require_a_watched_category(self) -> "DigestConfig":
+        if self.only_watched_categories and not self.watched_categories:
+            raise ValueError("choose at least one watched category to publish only watched categories")
+        return self
 
     @field_validator("profile_order")
     @classmethod

@@ -15,6 +15,7 @@ needs browser cookies or an Apify token that cannot be checked from here.
 """
 
 import asyncio
+import html
 import json
 import logging
 import os
@@ -678,7 +679,7 @@ class SourcesService:
             "warnings": warnings.messages[:3] if error is None else [],
             "duration_ms": int((time.monotonic() - started) * 1000),
             "sample": [
-                {"title": item.title, "url": str(item.url), "published_at": item.published_at.isoformat()}
+                {"title": html.unescape(item.title), "url": str(item.url), "published_at": item.published_at.isoformat()}
                 for item in items[:TEST_SAMPLE_SIZE]
             ],
         }
