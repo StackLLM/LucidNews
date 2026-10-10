@@ -323,3 +323,164 @@ export function deleteAnnotation(itemId: string): Promise<{ deleted: string }> {
     method: 'DELETE',
   })
 }
+
+// Settings and API keys (local-only routes, see src/settings_api.py) ---------------
+
+const settingsValuesSchema = z.object({
+  ai: z.object({
+    provider: z.string(),
+    model: z.string(),
+    api_key_env: z.string(),
+    languages: z.array(z.string()),
+    max_requests_per_minute: z.number().nullable(),
+    max_tokens_per_run: z.number().nullable(),
+  }),
+  collection: z.object({ time_window_hours: z.number() }),
+  digest: z.object({
+    max_items: z.number().nullable(),
+    unanalyzed_max_items: z.number(),
+    source_quality_days: z.number(),
+  }),
+  reliability: z.object({
+    exclude_labels: z.array(z.enum(reliabilityLabels)),
+    corroboration_lookback_hours: z.number(),
+    corroboration_max_references: z.number(),
+  }),
+  archive: z.object({ reuse_analysis: z.boolean(), reuse_enrichment: z.boolean() }),
+  profiles: z.record(z.string(), z.object({ threshold: z.number().nullable(), topic_dedup: z.boolean() })),
+})
+
+export const settingsSchema = z.object({
+  version: z.string(),
+  values: settingsValuesSchema,
+  /** Fields set through a ${VARIABLE} in config.json: shown, not editable here. */
+  locked: z.array(z.string()),
+  options: z.object({
+    providers: z.array(z.object({ id: z.string(), model: z.string(), api_key_env: z.string() })),
+    languages: z.array(z.object({ code: z.string(), name: z.string() })),
+    labels: z.array(z.enum(reliabilityLabels)),
+    profiles: z.array(z.object({ id: z.string(), names: z.record(z.string(), z.string()) })),
+  }),
+})
+
+const secretSchema = z.object({
+  name: z.string(),
+  used_by: z.array(z.string()),
+  in_file: z.boolean(),
+  in_environment: z.boolean(),
+})
+
+export type Settings = z.infer<typeof settingsSchema>
+export type SettingsValues = z.infer<typeof settingsValuesSchema>
+export type Secret = z.infer<typeof secretSchema>
+export type Backup = { name: string; saved_at: string }
+
+export function fetchSettings(signal?: AbortSignal): Promise<Settings> {
+  return getJson('/api/settings', settingsSchema, signal)
+}
+
+export function saveSettings(version: string, values: SettingsValues): Promise<Settings> {
+  return request('/api/settings', settingsSchema, { method: 'PUT', body: JSON.stringify({ version, values }) })
+}
+
+export async function fetchBackups(signal?: AbortSignal): Promise<Backup[]> {
+  const schema = z.object({ backups: z.array(z.object({ name: z.string(), saved_at: z.string() })) })
+  return (await getJson('/api/settings/backups', schema, signal)).backups
+}
+
+export function restoreBackup(name: string): Promise<Settings> {
+  return request('/api/settings/restore', settingsSchema, { method: 'POST', body: JSON.stringify({ name }) })
+}
+
+export async function fetchSecrets(signal?: AbortSignal): Promise<Secret[]> {
+  return (await getJson('/api/secrets', z.object({ secrets: z.array(secretSchema) }), signal)).secrets
+}
+
+/** The value goes to the server once; it is never sent back. */
+export function saveSecret(name: string, value: string) {
+  return request(`/api/secrets/${encodeURIComponent(name)}`, z.object({ name: z.string(), in_file: z.boolean() }), {
+    method: 'PUT',
+    body: JSON.stringify({ value }),
+  })
+}
+
+export function deleteSecret(name: string) {
+  return request(`/api/secrets/${encodeURIComponent(name)}`, z.object({ name: z.string(), in_file: z.boolean() }), {
+    method: 'DELETE',
+  })
+}
+
+// Sources: configuration (lot 17). Health stays in /api/sources.
+
+const sourceEntrySchema = z.object({
+  /** Same key as the health report, to join both. */
+  key: z.string(),
+  kind: z.string(),
+  type: z.string(),
+  label: z.string(),
+  /** False for a built-in source whose section is not in config.json yet. */
+  configured: z.boolean(),
+  enabled: z.boolean(),
+  /** False when the Reddit or Telegram switch pauses this source; null otherwise. */
+  group_enabled: z.boolean().nullable(),
+  values: z.record(z.string(), z.unknown()),
+  summary: z.object({ mode: z.string(), users: z.number(), keywords: z.number() }).nullable(),
+  locked: z.boolean(),
+  readonly: z.boolean(),
+  removable: z.boolean(),
+  tracked: z.boolean(),
+  group: z.boolean(),
+})
+
+export const sourceConfigSchema = z.object({
+  version: z.string(),
+  time_window_hours: z.number(),
+  sources: z.array(sourceEntrySchema),
+  kinds: z.array(z.object({ id: z.string(), type: z.string(), fields: z.array(z.string()), identity: z.array(z.string()) })),
+  key: z.string().nullable().optional(),
+})
+
+export const sourceTestSchema = z.object({
+  ok: z.boolean(),
+  count: z.number(),
+  in_window: z.number(),
+  window_hours: z.number(),
+  days: z.number(),
+  error: z.string().nullable(),
+  warnings: z.array(z.string()),
+  duration_ms: z.number(),
+  sample: z.array(z.object({ title: z.string(), url: z.string(), published_at: z.string() })),
+})
+
+export type SourceConfig = z.infer<typeof sourceConfigSchema>
+export type SourceEntry = z.infer<typeof sourceEntrySchema>
+export type SourceKind = SourceConfig['kinds'][number]
+export type SourceTest = z.infer<typeof sourceTestSchema>
+export type SourceValues = Record<string, unknown>
+
+export function fetchSourceConfig(signal?: AbortSignal): Promise<SourceConfig> {
+  return getJson('/api/sources/config', sourceConfigSchema, signal)
+}
+
+export function addSource(version: string, kind: string, values: SourceValues): Promise<SourceConfig> {
+  return request('/api/sources/config', sourceConfigSchema, { method: 'POST', body: JSON.stringify({ version, kind, values }) })
+}
+
+export function updateSource(version: string, key: string, values: SourceValues): Promise<SourceConfig> {
+  return request(`/api/sources/config/${encodeURIComponent(key)}`, sourceConfigSchema, {
+    method: 'PUT',
+    body: JSON.stringify({ version, values }),
+  })
+}
+
+export function deleteSource(version: string, key: string): Promise<SourceConfig> {
+  return request(`/api/sources/config/${encodeURIComponent(key)}`, sourceConfigSchema, {
+    method: 'DELETE',
+    body: JSON.stringify({ version }),
+  })
+}
+
+/** A saved source by key, or a draft by kind and values. Nothing is written. */
+export function testSource(body: { key: string } | { kind: string; values: SourceValues }): Promise<SourceTest> {
+  return request('/api/sources/test', sourceTestSchema, { method: 'POST', body: JSON.stringify(body) })
+}

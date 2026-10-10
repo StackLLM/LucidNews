@@ -32,7 +32,7 @@ test('summarises health, charts runs and filters sources', async () => {
   expect(screen.getByText('En échec', { selector: 'dt' }).nextElementSibling).toHaveTextContent('1')
 
   // Localized reason and raw error for the dead source.
-  const table = screen.getByRole('table')
+  const table = await screen.findByRole('table')
   const row = within(table).getByText('Broken Feed').closest('tr')!
   expect(row).toHaveTextContent('Morte')
   expect(row).toHaveTextContent('échec aux 3 derniers runs')

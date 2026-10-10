@@ -590,6 +590,27 @@ No API key is required.
 - `reuse_enrichment` (default `true`): with a reused analysis, also reuse the stored enrichment (translated title, summary, context) when it exists in every configured language. Adding a language enriches the item again in all languages.
 - Archive failures never stop a run; they are logged as warnings.
 
+## Editing settings from the web app
+
+The **Settings** screen (`/settings`, local API only) edits the common settings
+of this file and the API keys, without a terminal. See `frontend/README.md`:
+
+- only changed fields are written; `${VARIABLE}` placeholders stay as they are,
+  and a field holding one is shown locked;
+- every write is validated, atomic, and preceded by a copy in `data/backups/`
+  (last 10), which the screen can restore;
+- API keys are written to the project's `.env` (mode 600) and never shown again.
+
+Settings take effect at the next run; the API reloads them at once.
+
+The **Sources** screen edits `sources` the same way (raw file, backup, version
+check): add an RSS feed, a GitHub repository or account, a subreddit, a Reddit
+account or a Telegram channel; edit, enable, disable or delete it; enable and
+tune Hacker News, OSS Insight, GDELT and Google News. A feed URL must be public
+(no `localhost`, private address or `${VARIABLE}`; put a URL with a token in this
+file by hand). **Test** fetches one source with its collector, without AI or
+archive, and reports what came back. X (Twitter) stays read only there.
+
 ## Reliability
 
 See [fiabilite.md](fiabilite.md) for the model. Configuration:

@@ -36,9 +36,10 @@ Premium, calme, fin, professionnel. Impressionnant sans être chargé.
 | Fiche d'une news ✅ | Article complet + colonne Fiabilité (éditeur, affirmation, preuve, corroboration), actions, éditions | API `/api/items/<id>` |
 | Archives ✅ | Retrouver une édition par date (calendrier + liste) | API `/api/editions` |
 | Préférences ✅ | Abonnés (ajout, suppression), langue, thèmes, sources, rythme, importance, infos non confirmées, limite, offre affichée | API `/api/subscribers` (local) |
-| Santé des sources ✅ | Chiffres clés, volume par run, tableau filtrable | API `/api/sources` |
+| Sources ✅ | Santé (chiffres clés, volume par run), sources configurées par groupe : activer, ajouter, modifier, tester, supprimer | API `/api/sources`, `/api/sources/config`, `/api/sources/test` (local) |
 
 | Qualité ✅ | Annotation à l'aveugle des news, résultats (sélection, importance, thèmes, affirmation, faux fiables) | API `/api/eval/*` (local), voir `docs/evaluation.md` |
+| Réglages ✅ | Clés API (jamais réaffichées), IA, collecte, sélection, fiabilité, archive, versions précédentes | API `/api/settings`, `/api/secrets` (local) |
 
 Pas de paiement, pas de paywall : l'offre Premium est seulement affichée.
 
@@ -49,7 +50,7 @@ frontend/
 ├── src/
 │   ├── app/          routes, mise en page, fournisseurs (requêtes, animations)
 │   ├── design/       tokens, styles globaux, composants de base (Card, Button, Badge…)
-│   ├── features/     edition/, item/, archive/, preferences/, sources/
+│   ├── features/     edition/, item/, archive/, preferences/, sources/, quality/, settings/
 │   ├── lib/          client API, schémas zod, i18n, formats
 │   └── test/
 └── docs/
@@ -62,7 +63,9 @@ frontend/
 
 Commande `lucidnews-api` : lit l'archive SQLite sans jamais l'écrire, écoute sur
 localhost. Aucune dépendance Python ajoutée (serveur HTTP de la bibliothèque standard).
-Seules les préférences des abonnés s'écrivent (`data/subscribers.json`).
+Ce qui s'écrit, en local seulement : les préférences des abonnés (`data/subscribers.json`),
+les annotations, la configuration (`data/config.json`, avec copie dans `data/backups/`)
+et les clés API (`.env` du projet).
 
 | Route | Contenu |
 |---|---|
@@ -79,6 +82,46 @@ Seules les préférences des abonnés s'écrivent (`data/subscribers.json`).
 | `DELETE /api/subscribers/<id>` | Le supprimer (rien n'est conservé) |
 | `GET /api/eval/items` · `GET /api/eval/report` | News à annoter (sans l'avis de l'IA) · résultats |
 | `PUT` / `DELETE /api/eval/annotations/<id>` | Enregistrer / effacer une annotation (local) |
+| `GET /api/settings` · `PUT /api/settings` | Réglages modifiables, options, champs verrouillés, version · enregistrer (`{version, values}`) |
+| `GET /api/settings/backups` · `POST /api/settings/restore` | Versions précédentes de la config · en restaurer une (`{name}`) |
+| `GET /api/secrets` | Variables de clés utilisées par la config et leur état (jamais leur valeur) |
+| `PUT` / `DELETE /api/secrets/<NOM>` | Enregistrer (`{value}`) / retirer une clé du fichier `.env` |
+| `GET /api/sources/config` · `POST /api/sources/config` | Sources configurées, état, valeurs modifiables, version · ajouter (`{version, kind, values}`) |
+| `PUT` / `DELETE /api/sources/config/<clé>` | Modifier, activer ou désactiver (`{version, values}`) / supprimer (`{version}`) |
+| `POST /api/sources/test` | Tester une source enregistrée (`{key}`) ou un brouillon (`{kind, values}`), sans IA ni écriture |
+
+### Réglages et clés API
+
+- Mêmes protections que les préférences : localhost seulement, Host et Origin vérifiés, JSON seulement.
+- La config est modifiée **brute** : seuls les champs changés sont écrits, les `${VARIABLE}`
+  restent intacts, et un champ qui en contient une est verrouillé dans l'écran.
+- Chaque écriture est vérifiée par le modèle `Config`, faite de façon atomique, et précédée
+  d'une copie horodatée (les 10 dernières sont gardées). Si le fichier a changé depuis sa
+  lecture, l'écriture est refusée (409).
+- Les clés vont dans `.env` (non versionné, droits 600). Seuls les noms de variables cités
+  par la config sont acceptés. Une valeur n'est jamais renvoyée, journalisée ni répétée
+  dans un message d'erreur. Une clé collée par erreur dans le champ « Variable de la clé »
+  est refusée.
+- Une variable déjà définie dans le terminal qui a lancé LucidNews est prioritaire sur
+  `.env` : l'écran le signale.
+
+### Gestion des sources
+
+- Mêmes protections que les réglages, et même écriture : config brute, copie de
+  sauvegarde, version vérifiée, `${VARIABLE}` conservées.
+- Chaque source porte la clé de la santé des sources : l'écran joint les deux.
+  Une source sans historique est marquée « Pas encore collectée » ; une source
+  coupée par l'interrupteur Reddit ou Telegram est « En pause ».
+- Ajout : flux RSS, dépôt ou compte GitHub, subreddit, compte Reddit, chaîne
+  Telegram. Les liens collés sont acceptés (`r/rust`, `https://t.me/s/…`, URL GitHub).
+  Doublons refusés (même clé, ou même flux).
+- Sources intégrées (Hacker News, OSS Insight, GDELT, Google News) : activer et régler,
+  pas supprimer. X (Twitter) : lecture seule (cookies ou jeton Apify, dans `config.json`).
+- Une adresse de flux doit être publique : `localhost`, adresses privées et
+  `${VARIABLE}` sont refusés. Le test vérifie aussi chaque requête et chaque redirection.
+- Le test lance le vrai collecteur sur 7 jours, 45 s au plus, sans IA ni archive, et
+  dit combien de contenus tombent dans la fenêtre de collecte. Un jeton d'une
+  `${VARIABLE}` n'apparaît jamais dans sa réponse.
 
 ### Préférences : version locale, sans comptes
 

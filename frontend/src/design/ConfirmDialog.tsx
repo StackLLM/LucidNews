@@ -21,8 +21,8 @@ export function ConfirmDialog({
     <AlertDialog.Root>
       <AlertDialog.Trigger asChild>{trigger}</AlertDialog.Trigger>
       <AlertDialog.Portal>
-        <AlertDialog.Overlay className="fixed inset-0 z-40 bg-ink/25 backdrop-blur-sm data-[state=open]:animate-[fade-in_200ms_ease-out]" />
-        <AlertDialog.Content className="glass fixed top-1/2 left-1/2 z-50 w-[min(92vw,420px)] -translate-x-1/2 -translate-y-1/2 rounded-card p-7 data-[state=open]:animate-[pop-in_220ms_var(--ease-soft)]">
+        <AlertDialog.Overlay className="fixed inset-0 z-[60] bg-ink/25 backdrop-blur-sm data-[state=open]:animate-[fade-in_200ms_ease-out]" />
+        <AlertDialog.Content className="glass fixed top-1/2 left-1/2 z-[70] w-[min(92vw,420px)] -translate-x-1/2 -translate-y-1/2 rounded-card p-7 data-[state=open]:animate-[pop-in_220ms_var(--ease-soft)]">
           <AlertDialog.Title className="text-[18px] font-bold">{title}</AlertDialog.Title>
           <AlertDialog.Description className="mt-2 text-[14px] leading-relaxed text-muted">
             {description}

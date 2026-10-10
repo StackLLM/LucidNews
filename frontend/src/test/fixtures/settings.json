@@ -1,0 +1,143 @@
+{
+  "version": "356a99d08547374d",
+  "values": {
+    "ai": {
+      "provider": "gemini",
+      "model": "gemini-2.5-flash",
+      "api_key_env": "GOOGLE_API_KEY",
+      "languages": [
+        "en",
+        "fr"
+      ],
+      "max_requests_per_minute": null,
+      "max_tokens_per_run": 200000
+    },
+    "collection": {
+      "time_window_hours": 24
+    },
+    "digest": {
+      "max_items": 30,
+      "unanalyzed_max_items": 15,
+      "source_quality_days": 30
+    },
+    "reliability": {
+      "exclude_labels": [],
+      "corroboration_lookback_hours": 72,
+      "corroboration_max_references": 30
+    },
+    "archive": {
+      "reuse_analysis": true,
+      "reuse_enrichment": true
+    },
+    "profiles": {
+      "ai-creator": {
+        "threshold": 7.0,
+        "topic_dedup": true
+      },
+      "tech-blog": {
+        "threshold": 6.0,
+        "topic_dedup": false
+      },
+      "tech-news": {
+        "threshold": 7.0,
+        "topic_dedup": true
+      }
+    }
+  },
+  "locked": [],
+  "options": {
+    "providers": [
+      {
+        "id": "anthropic",
+        "model": "claude-3-5-sonnet-20241022",
+        "api_key_env": "ANTHROPIC_API_KEY"
+      },
+      {
+        "id": "openai",
+        "model": "gpt-4",
+        "api_key_env": "OPENAI_API_KEY"
+      },
+      {
+        "id": "azure",
+        "model": "gpt-4",
+        "api_key_env": "AZURE_OPENAI_API_KEY"
+      },
+      {
+        "id": "ali",
+        "model": "qwen-plus",
+        "api_key_env": "DASHSCOPE_API_KEY"
+      },
+      {
+        "id": "gemini",
+        "model": "gemini-1.5-flash",
+        "api_key_env": "GOOGLE_API_KEY"
+      },
+      {
+        "id": "doubao",
+        "model": "doubao-pro-32k",
+        "api_key_env": "DOUBAO_API_KEY"
+      },
+      {
+        "id": "minimax",
+        "model": "MiniMax-M3",
+        "api_key_env": "MINIMAX_API_KEY"
+      },
+      {
+        "id": "deepseek",
+        "model": "deepseek-chat",
+        "api_key_env": "DEEPSEEK_API_KEY"
+      },
+      {
+        "id": "ollama",
+        "model": "llama3.1",
+        "api_key_env": ""
+      }
+    ],
+    "languages": [
+      {
+        "code": "en",
+        "name": "English"
+      },
+      {
+        "code": "fr",
+        "name": "Français"
+      },
+      {
+        "code": "zh",
+        "name": "简体中文"
+      }
+    ],
+    "labels": [
+      "confirmed",
+      "reliable",
+      "unverified",
+      "rumor"
+    ],
+    "profiles": [
+      {
+        "id": "ai-creator",
+        "names": {
+          "default": "AI Creator Radar",
+          "fr": "Radar créateurs IA",
+          "zh": "AI创作者雷达"
+        }
+      },
+      {
+        "id": "tech-blog",
+        "names": {
+          "default": "Technology Blog",
+          "fr": "Blogs techniques",
+          "zh": "科技博客"
+        }
+      },
+      {
+        "id": "tech-news",
+        "names": {
+          "default": "Technology News",
+          "fr": "Actualités tech",
+          "zh": "科技新闻"
+        }
+      }
+    ]
+  }
+}

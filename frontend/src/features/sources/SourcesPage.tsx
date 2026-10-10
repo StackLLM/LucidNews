@@ -2,12 +2,14 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { useState, type ReactNode } from 'react'
 import { ApiErrorCard, PageHeader, PageSkeleton, Segmented } from '../../design/PageState'
-import { fetchSourceReport, healthStatuses, type HealthStatus, type SourceHealth, type SourceReport } from '../../lib/api'
+import { ApiError, fetchSourceConfig, fetchSourceReport, healthStatuses, type HealthStatus, type SourceHealth, type SourceReport } from '../../lib/api'
 import { formatItemTime, formatPercent, sourceName } from '../../lib/format'
 import { healthKey, useLanguage } from '../../lib/i18n'
 import { listStagger, riseIn, useMotionPreference } from '../../lib/motion'
-import { healthReason, healthStyles, sourceLabel } from './healthStyles'
+import { sourceLabel } from './healthStyles'
 import { RunVolumeChart } from './RunVolumeChart'
+import { HealthBadge, QualityScore, SourceDetail } from './SourceBits'
+import { SourceManager } from './SourceManager'
 
 const PERIODS = [7, 14, 30] as const
 
@@ -38,6 +40,13 @@ export function SourcesPage() {
 function SourcesView({ report, period }: { report: SourceReport; period: ReactNode }) {
   const { t } = useLanguage()
   const { enabled } = useMotionPreference()
+  // Local API only: elsewhere the page stays the read-only health view.
+  const config = useQuery({
+    queryKey: ['source-config'],
+    queryFn: ({ signal }) => fetchSourceConfig(signal),
+    retry: (failures, error) => !(error instanceof ApiError && error.status === 403) && failures < 2,
+  })
+  const managed = config.isSuccess
   const count = (...statuses: HealthStatus[]) => report.sources.filter((s) => statuses.includes(s.status)).length
 
   const tiles = [
@@ -62,7 +71,7 @@ function SourcesView({ report, period }: { report: SourceReport; period: ReactNo
         ))}
       </motion.dl>
 
-      {report.configured_without_history.length > 0 && (
+      {!managed && report.configured_without_history.length > 0 && (
         <motion.p variants={riseIn} className="rounded-control bg-white/70 px-4 py-3 text-[13.5px] text-muted">
           {t('sources.neverSeen', { list: report.configured_without_history.join(', ') })}
         </motion.p>
@@ -73,7 +82,21 @@ function SourcesView({ report, period }: { report: SourceReport; period: ReactNo
       </motion.div>
 
       <motion.div variants={riseIn}>
-        <SourceTable sources={report.sources} qualityDays={report.quality_days} />
+        {managed ? (
+          <SourceManager config={config.data} health={report.sources} onReload={() => config.refetch()} />
+        ) : config.isPending ? (
+          <div className="h-64 animate-shimmer rounded-card bg-white/70 shadow-card" />
+        ) : (
+          <>
+            {!(config.error instanceof ApiError && config.error.status === 403) && (
+              <div className="mb-6">
+                <ApiErrorCard error={config.error!} onRetry={() => config.refetch()} />
+              </div>
+            )}
+            <SourceTable sources={report.sources} qualityDays={report.quality_days} />
+          </>
+        )}
+        {managed && <p className="mt-4 text-[12.5px] leading-relaxed text-muted">{t('sources.qualityHint', { days: report.quality_days })}</p>}
       </motion.div>
     </motion.div>
   )
@@ -186,54 +209,5 @@ function SourceTable({ sources, qualityDays }: { sources: SourceHealth[]; qualit
         </>
       )}
     </section>
-  )
-}
-
-function QualityScore({ source }: { source: SourceHealth }) {
-  const { language, t } = useLanguage()
-  const quality = source.quality
-  if (!quality) return <span className="text-faint">–</span>
-  const value = Math.round(quality.score * 100)
-  return (
-    <span
-      className="inline-flex items-center gap-2 tabular-nums"
-      title={t('sources.qualityTitle', {
-        mean: quality.mean_score.toFixed(1),
-        trusted: formatPercent(quality.trusted_share, language),
-        count: quality.items,
-      })}
-    >
-      <span aria-hidden className="hidden h-1.5 w-10 overflow-hidden rounded-full bg-accent-soft lg:block">
-        <span className="block h-full rounded-full bg-accent" style={{ width: `${value}%` }} />
-      </span>
-      <span className="font-semibold">{value}</span>
-    </span>
-  )
-}
-
-function SourceDetail({ source }: { source: SourceHealth }) {
-  const { language } = useLanguage()
-  const reason = healthReason(source, language)
-  const showError = source.last_error && (source.status === 'dead' || source.status === 'failing')
-  return (
-    <>
-      {reason}
-      {showError && (
-        <span className="mt-0.5 block truncate font-mono text-[12px] text-faint" title={source.last_error ?? ''}>
-          {source.last_error}
-        </span>
-      )}
-    </>
-  )
-}
-
-function HealthBadge({ status }: { status: HealthStatus }) {
-  const { t } = useLanguage()
-  const { icon: Icon, tone } = healthStyles[status]
-  return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] font-semibold whitespace-nowrap ring-1 ring-inset ${tone}`}>
-      <Icon size={14} strokeWidth={2.25} aria-hidden />
-      {t(healthKey(status))}
-    </span>
   )
 }

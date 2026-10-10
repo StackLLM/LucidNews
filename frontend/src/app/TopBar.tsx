@@ -1,15 +1,17 @@
-import { Activity, Archive, Gauge, Newspaper, SlidersHorizontal, Zap, ZapOff, type LucideIcon } from 'lucide-react'
+import { Activity, Archive, Gauge, Newspaper, Settings2, SlidersHorizontal, Zap, ZapOff, type LucideIcon } from 'lucide-react'
 import { motion } from 'motion/react'
 import { Link, NavLink, useLocation } from 'react-router'
 import { languages, useLanguage, type MessageKey } from '../lib/i18n'
 import { useMotionPreference } from '../lib/motion'
 
-const navItems: { key: MessageKey; icon: LucideIcon; to: string; matches: (path: string) => boolean }[] = [
+// shortKey: label of the phone and tablet bar, where six entries share the width.
+const navItems: { key: MessageKey; shortKey?: MessageKey; icon: LucideIcon; to: string; matches: (path: string) => boolean }[] = [
   { key: 'nav.edition', icon: Newspaper, to: '/', matches: (path) => path === '/' || path.startsWith('/editions/') || path.startsWith('/items/') },
   { key: 'nav.archive', icon: Archive, to: '/archive', matches: (path) => path.startsWith('/archive') },
   { key: 'nav.sources', icon: Activity, to: '/sources', matches: (path) => path.startsWith('/sources') },
-  { key: 'nav.preferences', icon: SlidersHorizontal, to: '/preferences', matches: (path) => path.startsWith('/preferences') },
+  { key: 'nav.preferences', shortKey: 'nav.short.preferences', icon: SlidersHorizontal, to: '/preferences', matches: (path) => path.startsWith('/preferences') },
   { key: 'nav.quality', icon: Gauge, to: '/quality', matches: (path) => path.startsWith('/quality') },
+  { key: 'nav.settings', icon: Settings2, to: '/settings', matches: (path) => path.startsWith('/settings') },
 ]
 
 export function TopBar() {
@@ -91,22 +93,22 @@ export function TopBar() {
       {/* Phone and tablet: the same destinations in a floating bar at the bottom. */}
       <nav
         aria-label={t('nav.main')}
-        className="glass fixed inset-x-4 bottom-4 z-30 flex justify-around rounded-full px-2 py-1.5 lg:hidden"
+        className="glass fixed inset-x-3 bottom-4 z-30 flex justify-around rounded-full px-1.5 py-1.5 lg:hidden"
         style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
       >
-        {navItems.map(({ key, icon: Icon, to, matches }) => {
+        {navItems.map(({ key, shortKey, icon: Icon, to, matches }) => {
           const active = matches(pathname)
           return (
             <NavLink
               key={key}
               to={{ pathname: to, search }}
               aria-current={active ? 'page' : undefined}
-              className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors duration-150 ${
+              className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-full px-0.5 py-1.5 text-[10.5px] font-semibold tracking-[-0.01em] transition-colors duration-150 ${
                 active ? 'bg-accent-soft text-accent' : 'text-muted'
               }`}
             >
               <Icon size={18} aria-hidden />
-              {t(key)}
+              <span className="max-w-full truncate">{t(shortKey ?? key)}</span>
             </NavLink>
           )
         })}

@@ -1,0 +1,941 @@
+{
+  "version": "356a99d08547374d",
+  "time_window_hours": 24,
+  "sources": [
+    {
+      "key": "rss/OpenAI News",
+      "kind": "rss",
+      "type": "rss",
+      "label": "OpenAI News",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "OpenAI News",
+        "url": "https://openai.com/news/rss.xml"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/Google DeepMind",
+      "kind": "rss",
+      "type": "rss",
+      "label": "Google DeepMind",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "Google DeepMind",
+        "url": "https://deepmind.google/blog/rss.xml"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/Hugging Face Blog",
+      "kind": "rss",
+      "type": "rss",
+      "label": "Hugging Face Blog",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "Hugging Face Blog",
+        "url": "https://huggingface.co/blog/feed.xml"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/Simon Willison",
+      "kind": "rss",
+      "type": "rss",
+      "label": "Simon Willison",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "Simon Willison",
+        "url": "https://simonwillison.net/atom/everything/"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/The Pragmatic Engineer",
+      "kind": "rss",
+      "type": "rss",
+      "label": "The Pragmatic Engineer",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "The Pragmatic Engineer",
+        "url": "https://newsletter.pragmaticengineer.com/feed"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/InfoQ",
+      "kind": "rss",
+      "type": "rss",
+      "label": "InfoQ",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "InfoQ",
+        "url": "https://feed.infoq.com/"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/AWS News Blog",
+      "kind": "rss",
+      "type": "rss",
+      "label": "AWS News Blog",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "AWS News Blog",
+        "url": "https://aws.amazon.com/blogs/aws/feed/"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/Google Cloud Blog",
+      "kind": "rss",
+      "type": "rss",
+      "label": "Google Cloud Blog",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "Google Cloud Blog",
+        "url": "https://cloudblog.withgoogle.com/rss/"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/Cloudflare Blog",
+      "kind": "rss",
+      "type": "rss",
+      "label": "Cloudflare Blog",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "Cloudflare Blog",
+        "url": "https://blog.cloudflare.com/rss/"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/Microsoft DevBlogs",
+      "kind": "rss",
+      "type": "rss",
+      "label": "Microsoft DevBlogs",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "Microsoft DevBlogs",
+        "url": "https://devblogs.microsoft.com/feed/"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/Kubernetes Blog",
+      "kind": "rss",
+      "type": "rss",
+      "label": "Kubernetes Blog",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "Kubernetes Blog",
+        "url": "https://kubernetes.io/feed.xml"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/The New Stack",
+      "kind": "rss",
+      "type": "rss",
+      "label": "The New Stack",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "The New Stack",
+        "url": "https://thenewstack.io/feed/"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/Databricks Blog",
+      "kind": "rss",
+      "type": "rss",
+      "label": "Databricks Blog",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "Databricks Blog",
+        "url": "https://www.databricks.com/feed"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/PostgreSQL News",
+      "kind": "rss",
+      "type": "rss",
+      "label": "PostgreSQL News",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "PostgreSQL News",
+        "url": "https://www.postgresql.org/news.rss"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/CERT-FR",
+      "kind": "rss",
+      "type": "rss",
+      "label": "CERT-FR",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "CERT-FR",
+        "url": "https://www.cert.ssi.gouv.fr/feed/"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/Krebs on Security",
+      "kind": "rss",
+      "type": "rss",
+      "label": "Krebs on Security",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "Krebs on Security",
+        "url": "https://krebsonsecurity.com/feed/"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/BleepingComputer",
+      "kind": "rss",
+      "type": "rss",
+      "label": "BleepingComputer",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "BleepingComputer",
+        "url": "https://www.bleepingcomputer.com/feed/"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/Chrome for Developers",
+      "kind": "rss",
+      "type": "rss",
+      "label": "Chrome for Developers",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "Chrome for Developers",
+        "url": "https://developer.chrome.com/static/blog/feed.xml"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/web.dev",
+      "kind": "rss",
+      "type": "rss",
+      "label": "web.dev",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "web.dev",
+        "url": "https://web.dev/feed.xml"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/Mozilla Hacks",
+      "kind": "rss",
+      "type": "rss",
+      "label": "Mozilla Hacks",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "Mozilla Hacks",
+        "url": "https://hacks.mozilla.org/feed/"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/GitHub Blog",
+      "kind": "rss",
+      "type": "rss",
+      "label": "GitHub Blog",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "GitHub Blog",
+        "url": "https://github.blog/feed/"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/LWN.net",
+      "kind": "rss",
+      "type": "rss",
+      "label": "LWN.net",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "LWN.net",
+        "url": "https://lwn.net/headlines/rss"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/Rust Blog",
+      "kind": "rss",
+      "type": "rss",
+      "label": "Rust Blog",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "Rust Blog",
+        "url": "https://blog.rust-lang.org/feed.xml"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/Python Insider",
+      "kind": "rss",
+      "type": "rss",
+      "label": "Python Insider",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "Python Insider",
+        "url": "https://pythoninsider.blogspot.com/feeds/posts/default"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/JetBrains Blog",
+      "kind": "rss",
+      "type": "rss",
+      "label": "JetBrains Blog",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "JetBrains Blog",
+        "url": "https://blog.jetbrains.com/feed/"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/Ars Technica",
+      "kind": "rss",
+      "type": "rss",
+      "label": "Ars Technica",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "Ars Technica",
+        "url": "https://feeds.arstechnica.com/arstechnica/index"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/The Register",
+      "kind": "rss",
+      "type": "rss",
+      "label": "The Register",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "The Register",
+        "url": "https://www.theregister.com/headlines.atom"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/IEEE Spectrum",
+      "kind": "rss",
+      "type": "rss",
+      "label": "IEEE Spectrum",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "IEEE Spectrum",
+        "url": "https://spectrum.ieee.org/feeds/feed.rss"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/Le Monde Informatique",
+      "kind": "rss",
+      "type": "rss",
+      "label": "Le Monde Informatique",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "Le Monde Informatique",
+        "url": "https://www.lemondeinformatique.fr/flux-rss/thematique/toutes-les-actualites/rss.xml"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/Next",
+      "kind": "rss",
+      "type": "rss",
+      "label": "Next",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "name": "Next",
+        "url": "https://next.ink/feed/"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "rss/LWN.net (subscriber full-text)",
+      "kind": "rss",
+      "type": "rss",
+      "label": "LWN.net (subscriber full-text)",
+      "configured": true,
+      "enabled": false,
+      "group_enabled": null,
+      "values": {
+        "name": "LWN.net (subscriber full-text)",
+        "url": "https://lwn.net/headlines/full_text?key=${LWN_KEY}"
+      },
+      "summary": null,
+      "locked": true,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "github/vllm-project/vllm",
+      "kind": "github_repo",
+      "type": "github",
+      "label": "vllm-project/vllm",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "repository": "vllm-project/vllm"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "github/kubernetes/kubernetes",
+      "kind": "github_repo",
+      "type": "github",
+      "label": "kubernetes/kubernetes",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "repository": "kubernetes/kubernetes"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "github/astral-sh/uv",
+      "kind": "github_repo",
+      "type": "github",
+      "label": "astral-sh/uv",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "repository": "astral-sh/uv"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "github/postgres/postgres",
+      "kind": "github_repo",
+      "type": "github",
+      "label": "postgres/postgres",
+      "configured": true,
+      "enabled": false,
+      "group_enabled": null,
+      "values": {
+        "repository": "postgres/postgres"
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "reddit/r/LocalLLaMA",
+      "kind": "reddit_subreddit",
+      "type": "reddit",
+      "label": "r/LocalLLaMA",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": false,
+      "values": {
+        "subreddit": "LocalLLaMA",
+        "sort": "hot",
+        "fetch_limit": 15,
+        "min_score": 100
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "reddit/r/netsec",
+      "kind": "reddit_subreddit",
+      "type": "reddit",
+      "label": "r/netsec",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": false,
+      "values": {
+        "subreddit": "netsec",
+        "sort": "hot",
+        "fetch_limit": 15,
+        "min_score": 50
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "reddit/r/devops",
+      "kind": "reddit_subreddit",
+      "type": "reddit",
+      "label": "r/devops",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": false,
+      "values": {
+        "subreddit": "devops",
+        "sort": "top",
+        "fetch_limit": 10,
+        "min_score": 50
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": true,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "hackernews",
+      "kind": "hackernews",
+      "type": "hackernews",
+      "label": "Hacker News",
+      "configured": true,
+      "enabled": true,
+      "group_enabled": null,
+      "values": {
+        "fetch_top_stories": 30,
+        "min_score": 100
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": false,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "ossinsight",
+      "kind": "ossinsight",
+      "type": "ossinsight",
+      "label": "OSS Insight",
+      "configured": true,
+      "enabled": false,
+      "group_enabled": null,
+      "values": {
+        "period": "past_24_hours",
+        "languages": [
+          "All",
+          "Python",
+          "TypeScript",
+          "Rust",
+          "Go"
+        ],
+        "keywords": [],
+        "min_stars": 10,
+        "max_items": 30
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": false,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "gdelt",
+      "kind": "gdelt",
+      "type": "gdelt",
+      "label": "GDELT",
+      "configured": true,
+      "enabled": false,
+      "group_enabled": null,
+      "values": {
+        "query": "(cybersecurity OR \"cloud computing\" OR \"open source\")",
+        "max_records": 75,
+        "language": null
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": false,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "google_news",
+      "kind": "google_news",
+      "type": "google_news",
+      "label": "Google News",
+      "configured": true,
+      "enabled": false,
+      "group_enabled": null,
+      "values": {
+        "query": "\"artificial intelligence\" OR cybersecurity OR kubernetes",
+        "language": "en",
+        "country": "US",
+        "max_results": 100
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": false,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "twitter",
+      "kind": "twitter",
+      "type": "twitter",
+      "label": "X (Twitter)",
+      "configured": true,
+      "enabled": false,
+      "group_enabled": null,
+      "values": {},
+      "summary": {
+        "mode": "apify",
+        "users": 2,
+        "keywords": 0
+      },
+      "locked": false,
+      "readonly": true,
+      "removable": false,
+      "tracked": true,
+      "group": false
+    },
+    {
+      "key": "reddit",
+      "kind": "reddit",
+      "type": "reddit",
+      "label": "Reddit",
+      "configured": true,
+      "enabled": false,
+      "group_enabled": null,
+      "values": {
+        "fetch_comments": 5
+      },
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": false,
+      "tracked": false,
+      "group": true
+    },
+    {
+      "key": "telegram",
+      "kind": "telegram",
+      "type": "telegram",
+      "label": "Telegram",
+      "configured": true,
+      "enabled": false,
+      "group_enabled": null,
+      "values": {},
+      "summary": null,
+      "locked": false,
+      "readonly": false,
+      "removable": false,
+      "tracked": false,
+      "group": true
+    }
+  ],
+  "kinds": [
+    {
+      "id": "rss",
+      "type": "rss",
+      "fields": [
+        "name",
+        "url"
+      ],
+      "identity": [
+        "name",
+        "url"
+      ]
+    },
+    {
+      "id": "github_repo",
+      "type": "github",
+      "fields": [
+        "repository"
+      ],
+      "identity": [
+        "repository"
+      ]
+    },
+    {
+      "id": "github_user",
+      "type": "github",
+      "fields": [
+        "username"
+      ],
+      "identity": [
+        "username"
+      ]
+    },
+    {
+      "id": "reddit_subreddit",
+      "type": "reddit",
+      "fields": [
+        "subreddit",
+        "sort",
+        "fetch_limit",
+        "min_score"
+      ],
+      "identity": [
+        "subreddit"
+      ]
+    },
+    {
+      "id": "reddit_user",
+      "type": "reddit",
+      "fields": [
+        "username",
+        "fetch_limit"
+      ],
+      "identity": [
+        "username"
+      ]
+    },
+    {
+      "id": "telegram_channel",
+      "type": "telegram",
+      "fields": [
+        "channel",
+        "fetch_limit"
+      ],
+      "identity": [
+        "channel"
+      ]
+    }
+  ]
+}

@@ -26,6 +26,9 @@ export function mockApi(overrides: Routes = {}, status = 200) {
       body = overrides.editions ?? editions
     } else if (url.pathname === '/api/sources') {
       body = overrides.sources ?? sources
+    } else if (url.pathname.startsWith('/api/sources/config')) {
+      // Like an API not bound to localhost: the Sources page stays read only.
+      return new Response(JSON.stringify({ error: 'only available when the API is bound to localhost' }), { status: 403 })
     }
     return new Response(JSON.stringify(status === 200 ? body : { error: 'down' }), { status })
   })

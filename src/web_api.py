@@ -18,6 +18,12 @@ Quality evaluation (local only, see ``evaluation``):
 - ``GET /api/eval/items`` (blind candidates), ``GET /api/eval/report``
 - ``PUT /api/eval/annotations/<item_id>``, ``DELETE /api/eval/annotations/<item_id>``
 
+Settings and sources (local only, see ``settings_api`` and ``sources_api``):
+
+- ``GET /api/settings``, ``PUT /api/settings``, API keys under ``/api/secrets``
+- ``GET|POST /api/sources/config``, ``PUT|DELETE /api/sources/config/<key>``,
+  ``POST /api/sources/test``
+
 The server binds to localhost by default and never writes to the archive. The
 subscriber routes exist only on a loopback bind, accept only localhost Host headers
 (DNS rebinding) and, for writes, a JSON body from a localhost Origin (cross-site
@@ -49,6 +55,8 @@ from .reliability.assess import ReliabilityPolicy
 from .source_health import assess_health, configured_source_keys, health_to_dict
 from .source_quality import DEFAULT_DAYS, compute_source_quality, quality_to_dict
 from .storage.manager import StorageManager
+from .settings_api import ENV_NAME, SettingsService
+from .sources_api import SourcesService
 from .subscribers_api import SubscriberService
 from .taxonomy import importance_from_score
 
@@ -58,7 +66,16 @@ SUBSCRIBER_ID = re.compile(r"^[0-9a-f]{16}$")
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
 MAX_BODY_BYTES = 64 * 1024
 LOCAL_ONLY = {"error": "only available when the API is bound to localhost"}
-LOCAL_PREFIXES = ("/api/subscribers", "/api/preferences", "/api/eval")
+LOCAL_PREFIXES = (
+    "/api/subscribers",
+    "/api/preferences",
+    "/api/eval",
+    "/api/settings",
+    "/api/secrets",
+    "/api/sources/config",
+    "/api/sources/test",
+)
+SOURCE_KEY = re.compile(r"^[^\x00-\x1f\x7f]{1,200}$")
 
 
 @dataclass
@@ -75,6 +92,9 @@ class ApiContext:
     # Source quality as the pipeline computes it (current registry, same window).
     reliability_policy: Optional[ReliabilityPolicy] = None
     source_quality_days: int = DEFAULT_DAYS
+    # Settings, API keys and sources (local only, like subscribers).
+    settings: Optional[SettingsService] = None
+    sources: Optional[SourcesService] = None
 
 
 def _profile_id(item: ContentItem) -> str:
@@ -249,6 +269,20 @@ def resolve(ctx: ApiContext, path: str, query: Dict[str, List[str]]) -> tuple[in
         return HTTPStatus.BAD_REQUEST, {"error": f"unsupported language: {language}"}
 
     path = path.rstrip("/")
+    if path.startswith(("/api/settings", "/api/secrets")):
+        if ctx.settings is None:
+            return HTTPStatus.FORBIDDEN, LOCAL_ONLY
+        if path == "/api/settings":
+            return ctx.settings.get()
+        if path == "/api/settings/backups":
+            return ctx.settings.backups()
+        if path == "/api/secrets":
+            return ctx.settings.secrets()
+        return HTTPStatus.NOT_FOUND, {"error": "not found"}
+    if path == "/api/sources/config":
+        if ctx.sources is None:
+            return HTTPStatus.FORBIDDEN, LOCAL_ONLY
+        return ctx.sources.list()
     if path == "/api/health":
         return HTTPStatus.OK, {"status": "ok"}
     if path == "/api/editions":
@@ -301,6 +335,38 @@ def resolve(ctx: ApiContext, path: str, query: Dict[str, List[str]]) -> tuple[in
 def resolve_write(ctx: ApiContext, method: str, path: str, body: Dict[str, Any]) -> tuple[int, Dict[str, Any]]:
     """Route a POST/PUT/DELETE request (subscriber preferences and annotations)."""
     path = path.rstrip("/")
+    if path.startswith(("/api/settings", "/api/secrets")):
+        if ctx.settings is None:
+            return HTTPStatus.FORBIDDEN, LOCAL_ONLY
+        if path == "/api/settings" and method == "PUT":
+            return ctx.settings.update(body)
+        if path == "/api/settings/restore" and method == "POST":
+            return ctx.settings.restore(body)
+        if path.startswith("/api/secrets/"):
+            name = path.removeprefix("/api/secrets/")
+            if not ENV_NAME.match(name):
+                return HTTPStatus.BAD_REQUEST, {"error": "invalid variable name"}
+            if method == "PUT":
+                return ctx.settings.set_secret(name, body)
+            if method == "DELETE":
+                return ctx.settings.delete_secret(name)
+        return HTTPStatus.METHOD_NOT_ALLOWED, {"error": "method not allowed"}
+    if path.startswith(("/api/sources/config", "/api/sources/test")):
+        if ctx.sources is None:
+            return HTTPStatus.FORBIDDEN, LOCAL_ONLY
+        if path == "/api/sources/test" and method == "POST":
+            return ctx.sources.test(body)
+        if path == "/api/sources/config" and method == "POST":
+            return ctx.sources.add(body)
+        if path.startswith("/api/sources/config/"):
+            key = unquote(path.removeprefix("/api/sources/config/"))
+            if not SOURCE_KEY.match(key):
+                return HTTPStatus.BAD_REQUEST, {"error": "invalid source key"}
+            if method == "PUT":
+                return ctx.sources.update(key, body)
+            if method == "DELETE":
+                return ctx.sources.delete(key, body)
+        return HTTPStatus.METHOD_NOT_ALLOWED, {"error": "method not allowed"}
     if path.startswith("/api/eval/annotations/"):
         if ctx.evaluation is None:
             return HTTPStatus.FORBIDDEN, LOCAL_ONLY
@@ -433,7 +499,7 @@ def build_context(data_dir: str, config_path: Optional[str], *, local_features: 
         Path(config.processing.profiles_dir), config.processing.default_profile
     )
     archive = ItemArchive(archive_path)
-    return ApiContext(
+    ctx = ApiContext(
         archive=archive,
         profile_names=profiles.names,
         profile_order=list(config.digest.profile_order),
@@ -456,6 +522,25 @@ def build_context(data_dir: str, config_path: Optional[str], *, local_features: 
             else None
         ),
     )
+    if local_features:
+        ctx.settings = SettingsService(
+            config_path=storage.config_path,
+            backup_dir=Path(data_dir) / "backups",
+            profiles=profiles,
+            on_change=lambda: _reload(ctx, data_dir, config_path),
+        )
+        ctx.sources = SourcesService(ctx.settings)
+    return ctx
+
+
+def _reload(ctx: ApiContext, data_dir: str, config_path: Optional[str]) -> None:
+    """Serve the configuration just written (profiles, sources, languages...)."""
+    fresh = build_context(data_dir, config_path, local_features=True)
+    settings = ctx.settings
+    # The settings and sources services stay: they hold the lock and the callback.
+    ctx.__dict__.update({key: value for key, value in fresh.__dict__.items() if key not in ("settings", "sources")})
+    if settings is not None and fresh.settings is not None:
+        settings.profiles = fresh.settings.profiles
 
 
 def main(argv: Optional[List[str]] = None) -> int:

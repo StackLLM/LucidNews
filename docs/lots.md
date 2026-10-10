@@ -3,7 +3,7 @@
 Ce document regroupe tous les lots : ceux qui sont **clôturés** et ceux qui
 **restent à faire**. Il complète la [roadmap](roadmap.md), qui donne les priorités.
 
-État au 9 octobre 2026. Dernier lot clôturé : lot 15.
+État au 9 octobre 2026. Dernier lot clôturé : lot 16.
 
 Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ proposé, en attente de décision · 📋 planifié.
 
@@ -29,14 +29,14 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 - [Lot 14 — Budget IA et quota épuisé](#lot-14--budget-ia-et-quota-épuisé) ✅
 - [Lot 14 bis — Corroboration élargie et qualité des sources](#lot-14-bis--corroboration-élargie-et-qualité-des-sources) ✅
 - [Lot 15 — Cartes d'actualité interactives](#lot-15--cartes-dactualité-interactives) ✅
+- [Lot 16 — Socle de pilotage et page Réglages](#lot-16--socle-de-pilotage-et-page-réglages) ✅
 
 **Lots suivants** (dans l'ordre d'exécution)
 
 - [Ordre d'exécution et dépendances](#ordre-dexécution-et-dépendances)
 - [Navigation visée](#navigation-visée)
 - [Lot 12 — Annoter au moins 30 news](#lot-12--annoter-au-moins-30-news) 🟡
-- [Lot 16 — Socle de pilotage et page Réglages](#lot-16--socle-de-pilotage-et-page-réglages) 📋
-- [Lot 17 — Gestion des sources](#lot-17--gestion-des-sources) 📋
+- [Lot 17 — Gestion des sources](#lot-17--gestion-des-sources) ✅
 - [Lot 18 — Domaines surveillés et couverture](#lot-18--domaines-surveillés-et-couverture) 📋
 - [Lot 19 — Qualité de la veille](#lot-19--qualité-de-la-veille) 📋
 - [Lot 20 — Lancer et planifier les runs](#lot-20--lancer-et-planifier-les-runs) 📋
@@ -409,6 +409,51 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 
 ---
 
+## Lot 16 — Socle de pilotage et page Réglages
+
+✅ Clôturé · Décision : clés dans le fichier `.env` du projet.
+
+**Objectif** : modifier la configuration et les clés API depuis l'interface, de façon sûre.
+
+**Fait**
+
+| Sujet | Contenu |
+|---|---|
+| Page Réglages | Nouvelle entrée de navigation. Sections IA, Collecte, Sélection (seuil et fusion par rubrique, news par édition, news sans analyse), Fiabilité, Archive. Barre d'enregistrement flottante, erreurs sous chaque champ. |
+| Clés API | Liste des variables que la config utilise, avec leur état : enregistrée dans `.env`, définie dans le terminal (prioritaire), absente. Saisie masquée, remplacement, suppression avec confirmation. La valeur n'est jamais renvoyée ni affichée. |
+| Écriture de la config | Lecture brute du fichier ; seuls les champs modifiés sont écrits ; les `${VARIABLE}` sont conservés et les champs qui en contiennent sont verrouillés ; validation par le modèle `Config` ; écriture atomique. |
+| Sauvegardes | Copie horodatée avant chaque écriture dans `data/backups/` (ignoré par Git), 10 gardées, restauration depuis l'écran. |
+| Conflits | Si le fichier a changé depuis sa lecture, l'écriture est refusée et l'écran propose de recharger. |
+| Sécurité | Routes locales seulement (adresse, Host, Origin vérifiés). Clés en droits `600`. Une clé collée dans le champ « Variable de la clé » est refusée sans être répétée. Aucune clé dans les journaux. |
+| Rechargement | L'API sert la nouvelle config tout de suite (langues, sources, profils) ; le pipeline la lit au run suivant. |
+| Navigation mobile | Six entrées : libellé court « Abonnés » pour Préférences dans la barre du bas, police ajustée. Testé à 360 px en français et en anglais. |
+
+**Vérifié** : 24 tests Python (682 au total), 7 tests d'interface (32 au total), build. Dans le navigateur, sur une copie de la config : un enregistrement ne change que la section modifiée, la restauration rend le fichier identique, aucune clé dans les journaux.
+
+---
+
+## Lot 17 — Gestion des sources
+
+✅ Clôturé · Décision : X (Twitter) en lecture seule.
+
+**Objectif** : gérer les sources depuis l'interface, avec leur état réel.
+
+**Fait**
+
+| Sujet | Contenu |
+|---|---|
+| Liste | Page Sources : sous la santé, les sources configurées par groupe (flux RSS, GitHub, Reddit, Telegram, sources intégrées, X). Filtre Toutes / Actives / Désactivées / À vérifier. |
+| État affiché | Santé des runs passés quand elle existe ; sinon « Pas encore collectée », « Désactivée », « En pause » (interrupteur Reddit ou Telegram coupé), « Comptée avec ses subreddits » (compte Reddit), « Lecture seule » (X). Rien n'est inventé. |
+| Actions | Interrupteur par source et par groupe. Panneau latéral : ajouter (flux RSS, dépôt ou compte GitHub, subreddit, compte Reddit, chaîne Telegram), modifier, tester, supprimer avec confirmation. Sources intégrées : activer et régler, pas supprimer. |
+| Saisie | Liens collés acceptés (`r/rust`, `@chaine`, `https://t.me/s/…`, URL GitHub). Doublons refusés (même nom ou même flux, sans tenir compte des majuscules). Limites vérifiées par l'interface puis par l'API. |
+| Test | Le vrai collecteur, sur 7 jours, 45 s au plus, sans IA ni archive : nombre de contenus, part dans la fenêtre de collecte, 5 derniers titres, ou l'erreur exacte (y compris celles que le collecteur ne fait que journaliser). |
+| Écriture | Même socle que le lot 16 : config brute, seuls les champs changés, copie de sauvegarde, version vérifiée. Une source qui contient une `${VARIABLE}` est verrouillée (activable, pas modifiable). L'API recharge la santé tout de suite ; le run suivant collecte la source. |
+| Sécurité | Routes locales seulement. Adresse de flux publique obligatoire (`localhost`, adresses privées, `file:` et `${VARIABLE}` refusés). Pendant un test, chaque requête et chaque redirection est vérifiée. Un jeton d'une `${VARIABLE}` n'apparaît jamais dans la réponse. |
+
+**Vérifié** : 37 tests Python (719 au total), 8 tests d'interface (40 au total), build. Tests réels sur le réseau : LWN, Simon Willison, vllm, r/rust, Hacker News et une chaîne Telegram répondent ; une page 404 donne son erreur ; `192.168.1.1` et `127.0.0.1` sont refusées. Dans le navigateur, sur une copie de la config : ajout puis suppression rendent un fichier identique à l'original ; affichage vérifié sur ordinateur et à 375 px.
+
+---
+
 # Lots suivants
 
 Plan revu le 9 octobre 2026 pour intégrer le besoin « interface complète et gestion du produit » : piloter LucidNews depuis l'interface, sans terminal pour les opérations courantes. Les anciens lots 15 à 18 sont repris et renumérotés selon le nouvel ordre (voir la correspondance plus bas).
@@ -418,17 +463,17 @@ Plan revu le 9 octobre 2026 pour intégrer le besoin « interface complète et g
 | Ordre | Lot | Dépend de | Pourquoi à cette place |
 |---|---|---|---|
 | ✅ | 15 — Cartes d'actualité interactives | — | Clôturé. |
-| 1 | 16 — Socle de pilotage et Réglages | — | Écriture sécurisée de la config et des clés : prérequis des lots 17, 18 et 20. |
-| 2 | 17 — Gestion des sources | 16 | Ajouter, modifier, activer, supprimer une source demande l'écriture de la config. |
-| 3 | 18 — Domaines surveillés et couverture | 16, 17 | Les recommandations de sources s'ajoutent avec l'outil du lot 17. |
-| 4 | 19 — Qualité de la veille | 18 (couverture), 12 (filtrage) | Rassemble couverture, santé, fraîcheur, doublons et fiabilité sur une page. |
-| 5 | 20 — Lancer et planifier les runs | 16 | Dernier usage qui demande encore le terminal. |
-| 6 | 21 — Newsletter : contenu et préférences | 20 (fréquence) | Hebdomadaire, niveau de détail, aperçu. |
-| 7 | 22 — Newsletter : envoi fiable | 21 | Opt-in, désinscription, fournisseur d'e-mails, journal des envois. |
-| 8 | 23 — Recherche dans l'archive | — | Utile seul ; placé après le cœur du pilotage. |
-| 9 | 24 — Finitions de l'interface | 15 à 23 | Mode sombre et contrastes, une fois toutes les pages créées. |
-| 10 | 25 — Dette technique | — | Renommage du paquet en fin de chantier, pour ne pas gêner les lots en cours. |
-| 11 | 26 — Comptes et SaaS | 22, 25 | Hors périmètre actuel. |
+| ✅ | 16 — Socle de pilotage et Réglages | — | Clôturé. |
+| ✅ | 17 — Gestion des sources | 16 | Clôturé. |
+| 1 | 18 — Domaines surveillés et couverture | 16, 17 | Les recommandations de sources s'ajoutent avec l'outil du lot 17. |
+| 2 | 19 — Qualité de la veille | 18 (couverture), 12 (filtrage) | Rassemble couverture, santé, fraîcheur, doublons et fiabilité sur une page. |
+| 3 | 20 — Lancer et planifier les runs | 16 | Dernier usage qui demande encore le terminal. |
+| 4 | 21 — Newsletter : contenu et préférences | 20 (fréquence) | Hebdomadaire, niveau de détail, aperçu. |
+| 5 | 22 — Newsletter : envoi fiable | 21 | Opt-in, désinscription, fournisseur d'e-mails, journal des envois. |
+| 6 | 23 — Recherche dans l'archive | — | Utile seul ; placé après le cœur du pilotage. |
+| 7 | 24 — Finitions de l'interface | 15 à 23 | Mode sombre et contrastes, une fois toutes les pages créées. |
+| 8 | 25 — Dette technique | — | Renommage du paquet en fin de chantier, pour ne pas gêner les lots en cours. |
+| 9 | 26 — Comptes et SaaS | 22, 25 | Hors périmètre actuel. |
 | En parallèle | 12 — Annoter au moins 30 news | — | Action humaine ; donne les chiffres de filtrage du lot 19. |
 
 **Correspondance avec l'ancien plan** : ancien 15 (finitions) → 24 · ancien 16 (newsletter) → 21 et 22 · ancien 17 (comptes et SaaS) → 26 · ancien 18 (dette technique) → 25.
@@ -456,56 +501,9 @@ On garde les écrans existants et on n'ajoute qu'**une** page : Réglages.
 
 ---
 
-## Lot 16 — Socle de pilotage et page Réglages
-
-📋 Prochain lot.
-
-- **Objectif** : modifier la configuration et les clés API depuis l'interface, de façon sûre.
-- **Fonctionnalités** :
-  - clés API : saisie, remplacement, suppression ; l'interface montre seulement « configurée » ou « absente », jamais la valeur ;
-  - IA : fournisseur, modèle, langues de sortie, quota par minute, budget de tokens par run ;
-  - collecte et traitement : fenêtre de collecte, seuils par profil, dédoublonnage par sujet, nombre maximal de news, étiquettes exclues, corroboration, réutilisation de l'archive ;
-  - copie de sauvegarde avant chaque écriture et retour à la version précédente.
-- **Pages** : Réglages (nouvelle).
-- **Frontend** : page Réglages par sections ; formulaires validés (`react-hook-form` + `zod`, déjà installés) ; messages d'erreur par champ.
-- **Backend** :
-  - module d'écriture de `config.json` : lecture du fichier brut (les `${VARIABLE}` restent intacts), validation par le modèle `Config`, écriture atomique, copie `.bak` ;
-  - écriture des clés dans `.env` (déjà ignoré par Git), droits `600` ;
-  - rechargement du contexte de l'API après écriture.
-- **Données et API** : `GET/PUT /api/settings`, `GET /api/secrets` (noms et état seulement), `PUT/DELETE /api/secrets/<nom>`. Routes locales seulement, avec les protections existantes (adresse locale, Host et Origin vérifiés, corps JSON limité).
-- **Sécurité** : aucune clé dans les réponses, les journaux ou les messages d'erreur ; seuls les noms de variables déclarés par la config sont acceptés.
-- **Critères de validation** : un réglage changé dans l'interface est appliqué au run suivant ; une config invalide est refusée sans toucher au fichier ; les `${VARIABLE}` sont conservés ; une clé enregistrée n'apparaît nulle part ensuite.
-- **Tests** : aller-retour de config, refus d'une config invalide, conservation des `${VARIABLE}`, écriture atomique et sauvegarde, clé jamais renvoyée, routes refusées hors de localhost.
-- **Dépendances** : aucune. Prérequis des lots 17, 18 et 20.
-
----
-
-## Lot 17 — Gestion des sources
-
-📋 Planifié.
-
-- **Objectif** : gérer les sources depuis l'interface, avec leur état réel.
-- **Fonctionnalités** :
-  - liste des sources configurées, avec statut de santé, dernière collecte réussie, dernière erreur, volume et score de qualité (existants) ;
-  - ajouter une source (RSS, dépôt ou compte GitHub, subreddit, chaîne Telegram) ;
-  - modifier sa configuration, l'activer ou la désactiver ;
-  - supprimer avec confirmation ;
-  - « Tester » une source : une collecte d'essai, sans IA ni archive, qui dit combien de contenus elle renvoie ou quelle erreur elle produit ;
-  - Hacker News, OSS Insight, GDELT, Google News : activer, désactiver, régler ;
-  - X (Twitter) : affiché en lecture seule, car il demande des cookies ou un jeton Apify (procédure documentée).
-- **Pages** : Sources, onglet « Sources ».
-- **Frontend** : tableau existant enrichi d'actions ; panneau d'édition ; `ConfirmDialog` existant pour la suppression.
-- **Backend** : opérations sur `config.sources` via le socle du lot 16 ; test de source par le scraper existant, avec un délai maximal ; contrôle des URL par `url_security` (pas d'adresse interne).
-- **Données et API** : `GET /api/sources/config`, `POST /api/sources/config`, `PUT/DELETE /api/sources/config/<clé>`, `POST /api/sources/test`.
-- **Critères de validation** : chaque action modifie réellement `config.json` ; une source ajoutée apparaît au run suivant ; aucune source ni aucun statut n'est inventé (une source sans historique est marquée « pas encore collectée ») ; une URL interne ou invalide est refusée.
-- **Tests** : ajout, modification, activation, suppression, refus des doublons, test d'une source en échec, URL interne refusée, affichage de l'état « pas encore collectée ».
-- **Dépendances** : lot 16.
-
----
-
 ## Lot 18 — Domaines surveillés et couverture
 
-📋 Planifié. Une décision est à prendre avant de commencer (voir « Blocages »).
+📋 Prochain lot. Décision : les 12 catégories existantes.
 
 - **Objectif** : choisir les domaines technologiques suivis et savoir si les sources les couvrent assez.
 - **Fonctionnalités** :
@@ -548,7 +546,7 @@ On garde les écrans existants et on n'ajoute qu'**une** page : Réglages.
 
 ## Lot 20 — Lancer et planifier les runs
 
-📋 Planifié. Une décision est à prendre avant de commencer (voir « Blocages »).
+📋 Planifié. Décision : tâche système launchd (macOS) générée par l'interface.
 
 - **Objectif** : générer une édition depuis l'interface et régler sa fréquence.
 - **Fonctionnalités** :
@@ -558,7 +556,7 @@ On garde les écrans existants et on n'ajoute qu'**une** page : Réglages.
   - historique des runs (déjà dans l'archive) avec leur statut.
 - **Pages** : Réglages, section « Runs ».
 - **Frontend** : bouton, état en direct (interrogation régulière), historique.
-- **Backend** : lancement du pipeline dans un processus séparé ; verrou ; journal sans secret ; planification selon la décision.
+- **Backend** : lancement du pipeline dans un processus séparé ; verrou ; journal sans secret ; planification par un fichier launchd (`~/Library/LaunchAgents`) écrit, chargé et retiré depuis l'interface, qui lance le même pipeline.
 - **Données et API** : `POST /api/runs`, `GET /api/runs/current`, `GET/PUT /api/schedule`.
 - **Critères de validation** : un run lancé depuis l'interface produit la même édition qu'en terminal ; un second lancement pendant un run est refusé ; la planification déclenche réellement un run.
 - **Tests** : verrou, run en échec affiché comme tel, journal sans clé, planification calculée correctement.
@@ -678,10 +676,10 @@ Un paramètre n'est ajouté que s'il est réellement appliqué par le système.
 
 | Sujet | Bloque | Recommandation |
 |---|---|---|
-| Lots 14 bis et 15 terminés mais pas encore commités | Rien, mais à faire avant le lot 16 | Commiter avec les messages préparés. |
+| Lots 16 et 17 terminés mais pas encore commités | Rien, mais à faire avant le lot 18 | Commiter avec le message préparé (un seul commit : les deux lots touchent les mêmes fichiers). |
 | Annotations du lot 12 | Les chiffres de filtrage du lot 19 (affichés « échantillon insuffisant » d'ici là) | Annoter au fil de l'eau. |
-| Domaines personnalisés au-delà des 12 catégories | Le lot 18 | Commencer avec les 12 catégories ; un domaine libre demande de changer les consignes IA, l'évaluation et les préférences. |
-| Méthode de planification des runs | Le lot 20 | Planificateur intégré au serveur local, actif tant qu'il tourne ; sinon tâche système (launchd ou cron) générée par l'interface. |
+| Domaines personnalisés au-delà des 12 catégories | Tranché : les 12 catégories (lot 18) | — |
+| Méthode de planification des runs | Tranché : tâche système launchd générée par l'interface (lot 20) | — |
 | Source X (Twitter) | Rien | Lecture seule dans l'interface : elle dépend de cookies ou d'un jeton Apify. |
 
 ## Analyse : besoins d'une newsletter moderne
@@ -740,6 +738,10 @@ Un paramètre n'est ajouté que s'il est réellement appliqué par le système.
 | Quota IA épuisé | L'application continue et affiche les news sans analyse IA, seulement dans ce cas |
 | Lot après le lot 14 | Lot 14 bis (recommandation A, prise par défaut) |
 | Interface complète (9 oct.) | Plan revu : lots 15 à 26 réordonnés, une seule page ajoutée (Réglages) |
+| Clés API depuis l'interface | Fichier `.env` du projet, droits 600, jamais réaffichées |
+| Domaines surveillés | Les 12 catégories existantes (A) |
+| Planification des runs | Tâche système launchd générée par l'interface (B) |
+| X (Twitter) dans l'interface | Lecture seule (cookies ou jeton Apify impossibles à vérifier depuis l'écran) |
 | Rôle du score de qualité | Départager les news de même score, sans jamais passer devant une news mieux notée |
 | Style des réponses | Skill explainer : français simple, sections, questions oui/non |
 

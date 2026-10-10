@@ -15,6 +15,7 @@ const PreferencesPage = lazy(() =>
   import('../features/preferences/PreferencesPage').then((m) => ({ default: m.PreferencesPage })),
 )
 const QualityPage = lazy(() => import('../features/quality/QualityPage').then((m) => ({ default: m.QualityPage })))
+const SettingsPage = lazy(() => import('../features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })))
 const SourcesPage = lazy(() => import('../features/sources/SourcesPage').then((m) => ({ default: m.SourcesPage })))
 
 export function createQueryClient() {
@@ -45,6 +46,7 @@ export function Shell() {
             <Route path="/quality" element={<QualityPage />} />
             <Route path="/quality/results" element={<QualityPage />} />
             <Route path="/preferences/:subscriberId" element={<PreferencesPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

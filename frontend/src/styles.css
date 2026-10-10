@@ -71,6 +71,12 @@
     transform: translate(-50%, -48%) scale(0.97);
   }
 }
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateX(32px);
+  }
+}
 
 @layer base {
   html {

@@ -7,21 +7,28 @@ export function Switch({
   onCheckedChange,
   labelledBy,
   describedBy,
+  label,
+  disabled = false,
 }: {
   id?: string
   checked: boolean
   onCheckedChange: (checked: boolean) => void
   labelledBy?: string
   describedBy?: string
+  /** Accessible name when there is no visible label to point to. */
+  label?: string
+  disabled?: boolean
 }) {
   return (
     <RadixSwitch.Root
       id={id}
       checked={checked}
       onCheckedChange={onCheckedChange}
+      disabled={disabled}
+      aria-label={label}
       aria-labelledby={labelledBy}
       aria-describedby={describedBy}
-      className="relative h-7 w-12 shrink-0 rounded-full bg-ink/15 transition-colors duration-200 ease-soft data-[state=checked]:bg-accent"
+      className="relative h-7 w-12 shrink-0 rounded-full bg-ink/15 transition-colors duration-200 ease-soft disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-accent"
     >
       <RadixSwitch.Thumb className="block h-5.5 w-5.5 translate-x-[3px] rounded-full bg-white shadow-[0_2px_6px_rgb(15_21_48/0.25)] transition-transform duration-200 ease-soft data-[state=checked]:translate-x-[23px]" />
     </RadixSwitch.Root>
