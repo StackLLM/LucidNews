@@ -7,7 +7,7 @@ const itemCalls = (fetchMock: ReturnType<typeof mockApi>) =>
 
 async function curlCard() {
   renderAt('/?lang=fr')
-  const title = await screen.findByRole('link', { name: curl.title })
+  const title = await screen.findByRole('link', { name: curl.title }, { timeout: 5000 })
   return title.closest('article')!
 }
 

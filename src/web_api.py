@@ -2,7 +2,9 @@
 
 Endpoints (JSON, GET only):
 
-- ``/api/editions``: recent runs that published a digest.
+- ``/api/editions?limit=30``: recent runs that published a digest (up to 2000).
+- ``/api/editions/period?since=&until=&lang=``: the news of every edition started in a period
+  (ISO instants), deduplicated, best 100 listed.
 - ``/api/editions/latest?lang=fr``: the latest edition in one language.
 - ``/api/editions/<run_id>?lang=fr``: one edition.
 - ``/api/items/<item_id>?lang=fr``: one item with its reliability details and editions.
@@ -206,8 +208,8 @@ def list_editions(ctx: ApiContext, limit: int = 30) -> Dict[str, Any]:
     return {"editions": [run_payload(run) for run in runs[:limit]]}
 
 
-def edition_payload(ctx: ApiContext, run: RunRecord, language: str) -> Dict[str, Any]:
-    selected = ctx.archive.get_items(ctx.archive.run_item_ids(run.id, selected_only=True)).values()
+def _sections_payload(ctx: ApiContext, selected: List[ContentItem], language: str, cap: Optional[int] = None) -> Dict[str, Any]:
+    """Sections and unanalyzed items of an edition, or of a period (``cap`` bounds the analyzed items)."""
     items = [item for item in selected if not (item.processing and item.processing.ai_skipped)]
     # Same order as the digest: best-known publishers first, then most recent.
     tier_rank = {tier: rank for rank, tier in enumerate(SourceTier)}
@@ -228,6 +230,9 @@ def edition_payload(ctx: ApiContext, run: RunRecord, language: str) -> Dict[str,
             -item.published_at.timestamp(),
         )
     )
+    analyzed_total = len(items)
+    if cap is not None:
+        items = items[:cap]
 
     groups: Dict[str, List[ContentItem]] = {}
     for item in items:
@@ -239,7 +244,7 @@ def edition_payload(ctx: ApiContext, run: RunRecord, language: str) -> Dict[str,
         {lang for item in items if item.processing for lang in item.processing.artifacts}
     )
     return {
-        **run_payload(run),
+        "analyzed_total": analyzed_total,
         "language": language,
         "available_languages": languages,
         "sections": [
@@ -251,6 +256,68 @@ def edition_payload(ctx: ApiContext, run: RunRecord, language: str) -> Dict[str,
             for profile_id, group_items in ordered
         ],
         "unanalyzed": [item_payload(item, language) for item in unanalyzed],
+    }
+
+
+def edition_payload(ctx: ApiContext, run: RunRecord, language: str) -> Dict[str, Any]:
+    selected = list(ctx.archive.get_items(ctx.archive.run_item_ids(run.id, selected_only=True)).values())
+    body = _sections_payload(ctx, selected, language)
+    body.pop("analyzed_total")
+    return {**run_payload(run), **body}
+
+
+MAX_PERIOD_ITEMS = 100
+MAX_PERIOD_DAYS = 3700
+MAX_EDITIONS_LIMIT = 2000
+
+
+def _instant(value: Optional[str]) -> Optional[datetime]:
+    """An ISO 8601 instant (``Z`` accepted) as an aware UTC datetime, or None if invalid."""
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed.astimezone(timezone.utc) if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def period_payload(ctx: ApiContext, since: datetime, until: datetime, language: str) -> Dict[str, Any]:
+    """The news of every published edition started in [since, until), best score first.
+
+    An item published by several editions appears once. Only the best ``MAX_PERIOD_ITEMS``
+    analyzed items are listed; ``analyzed_total`` says how many there were.
+    """
+    runs = [
+        run
+        for run in ctx.archive.list_runs(limit=MAX_EDITIONS_LIMIT)
+        if run.status == "success"
+        and run.selected_count > 0
+        and since <= _instant(run.started_at) < until  # type: ignore[operator]
+    ]
+    ids: List[str] = []
+    seen: set[str] = set()
+    for run in runs:
+        for item_id in ctx.archive.run_item_ids(run.id, selected_only=True):
+            if item_id not in seen:
+                seen.add(item_id)
+                ids.append(item_id)
+    selected = list(ctx.archive.get_items(ids).values())
+    body = _sections_payload(ctx, selected, language, cap=MAX_PERIOD_ITEMS)
+    total = body.pop("analyzed_total")
+    return {
+        "id": "period",
+        "started_at": since.isoformat(),
+        "finished_at": until.isoformat(),
+        "fetched_count": sum(run.fetched_count for run in runs),
+        "selected_count": len(selected),
+        "ai_limit": None,
+        "tokens_used": 0,
+        "ai_skipped_count": 0,
+        "edition_count": len(runs),
+        "analyzed_total": total,
+        "listed_limit": MAX_PERIOD_ITEMS,
+        **body,
     }
 
 
@@ -359,7 +426,17 @@ def resolve(ctx: ApiContext, path: str, query: Dict[str, List[str]]) -> tuple[in
     if path == "/api/health":
         return HTTPStatus.OK, {"status": "ok"}
     if path == "/api/editions":
-        return HTTPStatus.OK, list_editions(ctx)
+        raw_limit = (query.get("limit") or ["30"])[0]
+        if not raw_limit.isdigit() or not 1 <= int(raw_limit) <= MAX_EDITIONS_LIMIT:
+            return HTTPStatus.BAD_REQUEST, {"error": f"limit must be an integer between 1 and {MAX_EDITIONS_LIMIT}"}
+        return HTTPStatus.OK, list_editions(ctx, limit=int(raw_limit))
+    if path == "/api/editions/period":
+        since, until = _instant((query.get("since") or [None])[0]), _instant((query.get("until") or [None])[0])
+        if since is None or until is None or until <= since:
+            return HTTPStatus.BAD_REQUEST, {"error": "since and until must be ISO 8601 instants, until after since"}
+        if (until - since).days > MAX_PERIOD_DAYS:
+            return HTTPStatus.BAD_REQUEST, {"error": f"period longer than {MAX_PERIOD_DAYS} days"}
+        return HTTPStatus.OK, period_payload(ctx, since, until, language)
     if path in ("/api/sources", "/api/coverage", "/api/quality/overview"):
         days = _days(query)
         if days is None:

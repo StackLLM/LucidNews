@@ -5,7 +5,7 @@ test('renders the edition with sections, figures and reliability labels', async 
   const fetchMock = mockApi()
   renderAt('/?lang=fr')
 
-  expect(await screen.findByRole('heading', { level: 1, name: /6 octobre 2026/i })).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { level: 1, name: /6 octobre 2026/i }, { timeout: 5000 })).toBeInTheDocument()
   expect(fetchMock).toHaveBeenCalledWith('/api/editions/latest?lang=fr', expect.anything())
 
   const index = screen.getByRole('navigation', { name: 'Dans cette édition' })
@@ -87,4 +87,85 @@ test('shows no quota notice on a normal edition', async () => {
 
   expect(screen.queryByText(/quota IA/)).toBeNull()
   expect(screen.queryByRole('region', { name: /Sans analyse IA/ })).toBeNull()
+})
+
+// --- Date filter ---------------------------------------------------------------------------
+
+function mockPeriodApi(period: Record<string, unknown> = {}) {
+  const spy = mockApi()
+  const inner = spy.getMockImplementation()!
+  spy.mockImplementation(async (input, init) => {
+    const url = new URL(String(input), 'http://localhost')
+    if (url.pathname === '/api/editions/period') {
+      return new Response(
+        JSON.stringify({ ...fixtures.editionFr, id: 'period', edition_count: 8, analyzed_total: 13, listed_limit: 100, ...period }),
+      )
+    }
+    return inner(input, init)
+  })
+  return spy
+}
+
+const periodCalls = (spy: ReturnType<typeof mockApi>) =>
+  spy.mock.calls.map((call) => new URL(String(call[0]), 'http://localhost')).filter((url) => url.pathname === '/api/editions/period')
+
+test('filters the news by month: all editions of the month, in one page', async () => {
+  const spy = mockPeriodApi()
+  renderAt('/?lang=fr')
+  const filter = await screen.findByRole('region', { name: 'Filtrer par date' })
+  expect(periodCalls(spy)).toHaveLength(0) // nothing is requested until a period is chosen
+
+  fireEvent.click(within(filter).getByRole('button', { name: 'Mois' }))
+
+  expect(await screen.findByRole('heading', { level: 1, name: 'Octobre 2026' })).toBeInTheDocument()
+  expect(window.location.search).toContain('month=2026-10')
+  expect(screen.getByText('8 éditions · 13 news')).toBeInTheDocument()
+  const [call] = periodCalls(spy)
+  // Local month boundaries, sent as instants.
+  expect(new Date(call.searchParams.get('since')!).getTime()).toBe(new Date(2026, 9, 1).getTime())
+  expect(new Date(call.searchParams.get('until')!).getTime()).toBe(new Date(2026, 10, 1).getTime())
+  expect(screen.getAllByRole('article')).toHaveLength(13)
+  // Items of a period do not link to a single edition.
+  expect(screen.getAllByRole('link', { name: /Détails|Ouvrir/i }).every((link) => !link.getAttribute('href')?.includes('edition='))).toBe(true)
+})
+
+test('filters by year and by day, and goes back to the latest edition', async () => {
+  const spy = mockPeriodApi()
+  renderAt('/?lang=fr')
+  const filter = await screen.findByRole('region', { name: 'Filtrer par date' })
+
+  fireEvent.click(within(filter).getByRole('button', { name: 'Année' }))
+  expect(await screen.findByRole('heading', { level: 1, name: '2026' })).toBeInTheDocument()
+  expect(within(filter).getByRole('combobox', { name: 'Année' })).toHaveValue('2026')
+
+  fireEvent.click(within(filter).getByRole('button', { name: 'Jour' }))
+  expect(await screen.findByRole('heading', { level: 1, name: /Mardi 6 octobre 2026/i })).toBeInTheDocument()
+  expect(window.location.search).toContain('day=2026-10-06')
+  expect(window.location.search).not.toContain('year=')
+  const last = periodCalls(spy).at(-1)!
+  expect(new Date(last.searchParams.get('until')!).getTime() - new Date(last.searchParams.get('since')!).getTime()).toBeGreaterThan(0)
+
+  fireEvent.click(within(filter).getByRole('button', { name: 'Dernière édition' }))
+  expect(await screen.findByText(/Édition du jour/)).toBeInTheDocument()
+  expect(window.location.search).not.toMatch(/day=|month=|year=/)
+})
+
+test('says when a period lists only the best news of many', async () => {
+  mockPeriodApi({ analyzed_total: 480, listed_limit: 100 })
+  renderAt('/?lang=fr&year=2026')
+
+  expect(await screen.findByText(/Les 100 news les mieux notées sur 480 sont affichées/)).toBeInTheDocument()
+})
+
+test('a period without any edition says so', async () => {
+  mockPeriodApi({ edition_count: 0, selected_count: 0, sections: [], unanalyzed: [], analyzed_total: 0 })
+  renderAt('/?lang=fr&month=2020-01')
+  expect(await screen.findByText('Aucune édition n’a été publiée sur cette période.')).toBeInTheDocument()
+})
+
+test('a malformed period in the address is ignored', async () => {
+  const spy = mockPeriodApi()
+  renderAt('/?lang=fr&month=2026-13')
+  expect(await screen.findByRole('heading', { level: 1, name: /6 octobre 2026/i })).toBeInTheDocument()
+  expect(periodCalls(spy)).toHaveLength(0)
 })

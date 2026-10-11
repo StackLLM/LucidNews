@@ -7,12 +7,27 @@ import { isLanguage, translatePlural, useLanguage } from '../../lib/i18n'
 import { riseIn } from '../../lib/motion'
 
 /** The edition banner: accent card with soft circles, date and run figures. */
-export function EditionHero({ edition, archived = false }: { edition: Edition; archived?: boolean }) {
+export function EditionHero({
+  edition,
+  archived = false,
+  kicker,
+  title,
+}: {
+  edition: Edition
+  archived?: boolean
+  /** Replaces the "Daily edition" label (a period shows its own). */
+  kicker?: string
+  /** Replaces the date of the edition (a period shows its range). */
+  title?: string
+}) {
   const { language, t } = useLanguage()
   const unanalyzed = edition.unanalyzed.length
   const stats = [
-    // When the AI stopped early, not every collected item was analyzed.
-    { value: edition.fetched_count, label: t(edition.ai_limit ? 'edition.collected' : 'edition.analyzed') },
+    // When the AI stopped early, not every collected item was analyzed. Not shown for a
+    // period: the same item is collected by several editions, so the sum would overcount.
+    ...(title === undefined
+      ? [{ value: edition.fetched_count, label: t(edition.ai_limit ? 'edition.collected' : 'edition.analyzed') }]
+      : []),
     { value: edition.selected_count - unanalyzed, label: t('edition.selected') },
     { value: edition.sections.length, label: t('edition.sections') },
     ...(unanalyzed > 0 ? [{ value: unanalyzed, label: t('edition.unanalyzed') }] : []),
@@ -29,10 +44,10 @@ export function EditionHero({ edition, archived = false }: { edition: Edition; a
 
       <p className="flex items-center gap-2 text-sm font-semibold text-white/75">
         <CalendarDays size={16} aria-hidden />
-        {t(archived ? 'edition.archived' : 'edition.kicker')}
+        {kicker ?? t(archived ? 'edition.archived' : 'edition.kicker')}
       </p>
       <h1 className="mt-3 font-serif text-[34px] leading-[1.1] font-medium tracking-[-0.01em] sm:text-[44px]">
-        {capitalize(formatEditionDate(edition.started_at, isLanguage(edition.language) ? edition.language : language))}
+        {title ?? capitalize(formatEditionDate(edition.started_at, isLanguage(edition.language) ? edition.language : language))}
       </h1>
 
       {edition.ai_limit && (

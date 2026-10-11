@@ -18,6 +18,7 @@ Collecter → Filtrer → Vérifier → Classer → Résumer → Prioriser → D
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Lancement](#lancement)
+- [Démarrer l'application web](#démarrer-lapplication-web)
 - [Tests](#tests)
 - [Structure du dépôt](#structure-du-dépôt)
 - [Documentation](#documentation)
@@ -124,6 +125,46 @@ Autres commandes :
 | `uv run lucidnews-eval` | Mesure de la qualité de l'IA contre les news annotées à la main (voir `docs/evaluation.md`) |
 | `uv run lucidnews-mcp` | Serveur MCP (pipeline par étapes pour agents IA) |
 | `./scripts/daily-run.sh [heures]` | Exécution quotidienne (cron) |
+
+## Démarrer l'application web
+
+Deux processus, chacun dans son terminal, à lancer dans cet ordre.
+
+**1. Backend (API Python)**, à la racine du dépôt :
+
+```bash
+uv run lucidnews-api
+```
+
+Écoute sur `http://127.0.0.1:8765`. Port ou dossier de données différents : `--port 8766`, `--data-dir chemin`.
+
+**2. Frontend (React)** :
+
+```bash
+cd frontend
+npm install        # première fois seulement
+npm run dev
+```
+
+Ouvrir `http://localhost:5173`. Le frontend relaie `/api` vers `127.0.0.1:8765` ; pour une autre API : `LUCIDNEWS_API=http://127.0.0.1:8766 npm run dev`.
+
+**Prérequis** : `uv sync` fait (voir Installation) et une archive existante (`uv run lucidnews` au moins une fois, ou le bouton « Lancer un run » dans Réglages une fois l'API démarrée). Sans archive, l'API refuse de démarrer.
+
+### Redémarrer
+
+- **Frontend** : `Ctrl+C` dans son terminal puis `npm run dev`. Rarement utile : Vite recharge seul à chaque modification.
+- **Backend** : `Ctrl+C` puis `uv run lucidnews-api`. **À faire** après toute modification du code Python (nouvelles routes, rendu de l'e-mail…) ; un changement fait depuis la page Réglages est pris en compte sans redémarrer.
+- **Port déjà occupé** : repérer le processus puis l'arrêter.
+
+```bash
+lsof -nP -iTCP:8765 -sTCP:LISTEN
+```
+
+```bash
+kill <PID>
+```
+
+- **Version de production du frontend** : `npm run build` (dans `frontend/`) puis `npm run preview`.
 
 ## Tests
 

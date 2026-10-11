@@ -540,9 +540,23 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 
 **Pas encore vérifié** : un envoi SMTP réel (aucun compte configuré) ; l'ordre des news de l'aperçu quotidien vient de l'archive (score), celui de l'envoi du run en cours peut différer légèrement (équilibrage entre groupes).
 
+**Ajout hors plan (demande du 11 octobre)** : filtre de date sur la page Édition. Voir « Filtre de date de l'Édition » plus bas.
+
 **Corrigé pendant les essais** : citation d'introduction affichée en texte brut (`> Sur 46…`) et sommaire collé en un paragraphe ; double échappement des textes de sources ; titre de l'aperçu écrasé sur téléphone.
 
 ---
+
+### Filtre de date de l'Édition
+
+Demande hors plan, faite après le lot 21 : filtrer les news par jour, par mois ou par année sur la page Édition.
+
+| Sujet | Contenu |
+|---|---|
+| Interface | Barre « Filtrer par date » : Dernière édition, Jour, Mois, Année. Jour : calendrier (jours avec édition seulement). Mois et Année : liste des périodes qui ont une édition. La période est dans l'adresse (`?day=2026-10-06`, `?month=2026-10`, `?year=2026`) : partageable, le bouton Retour marche, une valeur invalide est ignorée. |
+| Résultat | Toutes les éditions commencées dans la période, fusionnées : une news publiée par plusieurs éditions apparaît une fois, rubriques et tri par score comme une édition. Les news non analysées (quota) restent à part. |
+| Limite | Les 100 meilleures news sont listées ; le total est affiché (« Les 100 news les mieux notées sur 480 sont affichées »). Le chiffre « contenus analysés » n'est pas montré pour une période (une même news serait comptée par chaque édition). |
+| API | `GET /api/editions/period?since=&until=&lang=` (instants ISO, bornes locales du navigateur, fin exclue, 3 700 jours au plus) ; `GET /api/editions?limit=` (jusqu'à 2000). |
+| Vérifié | 3 tests Python, 5 tests d'interface (68 au total, test de première page allongé à 5 s) ; démo sur l'archive réelle : octobre = 9 éditions, 20 news ; calendrier du jour. |
 
 ---
 
@@ -685,7 +699,7 @@ Un paramètre n'est ajouté que s'il est réellement appliqué par le système.
 
 | Sujet | Bloque | Recommandation |
 |---|---|---|
-| Lot 21 terminé mais pas encore commité | Rien, mais à faire avant le lot 22 | Commiter avec le message préparé. |
+| Lot 21 et filtre de date de l'Édition terminés, pas encore commités | Rien, mais à faire avant le lot 22 | Commiter avec les messages préparés. |
 | Envoi SMTP réel | La preuve « l'e-mail arrive tel qu'il est prévisualisé » | Accord demandé : un envoi de test vers une adresse à toi, avec un compte SMTP configuré (aucun aujourd'hui). |
 | Vrai run IA lancé depuis l'interface | La preuve « même édition qu'en terminal » | Accord demandé : un run sur une copie des données, avec la clé IA. |
 | Vraie tâche launchd | La preuve « la planification déclenche réellement un run » | Accord demandé : tâche de test chargée quelques minutes puis retirée. |

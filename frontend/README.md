@@ -32,7 +32,7 @@ Premium, calme, fin, professionnel. Impressionnant sans être chargé.
 
 | Écran | Rôle | Données existantes côté moteur |
 |---|---|---|
-| Édition du jour ✅ | Lire le digest : sections, score, fiabilité | API `/api/editions/latest` |
+| Édition du jour ✅ | Lire le digest : sections, score, fiabilité. Filtre de date : dernière édition, ou toutes les éditions d'un jour, d'un mois ou d'une année (adresse `?day=`, `?month=`, `?year=`) | API `/api/editions/latest`, `/api/editions/period` |
 | Fiche d'une news ✅ | Article complet + colonne Fiabilité (éditeur, affirmation, preuve, corroboration), actions, éditions | API `/api/items/<id>` |
 | Archives ✅ | Retrouver une édition par date (calendrier + liste) | API `/api/editions` |
 | Préférences ✅ | Abonnés (ajout, suppression), langue, thèmes, sources, rythme, niveau de détail (bref / complet), importance, infos non confirmées, limite, offre affichée ; aperçu de l'e-mail dans un cadre sans script | API `/api/subscribers`, `/api/subscribers/<id>/preview` (local) |
@@ -69,7 +69,8 @@ et les clés API (`.env` du projet).
 
 | Route | Contenu |
 |---|---|
-| `GET /api/editions` | Runs ayant publié une édition |
+| `GET /api/editions?limit=30` | Runs ayant publié une édition (jusqu'à 2000) |
+| `GET /api/editions/period?since=&until=&lang=` | Les news de toutes les éditions commencées dans la période (instants ISO), sans doublon ; les 100 mieux notées sont listées, le total est indiqué |
 | `GET /api/editions/latest?lang=fr` | Dernière édition, dans une langue |
 | `GET /api/editions/<id>?lang=fr` | Une édition précise |
 | `GET /api/items/<id>?lang=fr` | Une news : contenu, fiabilité détaillée, éditions qui l'ont publiée |

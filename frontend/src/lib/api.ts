@@ -149,6 +149,24 @@ export async function fetchEditions(signal?: AbortSignal): Promise<Run[]> {
   return (await getJson('/api/editions', editionListSchema, signal)).editions
 }
 
+/** Every published edition (up to the API's cap), for the date filter of the Edition page. */
+export async function fetchAllEditions(signal?: AbortSignal): Promise<Run[]> {
+  return (await getJson('/api/editions?limit=2000', editionListSchema, signal)).editions
+}
+
+export const periodSchema = editionSchema.extend({
+  edition_count: z.number(),
+  /** Analyzed items found in the period; only the best `listed_limit` are listed. */
+  analyzed_total: z.number(),
+  listed_limit: z.number(),
+})
+export type Period = z.infer<typeof periodSchema>
+
+export function fetchPeriod(since: Date, until: Date, language: string, signal?: AbortSignal): Promise<Period> {
+  const query = new URLSearchParams({ since: since.toISOString(), until: until.toISOString(), lang: language })
+  return getJson(`/api/editions/period?${query}`, periodSchema, signal)
+}
+
 export function fetchSourceReport(days: number, signal?: AbortSignal): Promise<SourceReport> {
   return getJson(`/api/sources?days=${days}`, sourceReportSchema, signal)
 }

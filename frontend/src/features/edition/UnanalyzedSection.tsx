@@ -10,7 +10,7 @@ import { listStagger, riseIn } from '../../lib/motion'
  * Items the AI could not analyze because its quota ran out. Deliberately plain:
  * original headline, source and link only, no score, summary or reliability badge.
  */
-export function UnanalyzedSection({ items, editionId }: { items: EditionItem[]; editionId: string }) {
+export function UnanalyzedSection({ items, editionId }: { items: EditionItem[]; editionId?: string }) {
   const { language, t } = useLanguage()
   return (
     <motion.section

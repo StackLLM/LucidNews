@@ -178,3 +178,66 @@ def test_item_detail_decodes_ids_and_rejects_bad_ones(tmp_path) -> None:
     assert resolve(ctx, "/api/items/hackernews%3Astory%3A42", {})[1]["id"] == "hackernews:story:42"
     assert resolve(ctx, "/api/items/missing", {})[0] == 404
     assert resolve(ctx, "/api/items/bad%0Aid", {})[0] == 400
+
+
+def _dated_run(archive, started_at: str, items) -> str:
+    run_id = archive.start_run(NOW - timedelta(hours=24))
+    archive.record_items(run_id, items, selected=True)
+    archive.finish_run(run_id, "success")
+    import sqlite3
+
+    with sqlite3.connect(archive.path) as conn:
+        conn.execute("UPDATE runs SET started_at = ? WHERE id = ?", (started_at, run_id))
+    return run_id
+
+
+def test_period_merges_the_editions_started_inside_it(tmp_path) -> None:
+    archive = ItemArchive(tmp_path / "archive.sqlite3")
+    _dated_run(archive, "2026-09-30T06:00:00+00:00", [make_item("sept", "tech-news", 9.9)])
+    _dated_run(archive, "2026-10-02T06:00:00+00:00", [make_item("shared", "tech-news", 8.0), make_item("a", "tech-news", 6.0)])
+    _dated_run(archive, "2026-10-03T06:00:00+00:00", [make_item("shared", "tech-news", 8.0), make_item("b", "tech-blog", 9.0)])
+    _dated_run(archive, "2026-11-01T06:00:00+00:00", [make_item("nov", "tech-news", 9.9)])
+    ctx = ApiContext(archive=archive, profile_order=["tech-news", "tech-blog"])
+
+    status, body = resolve(ctx, "/api/editions/period", {"since": ["2026-10-01T00:00:00Z"], "until": ["2026-11-01T00:00:00Z"], "lang": ["fr"]})
+
+    assert status == 200
+    assert body["edition_count"] == 2 and body["id"] == "period"
+    ids = [item["id"] for section in body["sections"] for item in section["items"]]
+    assert sorted(ids) == ["a", "b", "shared"]  # September and November are outside; "shared" once
+    assert [section["profile"] for section in body["sections"]] == ["tech-news", "tech-blog"]
+    assert body["selected_count"] == 3 and body["analyzed_total"] == 3
+
+    # The bounds are half-open: an edition starting exactly at `until` is out.
+    day = resolve(ctx, "/api/editions/period", {"since": ["2026-10-02T06:00:00Z"], "until": ["2026-10-03T06:00:00Z"]})[1]
+    assert day["edition_count"] == 1 and day["selected_count"] == 2
+
+    empty = resolve(ctx, "/api/editions/period", {"since": ["2025-01-01T00:00:00Z"], "until": ["2026-01-01T00:00:00Z"]})[1]
+    assert empty["edition_count"] == 0 and empty["sections"] == []
+
+
+def test_period_lists_only_the_best_items_and_says_how_many_there_were(tmp_path, monkeypatch) -> None:
+    import src.web_api as web_api
+
+    monkeypatch.setattr(web_api, "MAX_PERIOD_ITEMS", 2)
+    archive = ItemArchive(tmp_path / "archive.sqlite3")
+    _dated_run(archive, "2026-10-02T06:00:00+00:00", [make_item(f"i{n}", "tech-news", 5.0 + n) for n in range(4)])
+    ctx = ApiContext(archive=archive)
+
+    body = resolve(ctx, "/api/editions/period", {"since": ["2026-10-01T00:00:00Z"], "until": ["2026-10-31T00:00:00Z"]})[1]
+
+    assert [item["id"] for item in body["sections"][0]["items"]] == ["i3", "i2"]
+    assert body["analyzed_total"] == 4 and body["listed_limit"] == 2
+
+
+def test_period_and_limit_reject_bad_input(tmp_path) -> None:
+    ctx = ApiContext(archive=ItemArchive(tmp_path / "archive.sqlite3"))
+    ok = "2026-10-01T00:00:00Z"
+
+    assert resolve(ctx, "/api/editions/period", {})[0] == 400
+    assert resolve(ctx, "/api/editions/period", {"since": ["nope"], "until": [ok]})[0] == 400
+    assert resolve(ctx, "/api/editions/period", {"since": [ok], "until": [ok]})[0] == 400
+    assert resolve(ctx, "/api/editions/period", {"since": [ok], "until": ["2099-01-01T00:00:00Z"]})[0] == 400
+    assert resolve(ctx, "/api/editions", {"limit": ["0"]})[0] == 400
+    assert resolve(ctx, "/api/editions", {"limit": ["x"]})[0] == 400
+    assert resolve(ctx, "/api/editions", {"limit": ["500"]})[0] == 200

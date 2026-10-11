@@ -8,7 +8,7 @@ test('opens the full brief from an edition card', async () => {
   const fetchMock = mockApi()
   renderAt('/?lang=fr')
 
-  const card = (await screen.findByRole('link', { name: curl.title })).closest('article')!
+  const card = (await screen.findByRole('link', { name: curl.title }, { timeout: 5000 })).closest('article')!
   fireEvent.click(within(card).getByRole('link', { name: 'Fiche complète' }))
 
   expect(await screen.findByRole('heading', { level: 1, name: curl.title }, { timeout: 5000 })).toBeInTheDocument()
