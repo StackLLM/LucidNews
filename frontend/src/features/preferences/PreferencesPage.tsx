@@ -16,6 +16,7 @@ import {
 } from '../../lib/api'
 import { useLanguage, type MessageKey } from '../../lib/i18n'
 import { listStagger, riseIn, useMotionPreference } from '../../lib/motion'
+import { NewsletterPreview } from './NewsletterPreview'
 import { PlanCard } from './PlanCard'
 import { PreferencesForm } from './PreferencesForm'
 
@@ -45,9 +46,12 @@ function PreferencesView({ options, subscribers }: { options: PreferenceOptions;
           <SubscriberList subscribers={subscribers} selectedId={selected?.id} />
         </motion.div>
 
-        <motion.div variants={riseIn} className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+        <motion.div variants={riseIn} className="min-w-0 space-y-6 lg:col-start-2 lg:row-span-2 lg:row-start-1">
           {selected ? (
-            <PreferencesForm key={selected.id} subscriber={selected} options={options} />
+            <>
+              <PreferencesForm key={selected.id} subscriber={selected} options={options} />
+              <NewsletterPreview key={`preview-${selected.id}`} subscriber={selected} />
+            </>
           ) : (
             <div className="grid min-h-72 place-items-center rounded-card bg-surface/70 p-10 text-center shadow-card">
               <div>

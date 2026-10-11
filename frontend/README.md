@@ -35,7 +35,7 @@ Premium, calme, fin, professionnel. Impressionnant sans être chargé.
 | Édition du jour ✅ | Lire le digest : sections, score, fiabilité | API `/api/editions/latest` |
 | Fiche d'une news ✅ | Article complet + colonne Fiabilité (éditeur, affirmation, preuve, corroboration), actions, éditions | API `/api/items/<id>` |
 | Archives ✅ | Retrouver une édition par date (calendrier + liste) | API `/api/editions` |
-| Préférences ✅ | Abonnés (ajout, suppression), langue, thèmes, sources, rythme, importance, infos non confirmées, limite, offre affichée | API `/api/subscribers` (local) |
+| Préférences ✅ | Abonnés (ajout, suppression), langue, thèmes, sources, rythme, niveau de détail (bref / complet), importance, infos non confirmées, limite, offre affichée ; aperçu de l'e-mail dans un cadre sans script | API `/api/subscribers`, `/api/subscribers/<id>/preview` (local) |
 | Sources ✅ | Onglet Sources : santé (chiffres clés, volume par run), sources configurées par groupe : activer, ajouter, modifier, tester, supprimer. Onglet Domaines : couverture des 12 catégories, lacunes, domaines suivis, sources recommandées | API `/api/sources`, `/api/coverage`, `/api/catalog`, `/api/sources/config`, `/api/sources/test` (local) |
 
 | Qualité ✅ | Vue d'ensemble de la veille (couverture, diversité, santé, fraîcheur, doublons, filtrage, fiabilité), annotation à l'aveugle, résultats | API `/api/quality/overview`, `/api/eval/*` (local), voir `docs/evaluation.md` |
@@ -82,6 +82,7 @@ et les clés API (`.env` du projet).
 | `POST /api/subscribers` | Ajouter un abonné (`{"email": …}`) |
 | `PUT /api/subscribers/<id>` | Enregistrer ses préférences |
 | `DELETE /api/subscribers/<id>` | Le supprimer (rien n'est conservé) |
+| `GET /api/subscribers/<id>/preview` | L'e-mail de cet abonné tel qu'il serait envoyé (objet, HTML, texte), depuis l'archive |
 | `GET /api/quality/overview?days=14` | Indicateurs de la veille sur la période, depuis l'archive (résumé des annotations seulement en local) |
 | `GET /api/eval/items` · `GET /api/eval/report` | News à annoter (sans l'avis de l'IA) · résultats |
 | `PUT` / `DELETE /api/eval/annotations/<id>` | Enregistrer / effacer une annotation (local) |
@@ -183,6 +184,9 @@ et les clés API (`.env` du projet).
   l'adresse n'apparaît jamais dans les URL.
 - L'offre (Gratuite / Premium) est affichée, jamais modifiable depuis l'écran :
   pas de paiement.
+- L'aperçu de la newsletter est affiché dans un `iframe` avec `sandbox` sans
+  `allow-scripts` : le HTML des sources ne peut rien exécuter. Les liens s'ouvrent
+  dans un nouvel onglet.
 
 Les tests du frontend utilisent les vraies réponses de l'API sur l'archive
 locale du 6 octobre 2026 (`src/test/fixtures/`).

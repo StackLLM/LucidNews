@@ -560,6 +560,10 @@ class EmailConfig(BaseModel):
     subscribe_keyword: str = "SUBSCRIBE"
     unsubscribe_keyword: str = "UNSUBSCRIBE"
     enabled: bool = False
+    # Weekly subscribers get the best items of the last 7 days on this weekday of the
+    # first run of that day (0 = Monday ... 6 = Sunday), at most once per ISO week.
+    weekly_day: int = Field(default=0, ge=0, le=6)
+    weekly_max_items: int = Field(default=15, gt=0, le=100)
 
 
 class CategoryGroupConfig(BaseModel):

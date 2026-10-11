@@ -14,9 +14,26 @@ const basePreferences = {
   min_importance: null,
   include_unconfirmed: true,
   max_items: null,
+  detail_level: 'complete',
 }
 
-function fakeApi(initial: Stored[] = []) {
+const previewPayload = {
+  frequency: 'daily',
+  detail_level: 'complete',
+  language: 'en',
+  weekly_day: 0,
+  reason: null,
+  subject: 'LucidNews — 2026-10-11',
+  html: '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body><h1>Hello digest</h1></body></html>',
+  text: 'Hello digest',
+  item_count: 3,
+  unanalyzed_count: 0,
+  empty: false,
+  would_send: true,
+  edition: 'run-1',
+}
+
+function fakeApi(initial: Stored[] = [], preview: Record<string, unknown> = previewPayload) {
   const subscribers = [...initial]
   const calls: { method: string; path: string; body?: unknown }[] = []
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
@@ -39,6 +56,7 @@ function fakeApi(initial: Stored[] = []) {
       subscribers.push(created)
       return json(created, 201)
     }
+    if (/^\/api\/subscribers\/\w+\/preview$/.test(path)) return json(preview)
     const match = path.match(/^\/api\/subscribers\/(\w+)$/)
     const index = subscribers.findIndex((s) => s.id === match?.[1])
     if (match && index >= 0 && method === 'PUT') {
@@ -110,6 +128,7 @@ test('edits and saves preferences', async () => {
       min_importance: 'high',
       include_unconfirmed: false,
       max_items: 8,
+      detail_level: 'complete',
     },
   })
 })
@@ -138,4 +157,65 @@ test('deletes a subscriber after confirmation', async () => {
   await waitFor(() => expect(window.location.pathname).toBe('/preferences'))
   expect(api.subscribers).toEqual([])
   expect(await screen.findByText('No subscriber yet. Add the first one below.')).toBeInTheDocument()
+})
+
+test('the level of detail is saved with the preferences', async () => {
+  const api = fakeApi([ada])
+  renderAt(`/preferences/${ada.id}?lang=en`)
+  await screen.findByRole('heading', { level: 2, name: 'ada@example.com' }, { timeout: 5000 })
+
+  expect(screen.getByRole('button', { name: 'Complete' })).toHaveAttribute('aria-pressed', 'true')
+  fireEvent.click(screen.getByRole('button', { name: 'Brief' }))
+  expect(screen.getByText('Title, reliability, summary and source.')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+  expect(await screen.findByText('Preferences saved')).toBeInTheDocument()
+  expect((api.calls.find((call) => call.method === 'PUT')?.body as { preferences: { detail_level: string } }).preferences.detail_level).toBe('brief')
+})
+
+test('the weekly choice says which day the digest is sent', async () => {
+  fakeApi([{ ...ada, preferences: { ...basePreferences, frequency: 'weekly' } }])
+  renderAt(`/preferences/${ada.id}?lang=en`)
+  await screen.findByRole('heading', { level: 2, name: 'ada@example.com' }, { timeout: 5000 })
+
+  expect(screen.getByText(/sent every Monday with the first run of that day/)).toBeInTheDocument()
+})
+
+test('the preview shows the e-mail in a frame without scripts', async () => {
+  const api = fakeApi([ada])
+  renderAt(`/preferences/${ada.id}?lang=en`)
+  await screen.findByRole('heading', { level: 2, name: 'ada@example.com' }, { timeout: 5000 })
+
+  // Nothing is built until it is asked for.
+  expect(api.calls.some((call) => call.path.endsWith('/preview'))).toBe(false)
+  fireEvent.click(screen.getByRole('button', { name: 'Show the preview' }))
+
+  const frame = await screen.findByTitle('E-mail preview')
+  expect(frame).toHaveAttribute('sandbox', 'allow-popups allow-popups-to-escape-sandbox')
+  expect(frame.getAttribute('sandbox')).not.toContain('allow-scripts')
+  expect(frame.getAttribute('srcdoc')).toContain('<h1>Hello digest</h1>')
+  expect(screen.getByText('LucidNews — 2026-10-11')).toBeInTheDocument()
+  expect(screen.getByText(/Latest published edition · 3 items/)).toBeInTheDocument()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Hide the preview' }))
+  expect(screen.queryByTitle('E-mail preview')).not.toBeInTheDocument()
+})
+
+test('the preview says when there is nothing to show', async () => {
+  fakeApi([ada], { ...previewPayload, reason: 'no_edition', subject: null, html: null, text: null, item_count: 0, empty: true, would_send: false })
+  renderAt(`/preferences/${ada.id}?lang=en`)
+  await screen.findByRole('heading', { level: 2, name: 'ada@example.com' }, { timeout: 5000 })
+
+  fireEvent.click(screen.getByRole('button', { name: 'Show the preview' }))
+  expect(await screen.findByText('No edition has been published yet. Run the pipeline once to get a preview.')).toBeInTheDocument()
+})
+
+test('a weekly preview with nothing to send is not shown as an e-mail', async () => {
+  fakeApi([ada], { ...previewPayload, frequency: 'weekly', since: '2026-10-05', until: '2026-10-11', item_count: 0, empty: true, would_send: false })
+  renderAt(`/preferences/${ada.id}?lang=en`)
+  await screen.findByRole('heading', { level: 2, name: 'ada@example.com' }, { timeout: 5000 })
+
+  fireEvent.click(screen.getByRole('button', { name: 'Show the preview' }))
+  expect(await screen.findByText(/no weekly e-mail would be sent/)).toBeInTheDocument()
+  expect(screen.queryByTitle('E-mail preview')).not.toBeInTheDocument()
 })

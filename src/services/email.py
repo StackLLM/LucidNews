@@ -1,7 +1,6 @@
 """Email service for handling subscriptions and sending summaries."""
 
 import email
-import html
 import imaplib
 import logging
 import os
@@ -12,15 +11,10 @@ from email.mime.text import MIMEText
 from email.utils import parseaddr
 from typing import List
 
-try:
-    import markdown
-except ImportError:
-    markdown = None
-
 from rich.console import Console
 
-from ..ai.markdown_utils import clean_app_summary_markdown
 from ..models import EmailConfig
+from ..newsletter.render import RenderedEmail, render_email
 
 logger = logging.getLogger(__name__)
 
@@ -159,42 +153,22 @@ class EmailManager:
             raise
         return server
 
-    def send_daily_summary(self, summary_md: str, subject: str, subscribers: List[str]):
-        """Sends the daily summary to all subscribers."""
+    def send_daily_summary(
+        self, summary_md: str, subject: str, subscribers: List[str], language: str = "en"
+    ):
+        """Render a Markdown digest (same renderer as the web preview) and send it."""
+        rendered = render_email(
+            summary_md,
+            language=language,
+            sender_name=self.config.sender_name,
+            unsubscribe_keyword=self.config.unsubscribe_keyword,
+        )
+        self.send_rendered(rendered, subject, subscribers)
+
+    def send_rendered(self, rendered: RenderedEmail, subject: str, subscribers: List[str]):
+        """Send an already rendered e-mail (text + HTML) to each subscriber."""
         if not self.config.enabled or not subscribers:
             return
-
-        cleaned_summary = clean_app_summary_markdown(summary_md)
-        safe_summary = html.escape(cleaned_summary)
-        html_content = (
-            markdown.markdown(safe_summary)
-            if markdown
-            else f"<pre>{safe_summary}</pre>"
-        )
-
-        html_body = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <style>
-                body {{ font-family: sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }}
-                h1, h2, h3 {{ color: #2c3e50; }}
-                code {{ background-color: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: monospace; }}
-                pre {{ background-color: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }}
-                blockquote {{ border-left: 4px solid #ddd; padding-left: 15px; color: #777; }}
-                .footer {{ margin-top: 40px; font-size: 12px; color: #888; text-align: center; border-top: 1px solid #eee; padding-top: 20px; }}
-            </style>
-        </head>
-        <body>
-            {html_content}
-            <div class="footer">
-                <p>Sent by {self.config.sender_name}</p>
-                <p>To unsubscribe, please reply with "{self.config.unsubscribe_keyword}"</p>
-            </div>
-        </body>
-        </html>
-        """
 
         try:
             with self._open_smtp() as server:
@@ -209,12 +183,8 @@ class EmailManager:
                         f"{self.config.sender_name} <{self.config.email_address}>"
                     )
                     msg["To"] = subscriber
-
-                    text_part = MIMEText(cleaned_summary, "plain")
-                    html_part = MIMEText(html_body, "html")
-
-                    msg.attach(text_part)
-                    msg.attach(html_part)
+                    msg.attach(MIMEText(rendered.text, "plain"))
+                    msg.attach(MIMEText(rendered.html, "html"))
 
                     try:
                         server.send_message(msg)

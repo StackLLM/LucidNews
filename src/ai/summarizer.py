@@ -189,6 +189,9 @@ class DailySummarizer:
         total_fetched: int,
         language: str = "en",
         unanalyzed: Sequence[ContentItem] = (),
+        *,
+        detail: str = "complete",
+        weekly: bool = False,
     ) -> str:
         """Generate daily summary in Markdown format.
 
@@ -199,28 +202,34 @@ class DailySummarizer:
             date: Date string (YYYY-MM-DD)
             total_fetched: Total number of items fetched before filtering
             language: Output language, either "en" or "zh"
+            detail: "complete" (context, references, tags) or "brief" (summary only)
+            weekly: header and intro of a weekly digest (``date`` is then its period)
 
         Returns:
             str: Markdown formatted summary
         """
         labels = messages(language)
+        title = labels["header_weekly"] if weekly else labels["header"]
         unanalyzed_section = self._format_unanalyzed(unanalyzed, labels, language)
 
         if not items:
+            if weekly and not unanalyzed_section:
+                return f"# {title} - {date}\n\n> {labels['weekly_empty']}\n"
             if unanalyzed_section:
                 return normalize_language(
-                    f"# {labels['header']} - {date}\n\n"
+                    f"# {title} - {date}\n\n"
                     f"> {labels['unanalyzed_only'].format(count=len(unanalyzed))}\n\n"
                     "---\n\n" + unanalyzed_section,
                     language,
                 )
             return self._generate_empty_summary(date, total_fetched, labels)
 
-        header = (
-            f"# {labels['header']} - {date}\n\n"
-            f"> {labels['selected_items'].format(total=total_fetched, selected=len(items))}\n\n"
-            "---\n\n"
+        intro = (
+            labels["weekly_selected"].format(selected=len(items))
+            if weekly
+            else labels["selected_items"].format(total=total_fetched, selected=len(items))
         )
+        header = f"# {title} - {date}\n\n> {intro}\n\n---\n\n"
 
         toc_sections = []
         body_sections = []
@@ -250,6 +259,7 @@ class DailySummarizer:
                     anchor_id=view_item.anchor_id,
                     title_override=view_item.title,
                     score_override=view_item.score,
+                    detail=detail,
                 )
                 for view_item in group.items
             )
@@ -365,8 +375,14 @@ class DailySummarizer:
         anchor_id: Optional[str] = None,
         title_override: Optional[str] = None,
         score_override: float | str | None = None,
+        detail: str = "complete",
     ) -> str:
-        """Format a single ContentItem into Markdown."""
+        """Format a single ContentItem into Markdown.
+
+        ``detail="brief"`` keeps the title, reliability, summary and source; the context
+        blocks, references and tags are left to the "complete" level.
+        """
+        brief = detail == "brief"
         artifact = item.processing.artifacts.get(language) if item.processing else None
         analysis = item.processing.analysis if item.processing else None
         _title = title_override or (artifact.title if artifact else item.title)
@@ -389,6 +405,8 @@ class DailySummarizer:
             else None
         )
 
+        if brief and artifact and not primary_block and analysis:
+            summary = analysis.summary  # the enrichment has no lead block: say it with the analysis
         summary = _escape_markdown(summary)
         primary_content = (
             _escape_markdown(primary_block.content) if primary_block else ""
@@ -435,7 +453,7 @@ class DailySummarizer:
             lines.extend(["", primary_content])
         lines.extend(["", source_line])
 
-        if artifact:
+        if artifact and not brief:
             for block in artifact.blocks:
                 if block.primary:
                     continue
@@ -446,7 +464,7 @@ class DailySummarizer:
                     block_content = _pangu(block_content)
                 lines.extend(["", f"**「{block_title}」** {block_content}"])
 
-        sources = artifact.sources if artifact else []
+        sources = artifact.sources if artifact and not brief else []
         if sources:
             reference_items = []
             for source in sources:
@@ -462,7 +480,7 @@ class DailySummarizer:
                 f'<details><summary>{labels["references"]}</summary>\n<ul>\n{items_html}\n</ul>\n</details>',
             ]
 
-        if analysis and analysis.tags:
+        if analysis and analysis.tags and not brief:
             tags_str = ", ".join([f"`#{_escape_markdown(t)}`" for t in analysis.tags])
             lines.append("")
             lines.append(f"**{labels['tags']}**: {tags_str}")

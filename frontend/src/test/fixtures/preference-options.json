@@ -193,5 +193,10 @@
    "max_sources": null,
    "max_items": null
   }
- ]
+ ],
+ "detail_levels": [
+  "brief",
+  "complete"
+ ],
+ "weekly_day": 0
 }

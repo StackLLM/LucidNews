@@ -12,7 +12,12 @@ from ..taxonomy import Importance, normalize_categories
 
 class Frequency(str, Enum):
     DAILY = "daily"
-    WEEKLY = "weekly"  # stored now; delivery is on the roadmap (needs a multi-day item archive)
+    WEEKLY = "weekly"  # the best items of the last seven days, sent on ``email.weekly_day``
+
+
+class DetailLevel(str, Enum):
+    BRIEF = "brief"  # title, reliability, summary, source
+    COMPLETE = "complete"  # brief + the context blocks, references and tags of the enrichment
 
 
 class Plan(str, Enum):
@@ -32,6 +37,7 @@ class DigestPreferences(BaseModel):
     min_importance: Optional[Importance] = None
     include_unconfirmed: bool = True
     max_items: Optional[int] = Field(default=None, gt=0)
+    detail_level: DetailLevel = DetailLevel.COMPLETE
 
     @field_validator("language")
     @classmethod

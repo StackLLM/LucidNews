@@ -822,6 +822,8 @@ Email delivery is optional and disabled unless `email.enabled` is `true`. LucidN
 - `password_env`: Environment variable containing the email password or app password. Defaults to `EMAIL_PASSWORD`.
 - `sender_name`: Display name shown in sent emails.
 - `subscribe_keyword` / `unsubscribe_keyword`: Keywords LucidNews looks for in incoming email subjects.
+- `weekly_day`: Weekday (0 = Monday … 6 = Sunday, default 0) on which weekly subscribers receive the best items of the last 7 days. Sent by the first run of that day, at most once per ISO week (recorded in `data/weekly_sent.json`).
+- `weekly_max_items`: Maximum items in a weekly e-mail (default 15; a subscriber's own `max_items` applies if lower).
 
 Resend SMTP example:
 

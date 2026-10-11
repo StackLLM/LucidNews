@@ -15,6 +15,7 @@ Endpoints (JSON, GET only):
 Subscriber preferences (local only, see ``subscribers_api``):
 
 - ``GET /api/preferences/options``, ``GET /api/subscribers``
+- ``GET /api/subscribers/<id>/preview`` (the newsletter as it would be sent)
 - ``POST /api/subscribers``, ``PUT /api/subscribers/<id>``, ``DELETE /api/subscribers/<id>``
 
 Quality evaluation (local only, see ``evaluation``):
@@ -67,6 +68,7 @@ from .storage.manager import StorageManager
 from .settings_api import ENV_NAME, SettingsService
 from .source_catalog import CatalogEntry, load_catalog, recommendations
 from .sources_api import SourcesService
+from .newsletter.preview import PreviewService
 from .subscribers_api import SubscriberService
 from .taxonomy import Category, importance_from_score
 
@@ -100,6 +102,7 @@ class ApiContext:
     configured_sources: Dict[str, str] = field(default_factory=dict)
     # None when the API is not bound to loopback: subscriber routes are then refused.
     subscribers: Optional[SubscriberService] = None
+    previews: Optional[PreviewService] = None
     evaluation: Optional[EvaluationService] = None
     # Source quality as the pipeline computes it (current registry, same window).
     reliability_policy: Optional[ReliabilityPolicy] = None
@@ -387,6 +390,16 @@ def resolve(ctx: ApiContext, path: str, query: Dict[str, List[str]]) -> tuple[in
         if ctx.subscribers is None:
             return HTTPStatus.FORBIDDEN, LOCAL_ONLY
         return ctx.subscribers.list()
+    if path.startswith("/api/subscribers/") and path.endswith("/preview"):
+        if ctx.subscribers is None or ctx.previews is None:
+            return HTTPStatus.FORBIDDEN, LOCAL_ONLY
+        sub_id = path.removeprefix("/api/subscribers/").removesuffix("/preview")
+        if not SUBSCRIBER_ID.match(sub_id):
+            return HTTPStatus.BAD_REQUEST, {"error": "invalid subscriber id"}
+        subscriber = ctx.subscribers.get(sub_id)
+        if subscriber is None:
+            return HTTPStatus.NOT_FOUND, {"error": "subscriber not found"}
+        return HTTPStatus.OK, ctx.previews.preview(subscriber)
     if path in ("/api/eval/items", "/api/eval/report"):
         if ctx.evaluation is None:
             return HTTPStatus.FORBIDDEN, LOCAL_ONLY
@@ -604,10 +617,16 @@ def build_context(data_dir: str, config_path: Optional[str], *, local_features: 
         config=config,
         catalog=load_catalog(),
         subscribers=(
-            SubscriberService(storage.subscribers, config.ai.languages, configured_source_keys(config))
+            SubscriberService(
+                storage.subscribers,
+                config.ai.languages,
+                configured_source_keys(config),
+                weekly_day=config.email.weekly_day if config.email else 0,
+            )
             if local_features
             else None
         ),
+        previews=PreviewService(archive, config, profiles.names) if local_features else None,
         evaluation=(
             EvaluationService.from_config(
                 config, archive, AnnotationStore(Path(data_dir) / "eval" / "annotations.json")

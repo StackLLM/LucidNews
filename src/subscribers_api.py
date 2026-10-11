@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence
 from pydantic import ValidationError
 
 from .i18n import LANGUAGES
-from .newsletter.models import DigestPreferences, Frequency, Subscriber
+from .newsletter.models import DetailLevel, DigestPreferences, Frequency, Subscriber
 from .newsletter.plans import PLAN_LIMITS
 from .newsletter.store import SubscriberStore
 from .taxonomy import IMPORTANCE_ORDER, Category
@@ -68,8 +68,15 @@ def _validation_errors(exc: ValidationError) -> Dict[str, str]:
 
 
 class SubscriberService:
-    def __init__(self, store: SubscriberStore, languages: Sequence[str], configured_sources: Mapping[str, str]):
+    def __init__(
+        self,
+        store: SubscriberStore,
+        languages: Sequence[str],
+        configured_sources: Mapping[str, str],
+        weekly_day: int = 0,
+    ):
         self.store = store
+        self.weekly_day = weekly_day
         self.languages = [code for code in languages if code in LANGUAGES] or ["en"]
         self.configured_sources = dict(configured_sources)
         self._lock = threading.Lock()  # one writer at a time on the JSON file
@@ -81,6 +88,8 @@ class SubscriberService:
             ],
             "categories": [category.value for category in Category],
             "frequencies": [frequency.value for frequency in Frequency],
+            "detail_levels": [level.value for level in DetailLevel],
+            "weekly_day": self.weekly_day,
             "importance_levels": [level.value for level in IMPORTANCE_ORDER],
             "sources": source_options(self.configured_sources),
             # Both plans are unlimited until the product is validated: shown, never billed.
@@ -106,6 +115,11 @@ class SubscriberService:
     def list(self) -> Response:
         subscribers = sorted(self.store.load(), key=lambda s: s.created_at)
         return HTTPStatus.OK, {"subscribers": [subscriber_payload(s) for s in subscribers]}
+
+    def get(self, sub_id: str) -> Optional[Subscriber]:
+        subscribers = self.store.load()
+        index = self._find(subscribers, sub_id)
+        return subscribers[index] if index is not None else None
 
     def _find(self, subscribers: List[Subscriber], sub_id: str) -> Optional[int]:
         return next((i for i, s in enumerate(subscribers) if subscriber_id(s.email) == sub_id), None)

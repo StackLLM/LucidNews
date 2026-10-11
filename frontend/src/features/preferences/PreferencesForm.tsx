@@ -27,6 +27,10 @@ const formSchema = preferencesSchema.extend({
   max_items: z.number({ error: 'maxItems' }).int({ error: 'maxItems' }).min(1, { error: 'maxItems' }).max(100, { error: 'maxItems' }).nullable(),
 })
 
+// 2024-01-01 was a Monday: day 0 of the API's week (0 = Monday).
+const weekdayName = (day: number, language: string) =>
+  new Date(Date.UTC(2024, 0, 1 + day)).toLocaleDateString(language, { weekday: 'long', timeZone: 'UTC' })
+
 type ImportanceChoice = 'all' | 'medium' | 'high' | 'critical'
 
 export function PreferencesForm({ subscriber, options }: { subscriber: Subscriber; options: PreferenceOptions }) {
@@ -204,7 +208,19 @@ export function PreferencesForm({ subscriber, options }: { subscriber: Subscribe
             onChange={(value) => set('frequency', value)}
             options={options.frequencies.map((frequency) => ({ value: frequency, label: t(`freq.${frequency}` as MessageKey) }))}
           />
-          {values.frequency === 'weekly' && <p className="mt-2.5 text-[13px] text-muted">{t('prefs.weeklyHint')}</p>}
+          {values.frequency === 'weekly' && (
+            <p className="mt-2.5 text-[13px] text-muted">{t('prefs.weeklyHint', { day: weekdayName(options.weekly_day, language) })}</p>
+          )}
+        </Field>
+
+        <Field title={t('prefs.detail')} hint={t(`prefs.detailHint.${values.detail_level}` as MessageKey)}>
+          <Segmented
+            id="pref-detail"
+            label={t('prefs.detail')}
+            value={values.detail_level}
+            onChange={(value) => set('detail_level', value)}
+            options={options.detail_levels.map((level) => ({ value: level, label: t(`prefs.detail.${level}` as MessageKey) }))}
+          />
         </Field>
 
         <Field title={t('prefs.importance')}>

@@ -1,7 +1,7 @@
 """Plan newsletter deliveries: one rendered digest per distinct preference set."""
 
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Sequence, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from ..models import ContentItem
 from .models import DigestPreferences, Frequency, Subscriber
@@ -32,12 +32,14 @@ def plan_deliveries(
     *,
     frequency: Frequency = Frequency.DAILY,
     unanalyzed: Sequence[ContentItem] = (),
+    max_items_cap: Optional[int] = None,
 ) -> DeliveryPlan:
     """Group subscribers by effective preferences and select their items.
 
     ``available_languages`` are the languages AI content was generated in for this
     run; a subscriber asking for another language receives the first available one
     (recorded in ``language_fallbacks``) rather than a half-translated digest.
+    ``max_items_cap`` bounds every subscriber's ``max_items`` (weekly digests).
     """
     if not available_languages:
         raise ValueError("at least one available language is required")
@@ -47,6 +49,8 @@ def plan_deliveries(
 
     for subscriber in subscribers:
         prefs = effective_preferences(subscriber)
+        if max_items_cap is not None and (prefs.max_items is None or prefs.max_items > max_items_cap):
+            prefs = prefs.model_copy(update={"max_items": max_items_cap})
         if prefs.frequency is not frequency:
             plan.skipped_weekly.append(subscriber.email)
             continue

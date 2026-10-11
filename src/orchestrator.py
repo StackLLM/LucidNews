@@ -37,7 +37,9 @@ from .processing.tools import ToolRegistry
 from .reliability.assess import ReliabilityPolicy, assess_item, source_tier_for
 from .reliability.models import SourceTier
 from .i18n import messages
-from .newsletter import DeliveryPlan, plan_deliveries
+from .newsletter import DeliveryPlan, Frequency, plan_deliveries
+from .newsletter.build import render_selection
+from .newsletter.weekly import WeeklyState, window as weekly_window
 from .archive import ItemArchive, content_hash
 from .source_health import (
     SCRAPER_SOURCE_TYPES,
@@ -320,6 +322,7 @@ class PipelineOrchestrator:
                 self.console.print("[yellow]No new content found. Exiting.[/yellow]")
                 self._archive("record_selection_stats", url_merged=0, topic_merged=0, above_threshold=0)
                 self._finish_archive("empty", all_items, [])
+                await self.send_weekly_newsletters()
                 return
 
             # 3. Merge cross-source duplicates (same URL from different sources)
@@ -405,6 +408,7 @@ class PipelineOrchestrator:
                 await self.send_newsletters(
                     important_items, today, len(all_items), unanalyzed=unanalyzed
                 )
+                await self.send_weekly_newsletters()
 
             self._finish_archive("success", all_items, important_items + unanalyzed)
 
@@ -460,10 +464,48 @@ class PipelineOrchestrator:
             self.config.ai.languages,
             unanalyzed=unanalyzed or (),
         )
-        if plan.skipped_weekly:
+        await self._deliver(plan, date, total_fetched)
+        return plan
+
+    async def send_weekly_newsletters(self, today: Optional[datetime] = None) -> Optional[DeliveryPlan]:
+        """Send the week's best archived items to weekly subscribers, once per ISO week.
+
+        Due on ``email.weekly_day`` (first run of that day). Without an archive or items
+        nothing is sent and the week stays due.
+        """
+        email = self.config.email
+        if not (self.email_manager and email and email.enabled):
+            return None
+        day = (today or datetime.now(timezone.utc)).date()
+        state = WeeklyState(self.storage.data_dir / "weekly_sent.json")
+        if not state.is_due(day, email.weekly_day) or getattr(self, "archive", None) is None:
+            return None
+        since, until, week_start = weekly_window(day)
+        try:
+            items = self.archive.items_between(since, until, selected_only=True)
+        except Exception as exc:
+            logger.warning("Weekly digest skipped, archive unreadable: %s", exc)
+            return None
+        plan = plan_deliveries(
+            self.storage.subscribers.load(),
+            [item for item in items if not (item.processing and item.processing.ai_skipped)],
+            self.config.ai.languages,
+            frequency=Frequency.WEEKLY,
+            max_items_cap=email.weekly_max_items,
+        )
+        await self._deliver(plan, day.isoformat(), len(items), week_start=week_start)
+        state.mark_sent(day)
+        return plan
+
+    async def _deliver(
+        self, plan: DeliveryPlan, day: str, total_fetched: int, week_start: Optional[str] = None
+    ) -> None:
+        """Render each delivery of ``plan`` (the code path of the web preview) and send it."""
+        email = self.config.email
+        if plan.skipped_weekly and week_start is None:
             self.console.print(
-                f"[yellow]{self.icons['warning']} Weekly delivery is not available yet; "
-                f"skipped {len(plan.skipped_weekly)} weekly subscriber(s).[/yellow]"
+                f"{self.icons['email']} {len(plan.skipped_weekly)} weekly subscriber(s) "
+                f"receive their digest on day {email.weekly_day} of the week (0 = Monday)."
             )
         for email_addr, (wanted, used) in plan.language_fallbacks.items():
             self.console.print(
@@ -477,21 +519,26 @@ class PipelineOrchestrator:
         )
         for delivery in plan.deliveries:
             language = delivery.preferences.language
-            summary = await summarizer.generate_summary(
+            if week_start is not None and not delivery.items:
+                continue  # nothing this week for these preferences: no empty e-mail
+            newsletter = await render_selection(
+                delivery.preferences,
                 delivery.items,
-                date,
-                total_fetched,
-                language=language,
-                unanalyzed=delivery.unanalyzed,
+                delivery.unanalyzed,
+                summarizer=summarizer,
+                day=day,
+                total_fetched=total_fetched,
+                sender_name=email.sender_name,
+                unsubscribe_keyword=email.unsubscribe_keyword,
+                week_start=week_start,
             )
-            subject = messages(language)["email_subject"].format(date=date)
             self.console.print(
-                f"{self.icons['email']} Sending {language.upper()} digest "
-                f"({len(delivery.items) + len(delivery.unanalyzed)} items) "
+                f"{self.icons['email']} Sending {language.upper()} "
+                f"{'weekly' if week_start else 'daily'} digest "
+                f"({newsletter.item_count + newsletter.unanalyzed_count} items) "
                 f"to {len(delivery.recipients)} subscriber(s)..."
             )
-            self.email_manager.send_daily_summary(summary, subject, delivery.recipients)
-        return plan
+            self.email_manager.send_rendered(newsletter.email, newsletter.subject, delivery.recipients)
 
     def _finish_archive(
         self,

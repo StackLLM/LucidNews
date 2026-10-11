@@ -36,7 +36,7 @@ Objectif : utiliser LucidNews sans terminal pour les opérations courantes. Dét
 
 ## Phase 3 — Newsletter
 
-- Contenu et préférences : envoi hebdomadaire, niveau de détail, aperçu, e-mail HTML refait (lot 21).
+- Contenu et préférences : envoi hebdomadaire, niveau de détail, aperçu, e-mail HTML refait (lot 21, fait).
 - Envoi fiable : double opt-in, désinscription signée, fournisseur transactionnel, journal des envois, abonnés en base, fuseau horaire (lot 22).
 - Recherche dans l'archive (lot 23), puis finitions de l'interface : mode sombre, contrastes, socle allégé (lot 24).
 

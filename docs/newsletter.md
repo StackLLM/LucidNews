@@ -13,10 +13,11 @@ Subscriber
     ├── language          "en", "fr"…            (défaut : en)
     ├── categories        ["ai", "cybersecurity"] (vide = toutes)
     ├── sources           ["hackernews", "LWN.net"] types de source ou noms de flux (vide = toutes)
-    ├── frequency         daily | weekly         (weekly : stocké, pas encore envoyé)
+    ├── frequency         daily | weekly         (weekly : les 7 derniers jours, voir plus bas)
     ├── min_importance    low | medium | high | critical (vide = tout le digest)
     ├── include_unconfirmed  true                 (false = exclut « Non vérifié » et « Rumeur »)
-    └── max_items         null                   (plafond par email)
+    ├── max_items         null                   (plafond par email)
+    └── detail_level      brief | complete       (défaut : complete)
 ```
 
 ## Fonctionnement d'un envoi
@@ -26,11 +27,36 @@ Subscriber
 1. `plan_deliveries` charge les abonnés et applique les limites de leur plan (`effective_preferences`).
 2. Les abonnés aux préférences identiques sont regroupés : **un seul rendu par jeu de préférences**, quel que soit le nombre d'abonnés.
 3. Pour chaque groupe, `select_items` filtre le digest du jour (déjà trié par score) : catégories, sources, importance, fiabilité, plafond.
-4. Le digest est rendu dans la langue du groupe et envoyé avec un sujet localisé.
+4. Le digest est rendu dans la langue du groupe, au niveau de détail choisi, et envoyé avec un sujet localisé.
 
 Si le quota IA a été épuisé pendant le run, les news non analysées sont ajoutées dans une section à part, « Sans analyse IA ». Comme elles n'ont ni catégorie, ni importance, ni vérification, un abonné ne les reçoit que s'il ne filtre ni par catégorie ni par importance et accepte les infos non confirmées. Son filtre de sources et son plafond `max_items` s'appliquent toujours (les news analysées passent en premier).
 
-Un abonné ne reçoit que sa langue. Les abonnés `weekly` sont signalés comme non servis, sans erreur.
+Un abonné ne reçoit que sa langue.
+
+## Niveau de détail
+
+- **bref** : titre, fiabilité, résumé, source.
+- **complet** : le bref, plus les blocs de contexte, les références et les tags de l'enrichissement.
+
+Les deux réutilisent les textes déjà produits : aucun appel IA supplémentaire. Deux niveaux différents sont deux rendus distincts.
+
+## Envoi hebdomadaire
+
+Un abonné `weekly` reçoit les meilleures news **publiées des 7 derniers jours** (archive), pas le digest du jour.
+
+- Jour d'envoi : `email.weekly_day` (0 = lundi, défaut), au premier run de ce jour. Le run peut venir de la planification ou d'un lancement manuel ; il est aussi déclenché quand le run du jour ne trouve rien de nouveau.
+- Au plus une fois par semaine ISO : la semaine envoyée est notée dans `data/weekly_sent.json`. Un second run le même jour n'envoie rien. Si le fichier est illisible, l'envoi n'est pas bloqué.
+- Plafond : `email.weekly_max_items` (15), ou le `max_items` de l'abonné s'il est plus bas.
+- Pas de news non analysées, et aucun e-mail si rien ne correspond aux préférences de la semaine.
+- Le Mac doit être allumé au moment du run : sans run ce jour-là, la semaine n'est pas envoyée (elle l'est au prochain run du même jour de la semaine suivante).
+
+## Aperçu
+
+Dans Préférences, « Voir l'aperçu » montre l'e-mail d'un abonné avec ses préférences enregistrées. Il est construit par le même code que l'envoi (`plan_deliveries` puis `render_selection`), depuis l'archive : dernière édition publiée pour un abonné quotidien, 7 derniers jours pour un hebdomadaire. Route : `GET /api/subscribers/<id>/preview` (API locale seulement). Le HTML est affiché dans un `iframe` sans script.
+
+## Rendu de l'e-mail
+
+`src/newsletter/render.py` convertit le Markdown du digest en e-mail HTML et texte. Le texte des sources est déjà échappé par le générateur de digest ; tout `<` restant devient littéral. Aucun script, aucune image distante, aucun formulaire.
 
 ## Plans Free / Premium
 
@@ -66,4 +92,4 @@ store.add("lecteur@example.com", DigestPreferences(language="fr", categories=["a
 
 ## Prochaines étapes
 
-Voir la [roadmap](roadmap.md) : envoi hebdomadaire, gestion des préférences par lien, double opt-in, fournisseur d'emailing transactionnel, base de données.
+Voir la [roadmap](roadmap.md) : gestion des préférences par lien, double opt-in, fournisseur d'emailing transactionnel, base de données.

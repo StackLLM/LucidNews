@@ -160,6 +160,7 @@ export function fetchItem(id: string, language: string, signal?: AbortSignal): P
 // Subscriber preferences (local-only routes, see src/subscribers_api.py) -------------
 
 export const frequencies = ['daily', 'weekly'] as const
+export const detailLevels = ['brief', 'complete'] as const
 export const importanceLevels = ['low', 'medium', 'high', 'critical'] as const
 
 export const preferencesSchema = z.object({
@@ -170,6 +171,7 @@ export const preferencesSchema = z.object({
   min_importance: z.enum(importanceLevels).nullable(),
   include_unconfirmed: z.boolean(),
   max_items: z.number().int().nullable(),
+  detail_level: z.enum(detailLevels),
 })
 
 const subscriberSchema = z.object({
@@ -184,6 +186,8 @@ const optionsSchema = z.object({
   languages: z.array(z.object({ code: z.string(), name: z.string() })),
   categories: z.array(z.string()),
   frequencies: z.array(z.enum(frequencies)),
+  detail_levels: z.array(z.enum(detailLevels)),
+  weekly_day: z.number().int().min(0).max(6),
   importance_levels: z.array(z.enum(importanceLevels)),
   sources: z.array(z.object({ value: z.string(), type: z.string(), kind: z.enum(['type', 'source']) })),
   plans: z.array(
@@ -196,6 +200,26 @@ const optionsSchema = z.object({
   ),
 })
 
+const newsletterPreviewSchema = z.object({
+  frequency: z.enum(frequencies),
+  detail_level: z.enum(detailLevels),
+  language: z.string(),
+  weekly_day: z.number().int(),
+  reason: z.string().nullable(),
+  subject: z.string().nullable(),
+  html: z.string().nullable(),
+  text: z.string().nullable(),
+  item_count: z.number().int(),
+  unanalyzed_count: z.number().int(),
+  empty: z.boolean(),
+  would_send: z.boolean(),
+  edition: z.string().optional(),
+  since: z.string().optional(),
+  until: z.string().optional(),
+  language_fallback: z.object({ wanted: z.string(), used: z.string() }).optional(),
+})
+
+export type NewsletterPreview = z.infer<typeof newsletterPreviewSchema>
 export type Preferences = z.infer<typeof preferencesSchema>
 export type Subscriber = z.infer<typeof subscriberSchema>
 export type PreferenceOptions = z.infer<typeof optionsSchema>
@@ -206,6 +230,10 @@ export function fetchPreferenceOptions(signal?: AbortSignal): Promise<Preference
 
 export async function fetchSubscribers(signal?: AbortSignal): Promise<Subscriber[]> {
   return (await getJson('/api/subscribers', z.object({ subscribers: z.array(subscriberSchema) }), signal)).subscribers
+}
+
+export function fetchNewsletterPreview(id: string, signal?: AbortSignal): Promise<NewsletterPreview> {
+  return getJson(`/api/subscribers/${encodeURIComponent(id)}/preview`, newsletterPreviewSchema, signal)
 }
 
 export function createSubscriber(email: string): Promise<Subscriber> {

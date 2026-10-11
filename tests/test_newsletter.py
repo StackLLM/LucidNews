@@ -10,6 +10,7 @@ from rich.console import Console
 
 from src.models import (
     ClassificationResult,
+    EmailConfig,
     ContentAnalysis,
     ContentItem,
     ProcessingResult,
@@ -168,9 +169,10 @@ def test_orchestrator_sends_one_localized_digest_per_preference_group(tmp_path) 
     orchestrator.config = SimpleNamespace(
         ai=SimpleNamespace(languages=["en", "fr"]),
         digest=SimpleNamespace(profile_order=[]),
+        email=EmailConfig(imap_server="imap.example.com", smtp_server="smtp.example.com", email_address="n@example.com"),
     )
     orchestrator.email_manager = SimpleNamespace(
-        send_daily_summary=lambda summary, subject, recipients: sent.append((summary, subject, recipients))
+        send_rendered=lambda rendered, subject, recipients: sent.append((rendered.text, subject, recipients))
     )
 
     asyncio.run(orchestrator.send_newsletters(ITEMS, "2026-10-05", 118))

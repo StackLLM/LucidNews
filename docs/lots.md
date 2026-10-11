@@ -40,7 +40,7 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 - [Lot 18 — Domaines surveillés et couverture](#lot-18--domaines-surveillés-et-couverture) ✅
 - [Lot 19 — Qualité de la veille](#lot-19--qualité-de-la-veille) ✅
 - [Lot 20 — Lancer et planifier les runs](#lot-20--lancer-et-planifier-les-runs) ✅
-- [Lot 21 — Newsletter : contenu et préférences](#lot-21--newsletter--contenu-et-préférences) 📋
+- [Lot 21 — Newsletter : contenu et préférences](#lot-21--newsletter--contenu-et-préférences) ✅
 - [Lot 22 — Newsletter : envoi fiable](#lot-22--newsletter--envoi-fiable) 📋
 - [Lot 23 — Recherche dans l'archive](#lot-23--recherche-dans-larchive) 📋
 - [Lot 24 — Finitions de l'interface](#lot-24--finitions-de-linterface) 📋
@@ -520,6 +520,30 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 
 **Corrigé pendant les essais** : étape fausse quand un traceback citait le code ; page élargie à 776 px sur téléphone par les longues lignes du journal ; suivi figé quand l'onglet est en arrière-plan.
 
+## Lot 21 — Newsletter : contenu et préférences
+
+✅ Clôturé · Décisions : « complet » = le rendu actuel (aucun changement pour les abonnés existants) ; envoi hebdomadaire au premier run du jour choisi dans la config.
+
+**Objectif** : une newsletter qui suit réellement les préférences de chaque abonné.
+
+**Fait**
+
+| Sujet | Contenu |
+|---|---|
+| Niveau de détail | Préférence `detail_level` : « bref » (titre, fiabilité, résumé, source) ou « complet » (en plus : contexte, références, tags de l'enrichissement). Défaut « complet » : un `subscribers.json` ancien se charge sans changement. Réutilise les textes déjà produits : aucun appel IA. Deux niveaux = deux rendus distincts. |
+| Envoi hebdomadaire | Les abonnés « hebdomadaire » reçoivent les meilleures news publiées des 7 derniers jours (archive, `items_between`), le jour `email.weekly_day` (0 = lundi) au premier run de la journée, au plus une fois par semaine ISO (`data/weekly_sent.json`). Plafond `email.weekly_max_items` (15), ou le `max_items` de l'abonné s'il est plus bas. Ni news non analysées, ni e-mail vide. Déclenché aussi quand le run du jour ne trouve rien de nouveau. |
+| E-mail refait | Un seul rendu pour l'envoi et l'aperçu (`render_email`) : mise en page aux couleurs de l'application, citation d'introduction et sommaire corrects, aucun script, aucune image distante, aucun formulaire. Le texte des sources n'est plus échappé deux fois (un `&` ou un `<` s'affichait `&amp;`). |
+| Aperçu | Préférences : « Voir l'aperçu » construit l'e-mail du lecteur depuis l'archive avec ses préférences enregistrées (`GET /api/subscribers/<id>/preview`), dans un cadre `iframe` sans script. Quotidien : dernière édition publiée. Hebdomadaire : les 7 derniers jours. Dit quand il n'y a pas d'édition, quand rien ne serait envoyé et quand la langue demandée n'existe pas. |
+| Même code | L'aperçu passe par `plan_deliveries` et `render_selection`, comme l'envoi : un test compare le HTML, le texte et l'objet de l'e-mail envoyé à ceux de l'aperçu. |
+
+**Vérifié** : 13 nouveaux tests Python (768 au total) : niveaux de détail, valeur par défaut et ancien `subscribers.json`, envoi hebdomadaire (fenêtre de 7 jours, plafond, une fois par semaine, jour d'envoi), aperçu identique à l'e-mail envoyé, HTML de source échappé, route locale seulement ; 5 nouveaux tests d'interface (63 au total) ; build. Démo réelle sur une copie des données : aperçu quotidien « bref » 4 175 caractères contre « complet » 6 825, aperçu hebdomadaire de 14 news (5 au 11 octobre), cadre sans `allow-scripts`, téléphone 375 px sans défilement horizontal. Aucun e-mail réel envoyé.
+
+**Pas encore vérifié** : un envoi SMTP réel (aucun compte configuré) ; l'ordre des news de l'aperçu quotidien vient de l'archive (score), celui de l'envoi du run en cours peut différer légèrement (équilibrage entre groupes).
+
+**Corrigé pendant les essais** : citation d'introduction affichée en texte brut (`> Sur 46…`) et sommaire collé en un paragraphe ; double échappement des textes de sources ; titre de l'aperçu écrasé sur téléphone.
+
+---
+
 ---
 
 # Lots suivants
@@ -536,12 +560,12 @@ Plan revu le 9 octobre 2026 pour intégrer le besoin « interface complète et g
 | ✅ | 18 — Domaines surveillés et couverture | 16, 17 | Clôturé. |
 | ✅ | 19 — Qualité de la veille | 18 (couverture), 12 (filtrage) | Clôturé. |
 | ✅ | 20 — Lancer et planifier les runs | 16 | Clôturé (deux vérifications réelles en attente d'accord). |
-| 1 | 21 — Newsletter : contenu et préférences | 20 (fréquence) | Hebdomadaire, niveau de détail, aperçu. |
-| 2 | 22 — Newsletter : envoi fiable | 21 | Opt-in, désinscription, fournisseur d'e-mails, journal des envois. |
-| 3 | 23 — Recherche dans l'archive | — | Utile seul ; placé après le cœur du pilotage. |
-| 4 | 24 — Finitions de l'interface | 15 à 23 | Mode sombre et contrastes, une fois toutes les pages créées. |
-| 5 | 25 — Dette technique | — | Renommage du paquet en fin de chantier, pour ne pas gêner les lots en cours. |
-| 6 | 26 — Comptes et SaaS | 22, 25 | Hors périmètre actuel. |
+| ✅ | 21 — Newsletter : contenu et préférences | 20 (fréquence) | Clôturé. |
+| 1 | 22 — Newsletter : envoi fiable | 21 | Opt-in, désinscription, fournisseur d'e-mails, journal des envois. |
+| 2 | 23 — Recherche dans l'archive | — | Utile seul ; placé après le cœur du pilotage. |
+| 3 | 24 — Finitions de l'interface | 15 à 23 | Mode sombre et contrastes, une fois toutes les pages créées. |
+| 4 | 25 — Dette technique | — | Renommage du paquet en fin de chantier, pour ne pas gêner les lots en cours. |
+| 5 | 26 — Comptes et SaaS | 22, 25 | Hors périmètre actuel. |
 | En parallèle | 12 — Annoter au moins 30 news | — | Action humaine ; donne les chiffres de filtrage du lot 19. |
 
 **Correspondance avec l'ancien plan** : ancien 15 (finitions) → 24 · ancien 16 (newsletter) → 21 et 22 · ancien 17 (comptes et SaaS) → 26 · ancien 18 (dette technique) → 25.
@@ -569,29 +593,9 @@ On garde les écrans existants et on n'ajoute qu'**une** page : Réglages.
 
 ---
 
-## Lot 21 — Newsletter : contenu et préférences
-
-📋 Prochain lot. Reprend une partie de l'ancien lot 16.
-
-- **Objectif** : une newsletter qui suit réellement les préférences de chaque abonné.
-- **Fonctionnalités** :
-  - envoi hebdomadaire (le choix existe déjà dans les préférences, l'envoi non) : sélection des meilleures news de la semaine depuis l'archive ;
-  - niveau de détail : « bref » (titre, résumé) ou « complet » (avec contexte et impact), appliqué au rendu de l'e-mail ;
-  - aperçu de la newsletter d'un abonné dans l'interface ;
-  - e-mail HTML refait selon la direction UI.
-- **Pages** : Préférences.
-- **Frontend** : champ « niveau de détail » ; aperçu dans un cadre isolé (`iframe` sans script).
-- **Backend** : sélection hebdomadaire (`items_between` existe) ; rendu selon le niveau de détail ; route d'aperçu.
-- **Données et API** : champ `detail_level` dans les préférences ; `GET /api/subscribers/<id>/preview`.
-- **Critères de validation** : un abonné hebdomadaire reçoit une sélection de la semaine ; « bref » et « complet » donnent deux e-mails différents ; l'aperçu est identique à l'e-mail envoyé.
-- **Tests** : sélection de la semaine, rendu des deux niveaux, aperçu échappé (aucun HTML de source exécuté).
-- **Dépendances** : lot 20 pour déclencher l'envoi hebdomadaire.
-
----
-
 ## Lot 22 — Newsletter : envoi fiable
 
-📋 Planifié. Reprend la suite de l'ancien lot 16.
+📋 Prochain lot. Reprend la suite de l'ancien lot 16.
 
 - **Objectif** : des envois sûrs, traçables et conformes.
 - **Fonctionnalités** : double opt-in ; lien de désinscription signé ; fournisseur d'e-mails transactionnels à la place du SMTP direct ; journal des envois (qui, quand, quelle édition, résultat) ; abonnés en base de données au lieu du fichier JSON ; envoi selon le fuseau horaire de l'abonné.
@@ -681,7 +685,8 @@ Un paramètre n'est ajouté que s'il est réellement appliqué par le système.
 
 | Sujet | Bloque | Recommandation |
 |---|---|---|
-| Lots 19 et 20 terminés mais pas encore commités | Rien, mais à faire avant le lot 21 | Commiter avec le message préparé (un seul commit : fichiers communs). |
+| Lot 21 terminé mais pas encore commité | Rien, mais à faire avant le lot 22 | Commiter avec le message préparé. |
+| Envoi SMTP réel | La preuve « l'e-mail arrive tel qu'il est prévisualisé » | Accord demandé : un envoi de test vers une adresse à toi, avec un compte SMTP configuré (aucun aujourd'hui). |
 | Vrai run IA lancé depuis l'interface | La preuve « même édition qu'en terminal » | Accord demandé : un run sur une copie des données, avec la clé IA. |
 | Vraie tâche launchd | La preuve « la planification déclenche réellement un run » | Accord demandé : tâche de test chargée quelques minutes puis retirée. |
 | Annotations du lot 12 | Les chiffres de filtrage du lot 19 (affichés « échantillon insuffisant » d'ici là) | Annoter au fil de l'eau. |
@@ -693,9 +698,9 @@ Un paramètre n'est ajouté que s'il est réellement appliqué par le système.
 
 | Besoin | Utilité | Données | Dépendances | Backend | Frontend | Risques | Décision |
 |---|---|---|---|---|---|---|---|
-| Envoi hebdomadaire | Lecteurs qui ne veulent pas un e-mail par jour | Archive (`items_between`) | Planification | Sélection de la semaine | Aucun (choix existant) | Doublons d'une semaine sur l'autre | Retenu, lot 21 |
-| Niveau de détail | Lecture rapide ou approfondie | Blocs d'enrichissement existants | Rendu e-mail | Rendu à deux niveaux | Champ de préférence | Aucun coût IA | Retenu, lot 21 |
-| Aperçu de la newsletter | Vérifier avant d'envoyer | Préférences + digest | Rendu e-mail | Route d'aperçu | Cadre isolé | HTML de source mal échappé | Retenu, lot 21 |
+| Envoi hebdomadaire | Lecteurs qui ne veulent pas un e-mail par jour | Archive (`items_between`) | Planification | Sélection de la semaine | Aucun (choix existant) | Doublons d'une semaine sur l'autre | Fait, lot 21 |
+| Niveau de détail | Lecture rapide ou approfondie | Blocs d'enrichissement existants | Rendu e-mail | Rendu à deux niveaux | Champ de préférence | Aucun coût IA | Fait, lot 21 |
+| Aperçu de la newsletter | Vérifier avant d'envoyer | Préférences + digest | Rendu e-mail | Route d'aperçu | Cadre isolé | HTML de source mal échappé | Fait, lot 21 |
 | Double opt-in et désinscription signée | Conformité (RGPD), réputation d'envoi | Jetons, statut d'abonné | Fournisseur d'e-mails | Jetons signés, routes publiques | Statut | Clé de signature à protéger | Retenu, lot 22 |
 | Fournisseur transactionnel | Délivrabilité, rebonds | Clé du fournisseur | Lot 16 | Adaptateur | Aucun | Coût, dépendance externe | Retenu, lot 22 |
 | Journal des envois | Savoir ce qui est parti et ce qui a échoué | Table des envois | Lot 22 | Écriture à chaque envoi | Liste | Données personnelles à limiter | Retenu, lot 22 |
@@ -783,3 +788,4 @@ Un paramètre n'est ajouté que s'il est réellement appliqué par le système.
 | `3368611` | 2026-10-09 | 15 | interactive news cards and revised product plan |
 | `1bdaf2b` | 2026-10-10 | 16, 17 | settings, API keys and sources managed from the web app |
 | `1850d32` | 2026-10-10 | 18 | watched domains, coverage from the archive and recommended sources |
+| `8c8802f` | 2026-10-11 | 19, 20 | quality overview, start and schedule runs from the web app |
