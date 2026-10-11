@@ -38,8 +38,8 @@ Premium, calme, fin, professionnel. Impressionnant sans être chargé.
 | Préférences ✅ | Abonnés (ajout, suppression), langue, thèmes, sources, rythme, importance, infos non confirmées, limite, offre affichée | API `/api/subscribers` (local) |
 | Sources ✅ | Onglet Sources : santé (chiffres clés, volume par run), sources configurées par groupe : activer, ajouter, modifier, tester, supprimer. Onglet Domaines : couverture des 12 catégories, lacunes, domaines suivis, sources recommandées | API `/api/sources`, `/api/coverage`, `/api/catalog`, `/api/sources/config`, `/api/sources/test` (local) |
 
-| Qualité ✅ | Annotation à l'aveugle des news, résultats (sélection, importance, thèmes, affirmation, faux fiables) | API `/api/eval/*` (local), voir `docs/evaluation.md` |
-| Réglages ✅ | Clés API (jamais réaffichées), IA, collecte, sélection, fiabilité, archive, versions précédentes | API `/api/settings`, `/api/secrets` (local) |
+| Qualité ✅ | Vue d'ensemble de la veille (couverture, diversité, santé, fraîcheur, doublons, filtrage, fiabilité), annotation à l'aveugle, résultats | API `/api/quality/overview`, `/api/eval/*` (local), voir `docs/evaluation.md` |
+| Réglages ✅ | Runs (lancer, suivre, planifier, historique), clés API (jamais réaffichées), IA, collecte, sélection, fiabilité, archive, versions précédentes | API `/api/runs`, `/api/schedule`, `/api/settings`, `/api/secrets` (local) |
 
 Pas de paiement, pas de paywall : l'offre Premium est seulement affichée.
 
@@ -82,6 +82,7 @@ et les clés API (`.env` du projet).
 | `POST /api/subscribers` | Ajouter un abonné (`{"email": …}`) |
 | `PUT /api/subscribers/<id>` | Enregistrer ses préférences |
 | `DELETE /api/subscribers/<id>` | Le supprimer (rien n'est conservé) |
+| `GET /api/quality/overview?days=14` | Indicateurs de la veille sur la période, depuis l'archive (résumé des annotations seulement en local) |
 | `GET /api/eval/items` · `GET /api/eval/report` | News à annoter (sans l'avis de l'IA) · résultats |
 | `PUT` / `DELETE /api/eval/annotations/<id>` | Enregistrer / effacer une annotation (local) |
 | `GET /api/settings` · `PUT /api/settings` | Réglages modifiables, options, champs verrouillés, version · enregistrer (`{version, values}`) |
@@ -90,6 +91,9 @@ et les clés API (`.env` du projet).
 | `PUT` / `DELETE /api/secrets/<NOM>` | Enregistrer (`{value}`) / retirer une clé du fichier `.env` |
 | `GET /api/sources/config` · `POST /api/sources/config` | Sources configurées, état, valeurs modifiables, version · ajouter (`{version, kind, values}`) |
 | `PUT` / `DELETE /api/sources/config/<clé>` | Modifier, activer ou désactiver (`{version, values}`) / supprimer (`{version}`) |
+| `GET /api/runs` · `POST /api/runs` | Derniers runs avec leur statut · lancer un run (local) |
+| `GET /api/runs/current` | Run en cours ou dernier run lancé depuis l'écran : étape, journal nettoyé, code de sortie |
+| `GET /api/schedule` · `PUT /api/schedule` | Planification launchd · l'écrire (`{enabled, hour, minute, weekdays}`) ou la retirer (`{enabled: false}`) |
 | `POST /api/sources/test` | Tester une source enregistrée (`{key}`) ou un brouillon (`{kind, values}`), sans IA ni écriture |
 
 ### Réglages et clés API
@@ -106,6 +110,25 @@ et les clés API (`.env` du projet).
   est refusée.
 - Une variable déjà définie dans le terminal qui a lancé LucidNews est prioritaire sur
   `.env` : l'écran le signale.
+
+### Runs et planification
+
+- « Lancer un run » démarre le pipeline dans un processus séparé, avec la même commande
+  qu'en terminal (`python -m src.main --data-dir …`) : même édition. Sortie dans
+  `data/runs/` (ignoré par Git).
+- Un seul run à la fois, quelle que soit son origine (interface, terminal, planification) :
+  le pipeline tient un verrou (`data/run.lock`) pendant tout le run ; un second lancement
+  est refusé (409 dans l'interface, code 75 en terminal). Le verrou se libère seul si le
+  run plante.
+- Suivi en direct : étape (collecte, analyse IA, sélection, édition, fini) et dernières
+  lignes du journal, sans couleurs ni valeur de clé ; la page interroge l'API toutes les
+  2 s pendant un run, même en arrière-plan.
+- Planification (macOS) : une tâche launchd `com.lucidnews.pipeline` dans
+  `~/Library/LaunchAgents`, écrite, chargée et retirée depuis l'écran. Elle lance la même
+  commande, ne contient aucune clé (elles restent dans `.env`) et écrit dans
+  `data/runs/scheduled.log`. Mac en veille : le run part au réveil.
+- Historique : les 20 derniers runs de l'archive avec leur statut réel (réussi, rien de
+  nouveau, échec) et leur erreur.
 
 ### Gestion des sources
 
@@ -124,6 +147,17 @@ et les clés API (`.env` du projet).
 - Le test lance le vrai collecteur sur 7 jours, 45 s au plus, sans IA ni archive, et
   dit combien de contenus tombent dans la fenêtre de collecte. Un jeton d'une
   `${VARIABLE}` n'apparaît jamais dans sa réponse.
+
+### Vue d'ensemble de la qualité
+
+- Page Qualité, premier onglet (`/quality`). Annoter : `/quality/annotate`. Résultats : `/quality/results`.
+- Chaque carte dit d'où viennent ses chiffres et sur quelle période.
+- Les compteurs de doublons (fusions par URL, par sujet, news au-dessus du seuil) sont
+  enregistrés par run depuis le lot 19. Les runs plus anciens sont comptés à part, avec
+  « pas de donnée », jamais estimés.
+- Fraîcheur : âge d'une news publiée au lancement du run qui l'a publiée (médiane, 90e centile, part sous 24 h).
+- Qualité du filtrage : résumé des annotations (lot 11), avec « échantillon insuffisant »
+  sous 30 news comparées ; seulement avec l'API locale.
 
 ### Domaines et couverture
 

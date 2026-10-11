@@ -47,6 +47,9 @@ data/config*.json
 data/*.bak
 # Copies of config.json made before each change from the web app
 data/backups/
+# Run lock and run logs (lot 20)
+data/run.lock
+data/runs/
 data/*.sqlite3*
 data/seen.json
 data/summaries/*.md

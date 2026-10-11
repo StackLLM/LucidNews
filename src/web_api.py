@@ -9,6 +9,8 @@ Endpoints (JSON, GET only):
 - ``/api/sources?days=14``: source health (configured sources) and per-run volumes.
 - ``/api/coverage?days=14``: coverage of the 12 categories by the sources (archive).
 - ``/api/catalog?category=ai``: recommended sources absent from the configuration.
+- ``/api/quality/overview?days=14``: indicators of the watch (coverage, diversity, health,
+  freshness, duplicates, reliability; hand evaluation summary on the local API only).
 
 Subscriber preferences (local only, see ``subscribers_api``):
 
@@ -25,6 +27,8 @@ Settings and sources (local only, see ``settings_api`` and ``sources_api``):
 - ``GET /api/settings``, ``PUT /api/settings``, API keys under ``/api/secrets``
 - ``GET|POST /api/sources/config``, ``PUT|DELETE /api/sources/config/<key>``,
   ``POST /api/sources/test``
+- ``GET|POST /api/runs`` (history, start a run), ``GET /api/runs/current``,
+  ``GET|PUT /api/schedule`` (see ``runs_api``)
 
 The server binds to localhost by default and never writes to the archive. The
 subscriber routes exist only on a loopback bind, accept only localhost Host headers
@@ -53,6 +57,8 @@ from .evaluation.service import EvaluationService
 from .i18n import DEFAULT_LANGUAGE, is_supported
 from .models import Config, ContentItem, DigestConfig
 from .processing import ProfileRegistry
+from .quality_overview import quality_overview
+from .runs_api import RunService, ScheduleService
 from .reliability import SourceTier
 from .reliability.assess import ReliabilityPolicy
 from .source_health import assess_health, configured_source_keys, health_to_dict
@@ -78,6 +84,8 @@ LOCAL_PREFIXES = (
     "/api/secrets",
     "/api/sources/config",
     "/api/sources/test",
+    "/api/runs",
+    "/api/schedule",
 )
 SOURCE_KEY = re.compile(r"^[^\x00-\x1f\x7f]{1,200}$")
 
@@ -102,6 +110,9 @@ class ApiContext:
     # The loaded configuration (watched categories, configured sources for the catalog).
     config: Optional[Config] = None
     catalog: List[CatalogEntry] = field(default_factory=list)
+    # Start a run and schedule it (local only).
+    runs: Optional[RunService] = None
+    schedule: Optional[ScheduleService] = None
 
 
 def _profile_id(item: ContentItem) -> str:
@@ -176,6 +187,11 @@ def run_payload(run: RunRecord) -> Dict[str, Any]:
         "tokens_used": run.tokens_used,
         "ai_skipped_count": run.ai_skipped_count,
     }
+
+
+def run_history_payload(run: RunRecord) -> Dict[str, Any]:
+    """Every run, published or not, with its status (failed, empty...) and error."""
+    return {**run_payload(run), "status": run.status, "error": run.error, "unscored_count": run.unscored_count}
 
 
 def list_editions(ctx: ApiContext, limit: int = 30) -> Dict[str, Any]:
@@ -327,14 +343,34 @@ def resolve(ctx: ApiContext, path: str, query: Dict[str, List[str]]) -> tuple[in
         if ctx.sources is None:
             return HTTPStatus.FORBIDDEN, LOCAL_ONLY
         return ctx.sources.list()
+    if path.startswith(("/api/runs", "/api/schedule")):
+        if ctx.runs is None or ctx.schedule is None:
+            return HTTPStatus.FORBIDDEN, LOCAL_ONLY
+        if path == "/api/runs":
+            return HTTPStatus.OK, {"runs": [run_history_payload(run) for run in ctx.archive.list_runs(limit=20)]}
+        if path == "/api/runs/current":
+            return ctx.runs.current()
+        if path == "/api/schedule":
+            return ctx.schedule.get()
+        return HTTPStatus.NOT_FOUND, {"error": "not found"}
     if path == "/api/health":
         return HTTPStatus.OK, {"status": "ok"}
     if path == "/api/editions":
         return HTTPStatus.OK, list_editions(ctx)
-    if path in ("/api/sources", "/api/coverage"):
+    if path in ("/api/sources", "/api/coverage", "/api/quality/overview"):
         days = _days(query)
         if days is None:
             return HTTPStatus.BAD_REQUEST, {"error": f"days must be an integer between 1 and {MAX_HEALTH_DAYS}"}
+        if path == "/api/quality/overview":
+            return HTTPStatus.OK, quality_overview(
+                ctx.archive,
+                days=days,
+                configured_sources=ctx.configured_sources,
+                digest=ctx.config.digest if ctx.config is not None else DigestConfig(),
+                policy=ctx.reliability_policy,
+                # Annotations are local data: their summary only on the local API.
+                evaluation=ctx.evaluation.report() if ctx.evaluation is not None else None,
+            )
         if path == "/api/coverage":
             return HTTPStatus.OK, coverage_payload(ctx, days)
         return HTTPStatus.OK, source_health_payload(ctx, days)
@@ -398,6 +434,14 @@ def resolve_write(ctx: ApiContext, method: str, path: str, body: Dict[str, Any])
                 return ctx.settings.set_secret(name, body)
             if method == "DELETE":
                 return ctx.settings.delete_secret(name)
+        return HTTPStatus.METHOD_NOT_ALLOWED, {"error": "method not allowed"}
+    if path.startswith(("/api/runs", "/api/schedule")):
+        if ctx.runs is None or ctx.schedule is None:
+            return HTTPStatus.FORBIDDEN, LOCAL_ONLY
+        if path == "/api/runs" and method == "POST":
+            return ctx.runs.start()
+        if path == "/api/schedule" and method == "PUT":
+            return ctx.schedule.update(body)
         return HTTPStatus.METHOD_NOT_ALLOWED, {"error": "method not allowed"}
     if path.startswith(("/api/sources/config", "/api/sources/test")):
         if ctx.sources is None:
@@ -580,6 +624,9 @@ def build_context(data_dir: str, config_path: Optional[str], *, local_features: 
             on_change=lambda: _reload(ctx, data_dir, config_path),
         )
         ctx.sources = SourcesService(ctx.settings)
+        settings = ctx.settings
+        ctx.runs = RunService(Path(data_dir), config_path, secret_values=lambda: settings.secret_values())
+        ctx.schedule = ScheduleService(Path(data_dir), config_path)
     return ctx
 
 
@@ -588,7 +635,8 @@ def _reload(ctx: ApiContext, data_dir: str, config_path: Optional[str]) -> None:
     fresh = build_context(data_dir, config_path, local_features=True)
     settings = ctx.settings
     # The settings and sources services stay: they hold the lock and the callback.
-    ctx.__dict__.update({key: value for key, value in fresh.__dict__.items() if key not in ("settings", "sources")})
+    kept = ("settings", "sources", "runs", "schedule")  # they hold locks, a process or callbacks
+    ctx.__dict__.update({key: value for key, value in fresh.__dict__.items() if key not in kept})
     if settings is not None and fresh.settings is not None:
         settings.profiles = fresh.settings.profiles
 

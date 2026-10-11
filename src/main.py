@@ -14,6 +14,10 @@ from .console_icons import get_icons
 from .logging_config import configure_logging
 from .storage.manager import ConfigError, StorageManager
 from .orchestrator import PipelineOrchestrator
+from .run_lock import run_lock
+
+# Exit code when another run holds the lock (the web app reports it as such).
+ALREADY_RUNNING = 75
 
 
 console = Console(stderr=True)
@@ -93,9 +97,16 @@ def main():
 
         icons = get_icons(config.display.icon_style)
 
-        # Create and run orchestrator
-        orchestrator = PipelineOrchestrator(config, storage, console=console)
-        asyncio.run(orchestrator.run(force_hours=args.hours))
+        # One run at a time, whether it comes from the terminal, the web app or the schedule.
+        with run_lock(data_dir) as acquired:
+            if not acquired:
+                console.print(
+                    f"[bold yellow]{icons['warning']} Another LucidNews run is in progress. "
+                    "Try again when it has finished.[/bold yellow]"
+                )
+                sys.exit(ALREADY_RUNNING)
+            orchestrator = PipelineOrchestrator(config, storage, console=console)
+            asyncio.run(orchestrator.run(force_hours=args.hours))
 
     except KeyboardInterrupt:
         console.print(f"\n[yellow]{icons['warning']} Interrupted by user[/yellow]")

@@ -45,6 +45,7 @@ export function Shell() {
             <Route path="/preferences" element={<PreferencesPage />} />
             <Route path="/quality" element={<QualityPage />} />
             <Route path="/quality/results" element={<QualityPage />} />
+            <Route path="/quality/annotate" element={<QualityPage />} />
             <Route path="/preferences/:subscriberId" element={<PreferencesPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />

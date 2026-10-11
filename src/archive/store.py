@@ -22,7 +22,7 @@ from typing import Iterable, List, Optional, Sequence
 from ..models import ContentItem
 from ..source_health import SourceRunOutcome
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 # last_error of an item left unanalyzed because the AI quota ran out (not a failure).
 AI_SKIPPED_PREFIX = "ai_skipped:"
@@ -91,6 +91,10 @@ _MIGRATIONS = {
         "ai_limit": "TEXT",
         "tokens_used": "INTEGER NOT NULL DEFAULT 0",
         "ai_skipped_count": "INTEGER NOT NULL DEFAULT 0",
+        # Selection counters (lot 19). NULL for runs recorded before they existed.
+        "url_merged_count": "INTEGER",
+        "topic_merged_count": "INTEGER",
+        "above_threshold_count": "INTEGER",
     },
 }
 
@@ -128,6 +132,16 @@ class RunRecord:
     ai_limit: Optional[str] = None
     tokens_used: int = 0
     ai_skipped_count: int = 0
+    url_merged_count: Optional[int] = None
+    topic_merged_count: Optional[int] = None
+    above_threshold_count: Optional[int] = None
+
+
+RUN_COLUMNS = (
+    "id, started_at, finished_at, status, since, fetched_count, selected_count, error, "
+    "unscored_count, ai_limit, tokens_used, ai_skipped_count, "
+    "url_merged_count, topic_merged_count, above_threshold_count"
+)
 
 
 class ItemArchive:
@@ -203,11 +217,43 @@ class ItemArchive:
                 ),
             )
 
+    def record_selection_stats(
+        self, run_id: str, *, url_merged: int, topic_merged: int, above_threshold: int
+    ) -> None:
+        """Counters of the selection stage, kept for the quality overview."""
+        with closing(self._connect()) as conn, conn:
+            conn.execute(
+                """UPDATE runs SET url_merged_count = ?, topic_merged_count = ?, above_threshold_count = ?
+                   WHERE id = ?""",
+                (url_merged, topic_merged, above_threshold, run_id),
+            )
+
+    def runs_since(self, since: datetime) -> List[RunRecord]:
+        """Finished runs started since ``since``, oldest first."""
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                f"""SELECT {RUN_COLUMNS} FROM runs WHERE started_at >= ? AND status != 'running'
+                    ORDER BY started_at""",
+                (_iso(since),),
+            ).fetchall()
+        return [RunRecord(**dict(row)) for row in rows]
+
+    def published_since(self, since: datetime) -> List[tuple[str, ContentItem]]:
+        """(run start, item) for every item published by a successful run started since ``since``."""
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                """SELECT r.started_at, i.payload FROM run_items ri
+                   JOIN runs r ON r.id = ri.run_id JOIN items i ON i.id = ri.item_id
+                   WHERE ri.selected = 1 AND r.status = 'success' AND r.started_at >= ?
+                   ORDER BY r.started_at""",
+                (_iso(since),),
+            ).fetchall()
+        return [(row["started_at"], ContentItem.model_validate_json(row["payload"])) for row in rows]
+
     def get_run(self, run_id: str) -> Optional[RunRecord]:
         with closing(self._connect()) as conn:
             row = conn.execute(
-                """SELECT id, started_at, finished_at, status, since, fetched_count,
-                          selected_count, error, unscored_count, ai_limit, tokens_used, ai_skipped_count FROM runs WHERE id = ?""",
+                f"""SELECT {RUN_COLUMNS} FROM runs WHERE id = ?""",
                 (run_id,),
             ).fetchone()
         return RunRecord(**dict(row)) if row else None
@@ -215,8 +261,7 @@ class ItemArchive:
     def list_runs(self, limit: int = 20) -> List[RunRecord]:
         with closing(self._connect()) as conn:
             rows = conn.execute(
-                """SELECT id, started_at, finished_at, status, since, fetched_count,
-                          selected_count, error, unscored_count, ai_limit, tokens_used, ai_skipped_count FROM runs ORDER BY started_at DESC LIMIT ?""",
+                f"""SELECT {RUN_COLUMNS} FROM runs ORDER BY started_at DESC LIMIT ?""",
                 (limit,),
             ).fetchall()
         return [RunRecord(**dict(row)) for row in rows]
@@ -225,8 +270,7 @@ class ItemArchive:
         """Most recent successful run that selected at least one item."""
         with closing(self._connect()) as conn:
             row = conn.execute(
-                """SELECT id, started_at, finished_at, status, since, fetched_count,
-                          selected_count, error, unscored_count, ai_limit, tokens_used, ai_skipped_count FROM runs
+                f"""SELECT {RUN_COLUMNS} FROM runs
                    WHERE status = 'success' AND selected_count > 0
                    ORDER BY started_at DESC LIMIT 1"""
             ).fetchone()
@@ -236,9 +280,7 @@ class ItemArchive:
         """Successful runs that published the item, newest first."""
         with closing(self._connect()) as conn:
             rows = conn.execute(
-                """SELECT r.id, r.started_at, r.finished_at, r.status, r.since, r.fetched_count,
-                          r.selected_count, r.error, r.unscored_count, r.ai_limit, r.tokens_used,
-                          r.ai_skipped_count
+                f"""SELECT {', '.join('r.' + column for column in RUN_COLUMNS.split(', '))}
                    FROM runs r JOIN run_items ri ON ri.run_id = r.id
                    WHERE ri.item_id = ? AND ri.selected = 1 AND r.status = 'success'
                    ORDER BY r.started_at DESC""",

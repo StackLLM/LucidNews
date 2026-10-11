@@ -590,6 +590,15 @@ No API key is required.
 - `reuse_enrichment` (default `true`): with a reused analysis, also reuse the stored enrichment (translated title, summary, context) when it exists in every configured language. Adding a language enriches the item again in all languages.
 - Archive failures never stop a run; they are logged as warnings.
 
+## Runs from the web app
+
+The **Settings** screen starts the pipeline (same command as `uv run lucidnews`)
+and follows it; only one run at a time, from any origin (the pipeline holds
+`data/run.lock`; a second start exits with code 75). On macOS it can also write a
+launchd agent (`~/Library/LaunchAgents/com.lucidnews.pipeline.plist`) that runs
+the pipeline at the chosen times; it holds no key, logs to `data/runs/scheduled.log`,
+and is removed from the same screen.
+
 ## Editing settings from the web app
 
 The **Settings** screen (`/settings`, local API only) edits the common settings

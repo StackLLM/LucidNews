@@ -318,11 +318,13 @@ class PipelineOrchestrator:
 
             if not all_items:
                 self.console.print("[yellow]No new content found. Exiting.[/yellow]")
+                self._archive("record_selection_stats", url_merged=0, topic_merged=0, above_threshold=0)
                 self._finish_archive("empty", all_items, [])
                 return
 
             # 3. Merge cross-source duplicates (same URL from different sources)
             merged_items = self.merge_cross_source_duplicates(all_items)
+            url_merged = len(all_items) - len(merged_items)
             if len(merged_items) < len(all_items):
                 self.console.print(
                     f"{self.icons['merge']} Merged "
@@ -347,6 +349,13 @@ class PipelineOrchestrator:
                 analyzed_items,
             )
             important_items = filtering_result.items
+            # Counters for the quality overview (url merges, topic merges, items above threshold).
+            self._archive(
+                "record_selection_stats",
+                url_merged=url_merged,
+                topic_merged=filtering_result.topic_dedup_removed,
+                above_threshold=filtering_result.threshold_count,
+            )
             # Only when the AI ran out of quota: items it could not analyze.
             unanalyzed = self.select_unanalyzed_items(analyzed_items)
 

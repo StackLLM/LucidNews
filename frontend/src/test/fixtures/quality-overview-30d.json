@@ -1,0 +1,150 @@
+{
+  "days": 30,
+  "since": "2026-09-10T23:53:21.583263+00:00",
+  "runs": 8,
+  "published": 14,
+  "coverage": {
+    "watched": 12,
+    "gaps": [
+      "cloud",
+      "devops",
+      "data",
+      "databases",
+      "emerging-tech"
+    ],
+    "analyzed": 48
+  },
+  "diversity": {
+    "active_sources": 11,
+    "configured_sources": 29,
+    "publishing_sources": 7,
+    "top_collected": {
+      "source": "rss/Lobsters",
+      "count": 36,
+      "share": 0.48
+    },
+    "top_published": {
+      "source": "hackernews",
+      "count": 5,
+      "share": 0.3571
+    }
+  },
+  "health": {
+    "by_status": {
+      "dead": 0,
+      "failing": 0,
+      "silent": 0,
+      "noisy": 0,
+      "healthy": 29
+    },
+    "never_collected": 0,
+    "recent_errors": []
+  },
+  "freshness": {
+    "items": 23,
+    "median_hours": 4.1,
+    "p90_hours": 9.9,
+    "within_24h": 1.0
+  },
+  "selection": {
+    "runs_with_data": 0,
+    "runs_without_data": 8,
+    "fetched": null,
+    "url_merged": null,
+    "topic_merged": null,
+    "above_threshold": null,
+    "per_run": [
+      {
+        "run_id": "20261006T171940Z-7b1deced",
+        "started_at": "2026-10-06T17:19:40.876082+00:00",
+        "fetched": 14,
+        "selected": 2,
+        "url_merged": null,
+        "topic_merged": null,
+        "above_threshold": null
+      },
+      {
+        "run_id": "20261006T172336Z-cb71d2a6",
+        "started_at": "2026-10-06T17:23:36.245523+00:00",
+        "fetched": 13,
+        "selected": 2,
+        "url_merged": null,
+        "topic_merged": null,
+        "above_threshold": null
+      },
+      {
+        "run_id": "20261006T172831Z-1e6452a2",
+        "started_at": "2026-10-06T17:28:31.933973+00:00",
+        "fetched": 12,
+        "selected": 2,
+        "url_merged": null,
+        "topic_merged": null,
+        "above_threshold": null
+      },
+      {
+        "run_id": "20261006T173900Z-29995468",
+        "started_at": "2026-10-06T17:39:00.967851+00:00",
+        "fetched": 12,
+        "selected": 1,
+        "url_merged": null,
+        "topic_merged": null,
+        "above_threshold": null
+      },
+      {
+        "run_id": "20261006T174415Z-cdb1d724",
+        "started_at": "2026-10-06T17:44:15.460908+00:00",
+        "fetched": 9,
+        "selected": 1,
+        "url_merged": null,
+        "topic_merged": null,
+        "above_threshold": null
+      },
+      {
+        "run_id": "20261006T174458Z-83ca1fee",
+        "started_at": "2026-10-06T17:44:58.756360+00:00",
+        "fetched": 9,
+        "selected": 1,
+        "url_merged": null,
+        "topic_merged": null,
+        "above_threshold": null
+      },
+      {
+        "run_id": "20261006T174527Z-e70aca52",
+        "started_at": "2026-10-06T17:45:27.984103+00:00",
+        "fetched": 9,
+        "selected": 1,
+        "url_merged": null,
+        "topic_merged": null,
+        "above_threshold": null
+      },
+      {
+        "run_id": "20261006T174848Z-40cb84d1",
+        "started_at": "2026-10-06T17:48:48.081281+00:00",
+        "fetched": 46,
+        "selected": 13,
+        "url_merged": null,
+        "topic_merged": null,
+        "above_threshold": null
+      }
+    ]
+  },
+  "filtering": {
+    "annotated": 0,
+    "compared": 0,
+    "small_sample": true,
+    "precision": null,
+    "recall": null,
+    "false_reliable": 0,
+    "min_sample": 30
+  },
+  "reliability": {
+    "labels": {
+      "confirmed": 8,
+      "reliable": 5,
+      "unverified": 1,
+      "rumor": 0
+    },
+    "unlabeled": 0,
+    "unanalyzed": 0
+  }
+}

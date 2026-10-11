@@ -45,12 +45,15 @@ LucidNews est une application Python asynchrone en ligne de commande. Elle n'a n
 | `src/reliability/` | Registre de confiance des domaines, règles de combinaison, types |
 | `src/taxonomy.py` | 12 catégories IT, alias, libellés, niveaux d'importance |
 | `src/i18n.py` | Registre des langues, textes fixes du digest, format des dates |
-| `src/archive/` | Archive SQLite des runs et des news ; réutilisation des analyses |
+| `src/archive/` | Archive SQLite des runs et des news ; réutilisation des analyses ; compteurs de sélection par run (schéma 5) |
+| `src/quality_overview.py` | Indicateurs de la page Qualité : couverture, diversité, santé, fraîcheur, doublons, filtrage, fiabilité publiée |
 | `src/source_health.py`, `src/sources_cli.py` | Identifiants de source, résultat par run, classement de santé, commande `lucidnews-sources` |
 | `src/source_quality.py` | Score de qualité par source (départage des news de même score) |
 | `src/settings_api.py` | Réglages et clés API depuis l'interface : édition brute de `config.json`, copies de sauvegarde, `.env` |
 | `src/coverage.py` | Couverture des 12 catégories par les sources, calculée sur l'archive ; lacunes des domaines suivis |
 | `src/source_catalog.py` | Catalogue des sources recommandées (config d'exemple et catalogue de l'assistant), sans les sources déjà configurées |
+| `src/run_lock.py` | Verrou d'un run à la fois (terminal, interface, planification) |
+| `src/runs_api.py` | Lancer le pipeline depuis l'interface, suivre son journal, planification launchd |
 | `src/sources_api.py` | Sources depuis l'interface : liste avec la clé de santé, ajout, modification, suppression, test d'une source sans IA |
 | `src/reassess_cli.py` | Commande `lucidnews-reassess` : recalcul des étiquettes de l'archive avec le registre actuel |
 | `src/evaluation/` | Annotations humaines, calcul des scores (sélection, importance, thèmes, affirmation, faux fiables), commande `lucidnews-eval` |

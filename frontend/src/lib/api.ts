@@ -539,3 +539,136 @@ export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogEntry[]
 export function saveSomeSettings(version: string, values: Record<string, Record<string, unknown>>): Promise<Settings> {
   return request('/api/settings', settingsSchema, { method: 'PUT', body: JSON.stringify({ version, values }) })
 }
+
+// Quality of the watch: one page of indicators from the archive (lot 19).
+
+const nullableCount = z.number().nullable()
+const topSourceSchema = z.object({ source: z.string(), count: z.number(), share: z.number() }).nullable()
+
+export const qualityOverviewSchema = z.object({
+  days: z.number(),
+  since: z.string(),
+  runs: z.number(),
+  published: z.number(),
+  coverage: z.object({ watched: z.number(), gaps: z.array(z.string()), analyzed: z.number() }),
+  diversity: z.object({
+    active_sources: z.number(),
+    configured_sources: z.number(),
+    publishing_sources: z.number(),
+    top_collected: topSourceSchema,
+    top_published: topSourceSchema,
+  }),
+  health: z.object({
+    by_status: z.record(z.enum(healthStatuses), z.number()),
+    never_collected: z.number(),
+    recent_errors: z.array(z.object({ source: z.string(), error: z.string().nullable(), at: z.string() })),
+  }),
+  freshness: z.object({
+    items: z.number(),
+    median_hours: nullableCount,
+    p90_hours: nullableCount,
+    within_24h: nullableCount,
+  }),
+  selection: z.object({
+    runs_with_data: z.number(),
+    runs_without_data: z.number(),
+    fetched: nullableCount,
+    url_merged: nullableCount,
+    topic_merged: nullableCount,
+    above_threshold: nullableCount,
+    per_run: z.array(
+      z.object({
+        run_id: z.string(),
+        started_at: z.string(),
+        fetched: z.number(),
+        selected: z.number(),
+        url_merged: nullableCount,
+        topic_merged: nullableCount,
+        above_threshold: nullableCount,
+      }),
+    ),
+  }),
+  /** Hand evaluation summary; null where annotations are not available (non-local API). */
+  filtering: z
+    .object({
+      annotated: z.number(),
+      compared: z.number(),
+      small_sample: z.boolean(),
+      precision: nullableCount.optional(),
+      recall: nullableCount.optional(),
+      false_reliable: nullableCount.optional(),
+      min_sample: z.number(),
+    })
+    .nullable(),
+  reliability: z.object({
+    labels: z.record(z.enum(reliabilityLabels), z.number()),
+    unlabeled: z.number(),
+    unanalyzed: z.number(),
+  }),
+})
+
+export type QualityOverview = z.infer<typeof qualityOverviewSchema>
+
+export function fetchQualityOverview(days: number, signal?: AbortSignal): Promise<QualityOverview> {
+  return getJson(`/api/quality/overview?days=${days}`, qualityOverviewSchema, signal)
+}
+
+// Runs: start, follow, schedule (lot 20, local API only).
+
+export const runSteps = ['fetch', 'analyze', 'select', 'write', 'done'] as const
+
+export const runCurrentSchema = z.object({
+  running: z.boolean(),
+  origin: z.enum(['web', 'terminal', 'schedule']).nullable(),
+  started_at: z.string().nullable(),
+  step: z.enum(runSteps).nullable(),
+  steps: z.array(z.string()),
+  /** Exit code of the last run started from this page; null while running or for other origins. */
+  exit_code: z.number().nullable(),
+  already_running: z.boolean(),
+  log: z.string(),
+})
+
+const historyRunSchema = runSchema.extend({
+  status: z.string(),
+  error: z.string().nullable(),
+  unscored_count: z.number(),
+})
+
+export const scheduleSchema = z.object({
+  supported: z.boolean(),
+  enabled: z.boolean(),
+  valid: z.boolean().optional(),
+  loaded: z.boolean().optional(),
+  hour: z.number().nullable().optional(),
+  minute: z.number().nullable().optional(),
+  weekdays: z.array(z.number()).optional(),
+  next_run: z.string().nullable().optional(),
+  label: z.string().optional(),
+  log: z.string().optional(),
+})
+
+export type RunCurrent = z.infer<typeof runCurrentSchema>
+export type HistoryRun = z.infer<typeof historyRunSchema>
+export type Schedule = z.infer<typeof scheduleSchema>
+export type RunStep = (typeof runSteps)[number]
+
+export function fetchRunCurrent(signal?: AbortSignal): Promise<RunCurrent> {
+  return getJson('/api/runs/current', runCurrentSchema, signal)
+}
+
+export function startRun(): Promise<RunCurrent> {
+  return request('/api/runs', runCurrentSchema, { method: 'POST' })
+}
+
+export async function fetchRunHistory(signal?: AbortSignal): Promise<HistoryRun[]> {
+  return (await getJson('/api/runs', z.object({ runs: z.array(historyRunSchema) }), signal)).runs
+}
+
+export function fetchSchedule(signal?: AbortSignal): Promise<Schedule> {
+  return getJson('/api/schedule', scheduleSchema, signal)
+}
+
+export function saveSchedule(body: { enabled: false } | { enabled: true; hour: number; minute: number; weekdays: number[] }): Promise<Schedule> {
+  return request('/api/schedule', scheduleSchema, { method: 'PUT', body: JSON.stringify(body) })
+}

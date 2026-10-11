@@ -31,7 +31,7 @@ function fakeApi() {
 
 test('annotates blind and moves to the next item', async () => {
   const calls = fakeApi()
-  renderAt('/quality?lang=fr')
+  renderAt('/quality/annotate?lang=fr')
 
   const first = evalItems.items[0]
   expect(await screen.findByRole('heading', { level: 2, name: first.title })).toBeInTheDocument()

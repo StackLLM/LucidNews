@@ -38,8 +38,8 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 - [Lot 12 — Annoter au moins 30 news](#lot-12--annoter-au-moins-30-news) 🟡
 - [Lot 17 — Gestion des sources](#lot-17--gestion-des-sources) ✅
 - [Lot 18 — Domaines surveillés et couverture](#lot-18--domaines-surveillés-et-couverture) ✅
-- [Lot 19 — Qualité de la veille](#lot-19--qualité-de-la-veille) 📋
-- [Lot 20 — Lancer et planifier les runs](#lot-20--lancer-et-planifier-les-runs) 📋
+- [Lot 19 — Qualité de la veille](#lot-19--qualité-de-la-veille) ✅
+- [Lot 20 — Lancer et planifier les runs](#lot-20--lancer-et-planifier-les-runs) ✅
 - [Lot 21 — Newsletter : contenu et préférences](#lot-21--newsletter--contenu-et-préférences) 📋
 - [Lot 22 — Newsletter : envoi fiable](#lot-22--newsletter--envoi-fiable) 📋
 - [Lot 23 — Recherche dans l'archive](#lot-23--recherche-dans-larchive) 📋
@@ -476,6 +476,52 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 
 ---
 
+## Lot 19 — Qualité de la veille
+
+✅ Clôturé · Décision : les compteurs de doublons commencent au premier run après ce lot, sans reconstitution du passé.
+
+**Objectif** : savoir, sur une seule page, si la veille est pertinente et fiable.
+
+**Fait**
+
+| Sujet | Contenu |
+|---|---|
+| Page | Qualité, nouvel onglet « Vue d'ensemble » en premier (`/quality`) ; Annoter passe à `/quality/annotate`, Résultats reste à `/quality/results`. Période 7, 14 ou 30 jours. |
+| Chiffres clés | Lacunes sur les domaines suivis, sources actives sur configurées, âge médian des news publiées, part confirmée ou fiable. |
+| Cartes | Couverture (lot 18) ; diversité (sources actives, sources publiées, part de la première source collectée et publiée) ; santé (statuts, sources jamais collectées, 5 dernières erreurs) ; fraîcheur (médiane, 90e centile, part sous 24 h) ; doublons et filtrage (entonnoir collectés → fusionnés par URL → au-dessus du seuil → fusionnés par sujet → publiés, avec un texte lisible par les lecteurs d'écran) ; qualité du filtrage (annotations, « échantillon insuffisant » sous 30) ; fiabilité publiée (répartition, news sans analyse IA). |
+| Honnêteté des chiffres | Chaque carte indique sa source et sa période. Un run sans compteur est compté à part (« pas de donnée »). Une période vide affiche « Pas de donnée », jamais zéro inventé. Les annotations ne sont résumées qu'avec l'API locale. |
+| Archive | Schéma 5 : `url_merged_count`, `topic_merged_count`, `above_threshold_count` par run, vides pour les runs anciens. Le pipeline les enregistre après la sélection (zéro pour un run sans contenu). La migration est automatique à la prochaine ouverture. |
+| API | `GET /api/quality/overview?days=` (1 à 90 jours). |
+
+**Vérifié** : 7 tests Python (735 au total), 6 tests d'interface (52 au total), build. Sur une copie de tes données : 8 runs, tous antérieurs aux compteurs, donc « pas de donnée » pour les doublons ; 5 lacunes, 11 sources actives sur 29, âge médian 4,1 h, 13 news confirmées ou fiables sur 14 ; aucune annotation. Entonnoir vérifié en ajoutant des compteurs au dernier run de la copie (affichage seulement). Ordinateur et 375 px. Réponse de l'API en 30 ms.
+
+---
+
+## Lot 20 — Lancer et planifier les runs
+
+✅ Clôturé · Décision : planification par une tâche launchd générée par l'interface. Deux vérifications réelles attendent ton accord (voir « Blocages »).
+
+**Objectif** : générer une édition depuis l'interface et régler sa fréquence.
+
+**Fait**
+
+| Sujet | Contenu |
+|---|---|
+| Lancer | Réglages, nouvelle section « Runs » en tête. Le bouton lance le pipeline dans un processus séparé, avec la même commande qu'en terminal. Journal dans `data/runs/`. |
+| Un seul run | Verrou `data/run.lock` (flock) tenu par le pipeline pendant tout le run, quelle que soit l'origine. Second lancement refusé : 409 dans l'interface, code 75 en terminal. Un run planté ne bloque pas le suivant. |
+| Suivi | Étapes (collecte, analyse IA, sélection, édition, fini) lues dans la vraie sortie (un traceback qui cite le code ne compte pas). Dernières lignes du journal sans couleurs ni valeur de clé, affichées depuis la fin. Échec affiché avec son code ; journal ouvert. Rafraîchi toutes les 2 s pendant un run, même onglet en arrière-plan. |
+| Planification | Activer, heure, jours (aucun = tous les jours), prochain run calculé. Tâche launchd écrite de façon atomique, rechargée, retirée à la désactivation ; refus de launchd affiché, rien n'est laissé. Aucune clé dans la tâche. macOS seulement (message ailleurs). |
+| Historique | 20 derniers runs de l'archive, statut réel, erreur, lien vers l'édition publiée. |
+| Sécurité | Routes locales seulement. Journal nettoyé des valeurs de clés (variables déclarées par la config, terminal et `.env`). |
+
+**Vérifié** : 20 tests Python (755 au total) avec un faux pipeline et un faux `launchctl` (aucun appel IA, aucune tâche chargée), dont un `plutil -lint` de la tâche générée ; 6 tests d'interface (58 au total) ; build. Démo réelle sur une copie des données, sans clé IA et sans envoi possible : le run part depuis l'interface, la collecte se fait (31 contenus), l'échec « clé manquante » s'affiche avec son code et son journal ; un second lancement est refusé (409) et un lancement en terminal pendant ce temps aussi (code 75) ; aucune valeur de clé dans les journaux. Téléphone 375 px.
+
+**Pas encore vérifié** : un vrai run avec l'IA lancé depuis l'interface, et une vraie tâche launchd qui se déclenche (accord demandé).
+
+**Corrigé pendant les essais** : étape fausse quand un traceback citait le code ; page élargie à 776 px sur téléphone par les longues lignes du journal ; suivi figé quand l'onglet est en arrière-plan.
+
+---
+
 # Lots suivants
 
 Plan revu le 9 octobre 2026 pour intégrer le besoin « interface complète et gestion du produit » : piloter LucidNews depuis l'interface, sans terminal pour les opérations courantes. Les anciens lots 15 à 18 sont repris et renumérotés selon le nouvel ordre (voir la correspondance plus bas).
@@ -488,14 +534,14 @@ Plan revu le 9 octobre 2026 pour intégrer le besoin « interface complète et g
 | ✅ | 16 — Socle de pilotage et Réglages | — | Clôturé. |
 | ✅ | 17 — Gestion des sources | 16 | Clôturé. |
 | ✅ | 18 — Domaines surveillés et couverture | 16, 17 | Clôturé. |
-| 1 | 19 — Qualité de la veille | 18 (couverture), 12 (filtrage) | Rassemble couverture, santé, fraîcheur, doublons et fiabilité sur une page. |
-| 2 | 20 — Lancer et planifier les runs | 16 | Dernier usage qui demande encore le terminal. |
-| 3 | 21 — Newsletter : contenu et préférences | 20 (fréquence) | Hebdomadaire, niveau de détail, aperçu. |
-| 4 | 22 — Newsletter : envoi fiable | 21 | Opt-in, désinscription, fournisseur d'e-mails, journal des envois. |
-| 5 | 23 — Recherche dans l'archive | — | Utile seul ; placé après le cœur du pilotage. |
-| 6 | 24 — Finitions de l'interface | 15 à 23 | Mode sombre et contrastes, une fois toutes les pages créées. |
-| 7 | 25 — Dette technique | — | Renommage du paquet en fin de chantier, pour ne pas gêner les lots en cours. |
-| 8 | 26 — Comptes et SaaS | 22, 25 | Hors périmètre actuel. |
+| ✅ | 19 — Qualité de la veille | 18 (couverture), 12 (filtrage) | Clôturé. |
+| ✅ | 20 — Lancer et planifier les runs | 16 | Clôturé (deux vérifications réelles en attente d'accord). |
+| 1 | 21 — Newsletter : contenu et préférences | 20 (fréquence) | Hebdomadaire, niveau de détail, aperçu. |
+| 2 | 22 — Newsletter : envoi fiable | 21 | Opt-in, désinscription, fournisseur d'e-mails, journal des envois. |
+| 3 | 23 — Recherche dans l'archive | — | Utile seul ; placé après le cœur du pilotage. |
+| 4 | 24 — Finitions de l'interface | 15 à 23 | Mode sombre et contrastes, une fois toutes les pages créées. |
+| 5 | 25 — Dette technique | — | Renommage du paquet en fin de chantier, pour ne pas gêner les lots en cours. |
+| 6 | 26 — Comptes et SaaS | 22, 25 | Hors périmètre actuel. |
 | En parallèle | 12 — Annoter au moins 30 news | — | Action humaine ; donne les chiffres de filtrage du lot 19. |
 
 **Correspondance avec l'ancien plan** : ancien 15 (finitions) → 24 · ancien 16 (newsletter) → 21 et 22 · ancien 17 (comptes et SaaS) → 26 · ancien 18 (dette technique) → 25.
@@ -523,51 +569,9 @@ On garde les écrans existants et on n'ajoute qu'**une** page : Réglages.
 
 ---
 
-## Lot 19 — Qualité de la veille
-
-📋 Prochain lot.
-
-- **Objectif** : savoir, sur une seule page, si la veille est pertinente et fiable.
-- **Fonctionnalités** (indicateurs réels, sur une période choisie) :
-  - couverture des domaines (lot 18) et diversité des sources (nombre de sources actives, part de la première source) ;
-  - sources inactives ou en échec, erreurs de collecte récentes (santé existante) ;
-  - fraîcheur : âge des news publiées, délai entre publication et édition ;
-  - qualité du filtrage : résultats de l'évaluation (lot 11), avec la mention « échantillon insuffisant » tant que le lot 12 n'est pas fait ;
-  - doublons : doublons fusionnés par URL et par sujet à chaque run ;
-  - répartition Confirmé / Fiable / Non vérifié / Rumeur, et news sans analyse IA.
-- **Pages** : Qualité, nouvel onglet « Vue d'ensemble » (les onglets Annoter et Résultats restent).
-- **Frontend** : tuiles d'indicateurs et graphiques (`recharts`, déjà installé) ; chaque indicateur indique sa source et sa période.
-- **Backend** : enregistrer par run les compteurs de sélection qui ne sont pas encore gardés (fusions par URL, doublons par sujet, news au-dessus du seuil) ; calcul des indicateurs.
-- **Données et API** : nouvelles colonnes de run dans l'archive ; `GET /api/quality/overview?days=`.
-- **Critères de validation** : chaque chiffre se retrouve dans l'archive ; un run sans donnée est marqué comme tel, sans valeur inventée.
-- **Tests** : calcul de chaque indicateur sur une archive de test, période vide, archive ancienne sans les nouvelles colonnes.
-- **Dépendances** : lot 18 pour la couverture ; lot 12 pour des chiffres de filtrage significatifs.
-
----
-
-## Lot 20 — Lancer et planifier les runs
-
-📋 Planifié. Décision : tâche système launchd (macOS) générée par l'interface.
-
-- **Objectif** : générer une édition depuis l'interface et régler sa fréquence.
-- **Fonctionnalités** :
-  - bouton « Lancer un run » avec suivi : étape en cours, journal récent, résultat ;
-  - un seul run à la fois ;
-  - fréquence de génération (par exemple chaque jour à 7 h), appliquée réellement ;
-  - historique des runs (déjà dans l'archive) avec leur statut.
-- **Pages** : Réglages, section « Runs ».
-- **Frontend** : bouton, état en direct (interrogation régulière), historique.
-- **Backend** : lancement du pipeline dans un processus séparé ; verrou ; journal sans secret ; planification par un fichier launchd (`~/Library/LaunchAgents`) écrit, chargé et retiré depuis l'interface, qui lance le même pipeline.
-- **Données et API** : `POST /api/runs`, `GET /api/runs/current`, `GET/PUT /api/schedule`.
-- **Critères de validation** : un run lancé depuis l'interface produit la même édition qu'en terminal ; un second lancement pendant un run est refusé ; la planification déclenche réellement un run.
-- **Tests** : verrou, run en échec affiché comme tel, journal sans clé, planification calculée correctement.
-- **Dépendances** : lot 16.
-
----
-
 ## Lot 21 — Newsletter : contenu et préférences
 
-📋 Planifié. Reprend une partie de l'ancien lot 16.
+📋 Prochain lot. Reprend une partie de l'ancien lot 16.
 
 - **Objectif** : une newsletter qui suit réellement les préférences de chaque abonné.
 - **Fonctionnalités** :
@@ -677,7 +681,9 @@ Un paramètre n'est ajouté que s'il est réellement appliqué par le système.
 
 | Sujet | Bloque | Recommandation |
 |---|---|---|
-| Lot 18 terminé mais pas encore commité | Rien, mais à faire avant le lot 19 | Commiter avec le message préparé. |
+| Lots 19 et 20 terminés mais pas encore commités | Rien, mais à faire avant le lot 21 | Commiter avec le message préparé (un seul commit : fichiers communs). |
+| Vrai run IA lancé depuis l'interface | La preuve « même édition qu'en terminal » | Accord demandé : un run sur une copie des données, avec la clé IA. |
+| Vraie tâche launchd | La preuve « la planification déclenche réellement un run » | Accord demandé : tâche de test chargée quelques minutes puis retirée. |
 | Annotations du lot 12 | Les chiffres de filtrage du lot 19 (affichés « échantillon insuffisant » d'ici là) | Annoter au fil de l'eau. |
 | Domaines personnalisés au-delà des 12 catégories | Tranché : les 12 catégories (lot 18) | — |
 | Méthode de planification des runs | Tranché : tâche système launchd générée par l'interface (lot 20) | — |
@@ -743,6 +749,7 @@ Un paramètre n'est ajouté que s'il est réellement appliqué par le système.
 | Domaines surveillés | Les 12 catégories existantes (A) |
 | Planification des runs | Tâche système launchd générée par l'interface (B) |
 | X (Twitter) dans l'interface | Lecture seule (cookies ou jeton Apify impossibles à vérifier depuis l'écran) |
+| Compteurs de doublons des anciens runs | Pas reconstitués : ils commencent au premier run après le lot 19 |
 | Seuil de lacune d'un domaine | Moins de 2 sources actives ou moins de 3 news sur la période, réglable dans l'onglet Domaines |
 | Rôle du score de qualité | Départager les news de même score, sans jamais passer devant une news mieux notée |
 | Style des réponses | Skill explainer : français simple, sections, questions oui/non |
@@ -775,3 +782,4 @@ Un paramètre n'est ajouté que s'il est réellement appliqué par le système.
 | `0429fc7` | 2026-10-09 | 14 bis | wider corroboration, source quality and archive reassessment |
 | `3368611` | 2026-10-09 | 15 | interactive news cards and revised product plan |
 | `1bdaf2b` | 2026-10-10 | 16, 17 | settings, API keys and sources managed from the web app |
+| `1850d32` | 2026-10-10 | 18 | watched domains, coverage from the archive and recommended sources |

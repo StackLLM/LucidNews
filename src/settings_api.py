@@ -390,6 +390,16 @@ class SettingsService:
             add(match.group(1), "config")
         return declared
 
+    def secret_values(self) -> List[str]:
+        """Current values of the secrets the configuration uses (to hide them from logs)."""
+        try:
+            names = self._declared_secrets()
+        except (OSError, ValueError, ValidationError):
+            names = {}
+        in_file = self._env_file_values()
+        values = {os.environ.get(name) or "" for name in names} | {in_file.get(name) or "" for name in names}
+        return sorted((value for value in values if value), key=len, reverse=True)
+
     def _env_file_values(self) -> Dict[str, Optional[str]]:
         return dict(dotenv_values(self.env_path)) if self.env_path.exists() else {}
 
