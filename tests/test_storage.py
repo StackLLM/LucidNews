@@ -215,8 +215,11 @@ def test_save_daily_summary_replace_failure_preserves_destination(tmp_path, monk
     assert list(destination.parent.glob(f".{destination.name}.*.tmp")) == []
 
 
-def test_save_subscribers_replace_failure_preserves_destination(tmp_path, monkeypatch):
-    storage = StorageManager(data_dir=str(tmp_path))
+def test_legacy_subscriber_file_write_failure_preserves_destination(tmp_path, monkeypatch):
+    from src.newsletter.models import Subscriber
+    from src.newsletter.store import SubscriberStore
+
+    store = SubscriberStore(tmp_path / "subscribers.json")
 
     def fail_replace(source, target):
         raise OSError("replace failed")
@@ -226,7 +229,7 @@ def test_save_subscribers_replace_failure_preserves_destination(tmp_path, monkey
     subscribers_path = tmp_path / "subscribers.json"
     subscribers_path.write_text('["old"]', encoding="utf-8")
     with pytest.raises(OSError, match="replace failed"):
-        storage._save_subscribers(["new@example.com"])
+        store.save([Subscriber(email="new@example.com")])
 
     assert subscribers_path.read_text(encoding="utf-8") == '["old"]'
     assert list(tmp_path.glob(f".{subscribers_path.name}.*.tmp")) == []

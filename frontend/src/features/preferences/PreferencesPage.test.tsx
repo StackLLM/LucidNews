@@ -4,7 +4,16 @@ import options from '../../test/fixtures/preference-options.json'
 import { renderAt } from '../../test/render'
 
 // In-memory stand-in for the local subscriber routes (fictitious addresses only).
-type Stored = { id: string; email: string; plan: 'free'; preferences: Record<string, unknown>; created_at: string }
+type Stored = {
+  id: string
+  email: string
+  plan: 'free'
+  preferences: Record<string, unknown>
+  created_at: string
+  status: 'pending' | 'confirmed' | 'unsubscribed'
+  confirmed_at: string | null
+  unsubscribed_at: string | null
+}
 
 const basePreferences = {
   language: 'en',
@@ -33,7 +42,7 @@ const previewPayload = {
   edition: 'run-1',
 }
 
-function fakeApi(initial: Stored[] = [], preview: Record<string, unknown> = previewPayload) {
+function fakeApi(initial: Stored[] = [], preview: Record<string, unknown> = previewPayload, confirmation: Record<string, unknown> = { sent: true, error: null }, deliveries: unknown[] = []) {
   const subscribers = [...initial]
   const calls: { method: string; path: string; body?: unknown }[] = []
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
@@ -52,11 +61,20 @@ function fakeApi(initial: Stored[] = [], preview: Record<string, unknown> = prev
         plan: 'free',
         preferences: { ...basePreferences },
         created_at: '2026-10-08T09:00:00+00:00',
+        status: 'pending',
+        confirmed_at: null,
+        unsubscribed_at: null,
       }
       subscribers.push(created)
-      return json(created, 201)
+      return json({ ...created, confirmation: confirmation }, 201)
     }
     if (/^\/api\/subscribers\/\w+\/preview$/.test(path)) return json(preview)
+    if (path === '/api/deliveries' || /^\/api\/subscribers\/\w+\/deliveries$/.test(path)) return json({ deliveries })
+    const again = path.match(/^\/api\/subscribers\/(\w+)\/confirmation$/)
+    if (again && method === 'POST') {
+      const found = subscribers.find((s) => s.id === again[1])
+      return found ? json({ ...found, confirmation }) : json({ error: 'not found' }, 404)
+    }
     const match = path.match(/^\/api\/subscribers\/(\w+)$/)
     const index = subscribers.findIndex((s) => s.id === match?.[1])
     if (match && index >= 0 && method === 'PUT') {
@@ -78,6 +96,9 @@ const ada: Stored = {
   plan: 'free',
   preferences: { ...basePreferences },
   created_at: '2026-10-01T09:00:00+00:00',
+  status: 'confirmed',
+  confirmed_at: '2026-10-02T09:00:00+00:00',
+  unsubscribed_at: null,
 }
 
 test('adds a subscriber and opens their preferences', async () => {
@@ -218,4 +239,67 @@ test('a weekly preview with nothing to send is not shown as an e-mail', async ()
   fireEvent.click(screen.getByRole('button', { name: 'Show the preview' }))
   expect(await screen.findByText(/no weekly e-mail would be sent/)).toBeInTheDocument()
   expect(screen.queryByTitle('E-mail preview')).not.toBeInTheDocument()
+})
+
+// --- Double opt-in and delivery log (lot 22) ---------------------------------------------------------
+
+const pendingReader: Stored = { ...ada, id: 'pen0000000000000', email: 'pending@example.com', status: 'pending', confirmed_at: null }
+
+test('a new reader is pending and the page says what happened to the confirmation link', async () => {
+  fakeApi([], previewPayload, { sent: false, error: 'Resend 422: invalid address' })
+  renderAt('/preferences?lang=fr')
+  await screen.findByText('Aucun abonné pour l’instant. Ajoutez le premier ci-dessous.', {}, { timeout: 5000 })
+
+  fireEvent.change(screen.getByLabelText('Adresse e-mail'), { target: { value: 'new@example.com' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
+
+  const status = await screen.findByRole('region', { name: 'En attente de confirmation' })
+  expect(within(status).getByText(/Rien ne lui est envoyé tant que son propriétaire/)).toBeInTheDocument()
+  expect(within(status).getByText('Le lien de confirmation n’a pas pu être envoyé : Resend 422: invalid address')).toBeInTheDocument()
+  expect(within(status).getByRole('button', { name: 'Renvoyer le lien' })).toBeInTheDocument()
+})
+
+test('the confirmation link can be sent again to a pending reader', async () => {
+  const api = fakeApi([pendingReader])
+  renderAt(`/preferences/${pendingReader.id}?lang=fr`)
+  const status = await screen.findByRole('region', { name: 'En attente de confirmation' }, { timeout: 5000 })
+
+  fireEvent.click(within(status).getByRole('button', { name: 'Envoyer le lien de confirmation' }))
+
+  expect(await within(status).findByText('Lien de confirmation envoyé.')).toBeInTheDocument()
+  expect(api.calls.some((call) => call.method === 'POST' && call.path.endsWith('/confirmation'))).toBe(true)
+  // The list marks the reader who has not confirmed.
+  expect(within(screen.getByRole('region', { name: /^Abonnés/ })).getByText('En attente de confirmation')).toBeInTheDocument()
+})
+
+test('a confirmed reader has no button, and says since when', async () => {
+  fakeApi([ada])
+  renderAt(`/preferences/${ada.id}?lang=fr`)
+  const status = await screen.findByRole('region', { name: 'Confirmé' }, { timeout: 5000 })
+
+  expect(within(status).getByText(/Confirmé le .*2 octobre 2026/)).toBeInTheDocument()
+  expect(within(status).queryByRole('button')).not.toBeInTheDocument()
+})
+
+test('the delivery log lists each send with its result and error', async () => {
+  fakeApi([ada], previewPayload, { sent: true, error: null }, [
+    { id: 2, subscriber_id: ada.id, email: ada.email, kind: 'weekly', subject: 'LucidNews — semaine du 2026-10-05', reference: '2026-10-05', status: 'failed', error: 'Resend 422: invalid address', created_at: '2026-10-12T07:00:00+00:00' },
+    { id: 1, subscriber_id: ada.id, email: ada.email, kind: 'daily', subject: 'LucidNews — 2026-10-11', reference: 'run-1', status: 'sent', error: null, created_at: '2026-10-11T07:00:00+00:00' },
+  ])
+  renderAt(`/preferences/${ada.id}?lang=fr`)
+  const log = await screen.findByRole('region', { name: 'Journal des envois' }, { timeout: 5000 })
+
+  expect(await within(log).findByText('Digest hebdomadaire')).toBeInTheDocument()
+  expect(within(log).getByText('Resend 422: invalid address')).toBeInTheDocument()
+  expect(within(log).getByText('Échec')).toBeInTheDocument()
+  expect(within(log).getByText('Envoyé')).toBeInTheDocument()
+  expect(within(log).getByText(/semaine du lundi 5 octobre 2026/)).toBeInTheDocument()
+})
+
+test('the overall log shows who each e-mail went to, and says when nothing was sent', async () => {
+  fakeApi([ada])
+  renderAt('/preferences?lang=fr')
+  const log = await screen.findByRole('region', { name: 'Journal des envois' }, { timeout: 5000 })
+
+  expect(await within(log).findByText('Rien n’a encore été envoyé.')).toBeInTheDocument()
 })

@@ -1,6 +1,6 @@
 # Newsletter
 
-Le module `src/newsletter/` pose les fondations d'une plateforme de newsletter tech : abonnés, préférences, plans, sélection personnalisée et plan d'envoi. Il n'y a pas encore d'interface d'inscription : les abonnés arrivent par email (IMAP) ou via le code.
+Le module `src/newsletter/` pose les fondations d'une plateforme de newsletter tech : abonnés, préférences, plans, sélection personnalisée, plan d'envoi, double confirmation et journal des envois. Les abonnés arrivent par l'écran Préférences, par e-mail (IMAP) ou via le code, et **ne reçoivent rien avant d'avoir confirmé**.
 
 ## Modèle
 
@@ -9,6 +9,8 @@ Subscriber
 ├── email
 ├── plan                 free | premium          (aucun paiement, aucune restriction aujourd'hui)
 ├── created_at
+├── status               pending | confirmed | unsubscribed
+├── confirmed_at / unsubscribed_at
 └── preferences: DigestPreferences
     ├── language          "en", "fr"…            (défaut : en)
     ├── categories        ["ai", "cybersecurity"] (vide = toutes)
@@ -64,32 +66,64 @@ Dans Préférences, « Voir l'aperçu » montre l'e-mail d'un abonné avec ses p
 
 ## Stockage
 
-`data/subscribers.json` (ignoré par git) :
+`data/newsletter.sqlite3` (ignoré par git) : tables `subscribers` et `deliveries`. Il remplace `data/subscribers.json`.
 
-```json
-{ "version": 1, "subscribers": [ { "email": "lecteur@example.com", "plan": "free", "preferences": { "language": "fr", "categories": ["ai"] }, "created_at": "2026-10-06T08:00:00Z" } ] }
-```
+- **Migration** : à la première ouverture, si la base est vide et que `subscribers.json` existe, ses lecteurs sont importés **comme confirmés** (ils recevaient déjà le digest et aucune preuve de consentement n'existe pour leur redemander ; envoyer des mails de confirmation à tous automatiquement serait un envoi non demandé). Le fichier est renommé `subscribers.json.migrated`, jamais supprimé. La migration n'est faite qu'une fois.
+- **Supprimer** un lecteur (bouton Supprimer) efface tout : sa ligne et son journal d'envois.
+- **Se désinscrire** (lien) garde seulement l'adresse, avec le statut « désinscrit », pour ne plus jamais lui écrire. Seule une nouvelle demande (« Envoyer le lien de confirmation ») le remet en attente.
+- L'ancien `SubscriberStore` (fichier JSON) ne sert plus qu'à la migration.
 
-- L'ancien format (liste d'emails) est lu automatiquement et converti à la prochaine écriture.
-- La désinscription **supprime** l'abonné : aucune donnée n'est conservée.
-- `SubscriberStore` (`load`, `save`, `get`, `add`, `remove`) est la seule porte d'accès. Le remplacer par une base de données ne touche pas le code d'envoi.
+## Double confirmation (double opt-in)
+
+1. Un lecteur ajouté (écran Préférences ou e-mail `SUBSCRIBE`) est **en attente** et reçoit un lien de confirmation. Rien d'autre ne lui est envoyé.
+2. Le lien ouvre une page avec un bouton. Ouvrir le lien ne change rien (les antivirus et aperçus de liens ouvrent les liens) ; le bouton confirme.
+3. Le digest ne part qu'aux lecteurs **confirmés** : le plan d'envoi les filtre, et l'envoi revérifie chaque adresse dans la base.
+
+## Liens signés
+
+Chaque lien est un jeton signé (HMAC-SHA256) avec un secret que seul l'expéditeur connaît (`NEWSLETTER_SIGNING_KEY`, au moins 16 caractères, dans `.env`). Rien n'est stocké : un lien modifié, expiré, ou fait pour une autre action est refusé.
+
+- Confirmation : valable 7 jours.
+- Désinscription : n'expire jamais (partir doit rester possible).
+- Chaque e-mail contient le lien de désinscription **de son lecteur** et les en-têtes `List-Unsubscribe` et `List-Unsubscribe-Post` (désinscription en un clic des clients mail).
+
+## Service public
+
+`uv run lucidnews-public` (port 8780) est un processus **séparé** de `lucidnews-api`, qui reste sur localhost. Il ne sert que `GET /confirm`, `GET /unsubscribe` (une page avec un bouton, rien n'est modifié), `POST /confirm`, `POST /unsubscribe` (aussi le clic unique des clients mail) et `GET /health`. Ni archive, ni liste d'abonnés, ni réglages. Il n'écrit jamais le jeton dans ses journaux.
+
+Il lit et écrit la **même** `newsletter.sqlite3` que le pipeline : il doit tourner là où est le dossier `data/`. Mettez-le derrière un proxy HTTPS (Caddy, nginx) ou un tunnel (Cloudflare Tunnel) ; `email.public_base_url` est l'adresse publique de ce proxy, en `https`.
+
+## Fournisseur d'envoi
+
+`email.provider` :
+
+- `smtp` (défaut) : le serveur SMTP configuré, une connexion par message.
+- `resend` : l'API HTTPS de Resend (`RESEND_API_KEY`, nom réglable par `email.resend_api_key_env`). Avec Resend, un digest sans lien de désinscription est refusé.
+
+Les clés se gèrent dans Réglages › Clés API (jamais réaffichées). Le message d'erreur d'un envoi raté ne contient jamais la clé.
+
+## Journal des envois
+
+Chaque envoi, réussi ou raté, est écrit dans `deliveries` : lecteur, date, type (confirmation, quotidien, hebdomadaire), objet, édition (ou semaine) et résultat avec l'erreur. Préférences › Journal des envois : celui du lecteur choisi, ou de tous quand personne n'est choisi. Un envoi hebdomadaire entièrement raté laisse la semaine « à envoyer » : le run suivant du même jour réessaie.
 
 ## Inscription par email
 
 Avec `email.imap_enabled`, la boîte configurée est relevée à chaque run :
 
-- un email dont le sujet vaut `SUBSCRIBE` inscrit l'expéditeur, avec les préférences par défaut ;
-- un email dont le sujet vaut `UNSUBSCRIBE` le désinscrit.
+- un email dont le sujet vaut `SUBSCRIBE` crée un lecteur **en attente** et lui envoie le lien de confirmation (un lecteur désinscrit qui redemande repasse en attente) ;
+- un email dont le sujet vaut `UNSUBSCRIBE` le désinscrit (statut « désinscrit »).
 
 ## Ajouter un abonné depuis le code
 
 ```python
-from src.newsletter import DigestPreferences, SubscriberStore
+from src.newsletter import DigestPreferences
 
-store = SubscriberStore("data/subscribers.json")
-store.add("lecteur@example.com", DigestPreferences(language="fr", categories=["ai", "cybersecurity"], min_importance="high"))
+from src.newsletter.db import SubscriberDB
+
+db = SubscriberDB("data/newsletter.sqlite3")
+db.add("lecteur@example.com", DigestPreferences(language="fr", categories=["ai", "cybersecurity"], min_importance="high"))  # confirmé d'office : à réserver à vos propres adresses
 ```
 
 ## Prochaines étapes
 
-Voir la [roadmap](roadmap.md) : gestion des préférences par lien, double opt-in, fournisseur d'emailing transactionnel, base de données.
+Voir la [roadmap](roadmap.md) : gestion des préférences par lien, envoi selon le fuseau horaire du lecteur.

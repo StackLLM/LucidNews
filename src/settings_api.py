@@ -382,6 +382,9 @@ class SettingsService:
             add(AI_PROVIDER_DEFAULTS.get(provider, {}).get("api_key_env"), f"ai:{provider.value}")
         if config.email is not None:
             add(config.email.password_env, "email")
+            add(config.email.signing_key_env, "newsletter-links")
+            if config.email.provider == "resend":
+                add(config.email.resend_api_key_env, "email:resend")
         if config.webhook is not None:
             add(config.webhook.url_env, "webhook")
         if config.sources.twitter is not None:

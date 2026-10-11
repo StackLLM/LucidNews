@@ -39,6 +39,7 @@ from .reliability.models import SourceTier
 from .i18n import messages
 from .newsletter import DeliveryPlan, Frequency, plan_deliveries
 from .newsletter.build import render_selection
+from .newsletter.mailer import SendSummary, build_mailer
 from .newsletter.weekly import WeeklyState, window as weekly_window
 from .archive import ItemArchive, content_hash
 from .source_health import (
@@ -240,6 +241,11 @@ class PipelineOrchestrator:
             config.reliability.domains, config.reliability.accounts
         )
         self.email_manager = EmailManager(config.email, console=self.console) if config.email else None
+        self.mailer = (
+            build_mailer(config.email, self.storage.subscribers, console=self.console)
+            if config.email and config.email.enabled
+            else None
+        )
         self.webhook_notifier = (
             WebhookNotifier(config.webhook, console=self.console, icons=self.icons)
             if config.webhook and config.webhook.enabled
@@ -295,7 +301,7 @@ class PipelineOrchestrator:
             and self.config.email.imap_enabled
         ):
             self.console.print(f"{self.icons['email']} Checking for new email subscriptions...")
-            self.email_manager.check_subscriptions(self.storage)
+            self.email_manager.check_subscriptions(self.storage, self.mailer)
 
         try:
             budget.start_run(getattr(getattr(self.config, "ai", None), "max_tokens_per_run", None))
@@ -404,7 +410,7 @@ class PipelineOrchestrator:
                         summarizer=summarizer,
                     )
 
-            if self.email_manager and self.config.email and self.config.email.enabled:
+            if self.mailer is not None:
                 await self.send_newsletters(
                     important_items, today, len(all_items), unanalyzed=unanalyzed
                 )
@@ -474,7 +480,7 @@ class PipelineOrchestrator:
         nothing is sent and the week stays due.
         """
         email = self.config.email
-        if not (self.email_manager and email and email.enabled):
+        if getattr(self, "mailer", None) is None or not (email and email.enabled):
             return None
         day = (today or datetime.now(timezone.utc)).date()
         state = WeeklyState(self.storage.data_dir / "weekly_sent.json")
@@ -493,15 +499,22 @@ class PipelineOrchestrator:
             frequency=Frequency.WEEKLY,
             max_items_cap=email.weekly_max_items,
         )
-        await self._deliver(plan, day.isoformat(), len(items), week_start=week_start)
-        state.mark_sent(day)
+        totals = await self._deliver(plan, day.isoformat(), len(items), week_start=week_start)
+        # A week where every send failed stays due: the next run of the day tries again.
+        if totals.sent > 0 or totals.failed == 0:
+            state.mark_sent(day)
         return plan
 
     async def _deliver(
         self, plan: DeliveryPlan, day: str, total_fetched: int, week_start: Optional[str] = None
-    ) -> None:
+    ) -> SendSummary:
         """Render each delivery of ``plan`` (the code path of the web preview) and send it."""
         email = self.config.email
+        totals = SendSummary()
+        if plan.not_confirmed:
+            self.console.print(
+                f"{self.icons['email']} {len(plan.not_confirmed)} subscriber(s) not confirmed or unsubscribed: nothing sent."
+            )
         if plan.skipped_weekly and week_start is None:
             self.console.print(
                 f"{self.icons['email']} {len(plan.skipped_weekly)} weekly subscriber(s) "
@@ -531,6 +544,7 @@ class PipelineOrchestrator:
                 sender_name=email.sender_name,
                 unsubscribe_keyword=email.unsubscribe_keyword,
                 week_start=week_start,
+                unsubscribe_link=self.mailer.links_enabled,
             )
             self.console.print(
                 f"{self.icons['email']} Sending {language.upper()} "
@@ -538,7 +552,19 @@ class PipelineOrchestrator:
                 f"({newsletter.item_count + newsletter.unanalyzed_count} items) "
                 f"to {len(delivery.recipients)} subscriber(s)..."
             )
-            self.email_manager.send_rendered(newsletter.email, newsletter.subject, delivery.recipients)
+            summary = self.mailer.send_digest(
+                newsletter,
+                delivery.recipients,
+                "weekly" if week_start else "daily",
+                week_start or getattr(self, "run_id", None) or day,
+            )
+            totals.sent += summary.sent
+            totals.failed += summary.failed
+            self.console.print(
+                f"   {self.icons['detail']} {summary.sent} sent, {summary.failed} failed"
+                + (f", {summary.skipped} skipped (not confirmed)" if summary.skipped else "")
+            )
+        return totals
 
     def _finish_archive(
         self,

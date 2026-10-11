@@ -193,6 +193,7 @@ export function fetchItem(id: string, language: string, signal?: AbortSignal): P
 // Subscriber preferences (local-only routes, see src/subscribers_api.py) -------------
 
 export const frequencies = ['daily', 'weekly'] as const
+export const subscriptionStatuses = ['pending', 'confirmed', 'unsubscribed'] as const
 export const detailLevels = ['brief', 'complete'] as const
 export const importanceLevels = ['low', 'medium', 'high', 'critical'] as const
 
@@ -213,6 +214,10 @@ const subscriberSchema = z.object({
   plan: z.enum(['free', 'premium']),
   preferences: preferencesSchema,
   created_at: z.string(),
+  /** Pending readers receive nothing until they open the confirmation link. */
+  status: z.enum(subscriptionStatuses),
+  confirmed_at: z.string().nullable().default(null),
+  unsubscribed_at: z.string().nullable().default(null),
 })
 
 const optionsSchema = z.object({
@@ -269,8 +274,37 @@ export function fetchNewsletterPreview(id: string, signal?: AbortSignal): Promis
   return getJson(`/api/subscribers/${encodeURIComponent(id)}/preview`, newsletterPreviewSchema, signal)
 }
 
-export function createSubscriber(email: string): Promise<Subscriber> {
-  return request('/api/subscribers', subscriberSchema, { method: 'POST', body: JSON.stringify({ email }) })
+const confirmationSchema = z.object({ sent: z.boolean(), error: z.string().nullable() })
+const subscriberWithConfirmationSchema = subscriberSchema.extend({ confirmation: confirmationSchema })
+export type SubscriberWithConfirmation = z.infer<typeof subscriberWithConfirmationSchema>
+export type Confirmation = z.infer<typeof confirmationSchema>
+
+export function createSubscriber(email: string): Promise<SubscriberWithConfirmation> {
+  return request('/api/subscribers', subscriberWithConfirmationSchema, { method: 'POST', body: JSON.stringify({ email }) })
+}
+
+export function resendConfirmation(id: string): Promise<SubscriberWithConfirmation> {
+  return request(`/api/subscribers/${encodeURIComponent(id)}/confirmation`, subscriberWithConfirmationSchema, { method: 'POST', body: '{}' })
+}
+
+export const deliveryKinds = ['confirmation', 'daily', 'weekly'] as const
+const deliverySchema = z.object({
+  id: z.number(),
+  subscriber_id: z.string(),
+  email: z.string(),
+  kind: z.enum(deliveryKinds),
+  subject: z.string(),
+  /** The edition (daily) or the first day of the week (weekly). */
+  reference: z.string().nullable(),
+  status: z.enum(['sent', 'failed']),
+  error: z.string().nullable(),
+  created_at: z.string(),
+})
+export type Delivery = z.infer<typeof deliverySchema>
+
+export async function fetchDeliveries(subscriberId?: string, signal?: AbortSignal): Promise<Delivery[]> {
+  const path = subscriberId ? `/api/subscribers/${encodeURIComponent(subscriberId)}/deliveries?limit=30` : '/api/deliveries?limit=30'
+  return (await getJson(path, z.object({ deliveries: z.array(deliverySchema) }), signal)).deliveries
 }
 
 export function updatePreferences(id: string, preferences: Preferences): Promise<Subscriber> {

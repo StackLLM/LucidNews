@@ -824,6 +824,10 @@ Email delivery is optional and disabled unless `email.enabled` is `true`. LucidN
 - `subscribe_keyword` / `unsubscribe_keyword`: Keywords LucidNews looks for in incoming email subjects.
 - `weekly_day`: Weekday (0 = Monday … 6 = Sunday, default 0) on which weekly subscribers receive the best items of the last 7 days. Sent by the first run of that day, at most once per ISO week (recorded in `data/weekly_sent.json`).
 - `weekly_max_items`: Maximum items in a weekly e-mail (default 15; a subscriber's own `max_items` applies if lower).
+- `provider`: `smtp` (default) or `resend` (Resend's HTTPS API, key in `resend_api_key_env`, default `RESEND_API_KEY`). With `resend`, a digest without an unsubscribe link is refused.
+- `public_base_url`: Public `https` address of the `lucidnews-public` service (confirmation and unsubscribe links). Without it, confirmation links cannot be sent and new readers stay pending.
+- `signing_key_env`: Environment variable holding the secret (16+ characters) that signs those links. Defaults to `NEWSLETTER_SIGNING_KEY`. Generate one with `openssl rand -hex 32` and set it in Settings › API keys.
+- Readers only receive digests once confirmed (double opt-in); see `docs/newsletter.md`.
 
 Resend SMTP example:
 

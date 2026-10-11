@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from enum import Enum
 import re
 from typing import Annotated, Literal, Optional, List, Dict, Any, NamedTuple, Union
+from urllib.parse import urlsplit
 from pydantic import BaseModel, ConfigDict, HttpUrl, Field, ValidationError, field_validator, model_validator
 
 from .ai.budget import AILimit
@@ -564,6 +565,27 @@ class EmailConfig(BaseModel):
     # first run of that day (0 = Monday ... 6 = Sunday), at most once per ISO week.
     weekly_day: int = Field(default=0, ge=0, le=6)
     weekly_max_items: int = Field(default=15, gt=0, le=100)
+    # How e-mails leave: "smtp" (the server above) or "resend" (Resend's HTTPS API).
+    provider: Literal["smtp", "resend"] = "smtp"
+    resend_api_key_env: str = "RESEND_API_KEY"
+    # Secret that signs confirmation and unsubscription links (at least 16 characters).
+    signing_key_env: str = "NEWSLETTER_SIGNING_KEY"
+    # Where readers open those links: the address of the public service (`lucidnews-public`).
+    public_base_url: Optional[str] = None
+
+    @field_validator("public_base_url")
+    @classmethod
+    def validate_public_base_url(cls, value: Optional[str]) -> Optional[str]:
+        if value is None or not value.strip():
+            return None
+        value = value.strip().rstrip("/")
+        parsed = urlsplit(value)
+        local = parsed.hostname in {"localhost", "127.0.0.1", "::1"}
+        if parsed.scheme not in {"https", "http"} or not parsed.hostname or parsed.query or parsed.fragment:
+            raise ValueError("public_base_url must be an http(s) address without query or fragment")
+        if parsed.scheme == "http" and not local:
+            raise ValueError("public_base_url must use https (http is only accepted for localhost)")
+        return value
 
 
 class CategoryGroupConfig(BaseModel):

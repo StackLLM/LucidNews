@@ -33,6 +33,7 @@ async def render_selection(
     sender_name: str,
     unsubscribe_keyword: str,
     week_start: Optional[str] = None,
+    unsubscribe_link: bool = False,
 ) -> Newsletter:
     """Render items already chosen for ``prefs``. ``week_start`` makes it a weekly digest."""
     weekly = week_start is not None
@@ -57,6 +58,7 @@ async def render_selection(
             language=prefs.language,
             sender_name=sender_name,
             unsubscribe_keyword=unsubscribe_keyword,
+            unsubscribe_link=unsubscribe_link,
         ),
         item_count=len(selected),
         unanalyzed_count=len(unanalyzed),

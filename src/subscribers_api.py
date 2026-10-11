@@ -6,24 +6,21 @@ loopback address, and every write must come from a same-machine origin (see
 the e-mail, so addresses never appear in URLs or browser history.
 """
 
-import hashlib
-import threading
 from http import HTTPStatus
-from typing import Any, Dict, List, Mapping, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Mapping, Optional, Sequence
 
 from pydantic import ValidationError
 
 from .i18n import LANGUAGES
-from .newsletter.models import DetailLevel, DigestPreferences, Frequency, Subscriber
+from .newsletter.db import SubscriberDB
+from .newsletter.models import DetailLevel, DigestPreferences, Frequency, Subscriber, SubscriptionStatus, subscriber_id
 from .newsletter.plans import PLAN_LIMITS
-from .newsletter.store import SubscriberStore
 from .taxonomy import IMPORTANCE_ORDER, Category
 
+if TYPE_CHECKING:
+    from .newsletter.mailer import Mailer
+
 Response = tuple[int, Dict[str, Any]]
-
-
-def subscriber_id(email: str) -> str:
-    return hashlib.sha256(email.strip().lower().encode("utf-8")).hexdigest()[:16]
 
 
 def subscriber_payload(subscriber: Subscriber) -> Dict[str, Any]:
@@ -33,6 +30,9 @@ def subscriber_payload(subscriber: Subscriber) -> Dict[str, Any]:
         "plan": subscriber.plan.value,
         "preferences": subscriber.preferences.model_dump(mode="json"),
         "created_at": subscriber.created_at.isoformat(),
+        "status": subscriber.status.value,
+        "confirmed_at": subscriber.confirmed_at.isoformat() if subscriber.confirmed_at else None,
+        "unsubscribed_at": subscriber.unsubscribed_at.isoformat() if subscriber.unsubscribed_at else None,
     }
 
 
@@ -70,16 +70,18 @@ def _validation_errors(exc: ValidationError) -> Dict[str, str]:
 class SubscriberService:
     def __init__(
         self,
-        store: SubscriberStore,
+        store: SubscriberDB,
         languages: Sequence[str],
         configured_sources: Mapping[str, str],
         weekly_day: int = 0,
+        mailer: Optional[Callable[[], Optional["Mailer"]]] = None,
     ):
         self.store = store
         self.weekly_day = weekly_day
+        # Built per request so a key added in Settings is used without restarting the API.
+        self._mailer = mailer or (lambda: None)
         self.languages = [code for code in languages if code in LANGUAGES] or ["en"]
         self.configured_sources = dict(configured_sources)
-        self._lock = threading.Lock()  # one writer at a time on the JSON file
 
     def options(self) -> Dict[str, Any]:
         return {
@@ -117,30 +119,43 @@ class SubscriberService:
         return HTTPStatus.OK, {"subscribers": [subscriber_payload(s) for s in subscribers]}
 
     def get(self, sub_id: str) -> Optional[Subscriber]:
-        subscribers = self.store.load()
-        index = self._find(subscribers, sub_id)
-        return subscribers[index] if index is not None else None
+        return self.store.get_by_id(sub_id)
 
-    def _find(self, subscribers: List[Subscriber], sub_id: str) -> Optional[int]:
-        return next((i for i, s in enumerate(subscribers) if subscriber_id(s.email) == sub_id), None)
+    def _confirmation(self, subscriber: Subscriber) -> Dict[str, Any]:
+        """Send the confirmation link; the subscriber stays pending whatever happens."""
+        mailer = self._mailer()
+        if mailer is None:
+            return {"sent": False, "error": "e-mail sending is not enabled (email.enabled)"}
+        result = mailer.send_confirmation(subscriber)
+        return {"sent": result.ok, "error": result.error}
 
     def create(self, body: Mapping[str, Any]) -> Response:
         try:
             preferences = DigestPreferences.model_validate(
                 body.get("preferences") or {"language": self.languages[0]}
             )
-            subscriber = Subscriber(email=str(body.get("email", "")), preferences=preferences)
+            # Pending: nothing is sent to this address until its owner opens the confirmation link.
+            subscriber = Subscriber(
+                email=str(body.get("email", "")), preferences=preferences, status=SubscriptionStatus.PENDING
+            )
         except ValidationError as exc:
             return HTTPStatus.UNPROCESSABLE_ENTITY, {"error": "invalid subscriber", "fields": _validation_errors(exc)}
         if error := self._language_error(preferences):
             return error
-        with self._lock:
-            subscribers = self.store.load()
-            if self._find(subscribers, subscriber_id(subscriber.email)) is not None:
-                return HTTPStatus.CONFLICT, {"error": "subscriber already exists", "fields": {"email": "already subscribed"}}
-            subscribers.append(subscriber)
-            self.store.save(subscribers)
-        return HTTPStatus.CREATED, subscriber_payload(subscriber)
+        if not self.store.insert(subscriber):
+            return HTTPStatus.CONFLICT, {"error": "subscriber already exists", "fields": {"email": "already subscribed"}}
+        return HTTPStatus.CREATED, {**subscriber_payload(subscriber), "confirmation": self._confirmation(subscriber)}
+
+    def resend_confirmation(self, sub_id: str) -> Response:
+        subscriber = self.store.get_by_id(sub_id)
+        if subscriber is None:
+            return HTTPStatus.NOT_FOUND, {"error": "subscriber not found"}
+        if subscriber.status is SubscriptionStatus.UNSUBSCRIBED:
+            # A reader who left comes back only by asking again: back to pending, then the link.
+            subscriber = self.store.request_again(sub_id) or subscriber
+        if subscriber.status is not SubscriptionStatus.PENDING:
+            return HTTPStatus.CONFLICT, {"error": "subscriber is not waiting for confirmation"}
+        return HTTPStatus.OK, {**subscriber_payload(subscriber), "confirmation": self._confirmation(subscriber)}
 
     def update(self, sub_id: str, body: Mapping[str, Any]) -> Response:
         try:
@@ -149,24 +164,18 @@ class SubscriberService:
             return HTTPStatus.UNPROCESSABLE_ENTITY, {"error": "invalid preferences", "fields": _validation_errors(exc)}
         if error := self._language_error(preferences):
             return error
-        with self._lock:
-            subscribers = self.store.load()
-            index = self._find(subscribers, sub_id)
-            if index is None:
-                return HTTPStatus.NOT_FOUND, {"error": "subscriber not found"}
-            # The plan is display-only: no billing, so the web app cannot change it.
-            subscribers[index] = subscribers[index].model_copy(update={"preferences": preferences})
-            self.store.save(subscribers)
-        return HTTPStatus.OK, subscriber_payload(subscribers[index])
+        # The plan is display-only: no billing, so the web app cannot change it.
+        if not self.store.set_preferences(sub_id, preferences):
+            return HTTPStatus.NOT_FOUND, {"error": "subscriber not found"}
+        return HTTPStatus.OK, subscriber_payload(self.store.get_by_id(sub_id))
 
     def delete(self, sub_id: str) -> Response:
-        with self._lock:
-            subscribers = self.store.load()
-            index = self._find(subscribers, sub_id)
-            if index is None:
-                return HTTPStatus.NOT_FOUND, {"error": "subscriber not found"}
-            # Unsubscribing removes everything; nothing is kept.
-            del subscribers[index]
-            self.store.save(subscribers)
+        # Erasing removes everything, including the delivery log; nothing is kept.
+        if not self.store.delete(sub_id):
+            return HTTPStatus.NOT_FOUND, {"error": "subscriber not found"}
         return HTTPStatus.OK, {"deleted": sub_id}
 
+    def deliveries(self, sub_id: Optional[str], limit: int) -> Response:
+        if sub_id is not None and self.store.get_by_id(sub_id) is None:
+            return HTTPStatus.NOT_FOUND, {"error": "subscriber not found"}
+        return HTTPStatus.OK, {"deliveries": [d.to_dict() for d in self.store.deliveries(subscriber=sub_id, limit=limit)]}

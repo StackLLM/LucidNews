@@ -35,8 +35,12 @@ class EmailManager:
                 f"[yellow]Warning: Environment variable {self.config.password_env} not set. Email features may fail.[/yellow]"
             )
 
-    def check_subscriptions(self, storage_manager):
-        """Checks inbox for subscription requests and updates subscriber list."""
+    def check_subscriptions(self, storage_manager, mailer=None):
+        """Checks the inbox for subscribe/unsubscribe requests.
+
+        A request to subscribe only creates a *pending* subscriber and sends them the
+        confirmation link (``mailer``): nothing else is sent before they confirm.
+        """
         if not self.config.enabled or not self.config.imap_enabled:
             return
 
@@ -75,17 +79,7 @@ class EmailManager:
                                     ):
                                         continue
 
-                                    if email_addr not in subscribers:
-                                        storage_manager.add_subscriber(email_addr)
-                                        subscribers = storage_manager.load_subscribers()
-                                        self._send_reply(
-                                            email_addr,
-                                            "Subscribed to LucidNews",
-                                            "You have been successfully subscribed to LucidNews daily summaries.",
-                                        )
-                                        logger.info(f"Added subscriber: {email_addr}")
-                                    else:
-                                        logger.info(f"Already subscribed: {email_addr}")
+                                    self._request_subscription(storage_manager, mailer, email_addr)
 
             unsub_keyword = self.config.unsubscribe_keyword
             search_crit_unsub = f'(UNSEEN SUBJECT "{unsub_keyword}")'
@@ -117,23 +111,44 @@ class EmailManager:
                                     ):
                                         continue
 
-                                    if email_addr in subscribers:
-                                        storage_manager.remove_subscriber(email_addr)
-                                        subscribers = storage_manager.load_subscribers()
-                                        self._send_reply(
-                                            email_addr,
-                                            "Unsubscribed from LucidNews",
-                                            "You have been successfully unsubscribed from LucidNews daily summaries.",
-                                        )
-                                        logger.info(f"Removed subscriber: {email_addr}")
-                                    else:
-                                        logger.info(f"Not subscribed: {email_addr}")
+                                    self._request_unsubscription(storage_manager, email_addr)
 
             mail.close()
             mail.logout()
 
         except Exception as e:
             logger.error(f"Error checking subscriptions: {e}")
+
+    @staticmethod
+    def _request_subscription(storage_manager, mailer, email_addr: str) -> None:
+        from ..newsletter.models import Subscriber, SubscriptionStatus
+
+        db = storage_manager.subscribers
+        existing = db.get(email_addr)
+        if existing is None:
+            if not db.insert(Subscriber(email=email_addr, status=SubscriptionStatus.PENDING)):
+                return
+            subscriber = db.get(email_addr)
+        elif existing.status is SubscriptionStatus.UNSUBSCRIBED:
+            subscriber = db.request_again(existing.id)
+        elif existing.status is SubscriptionStatus.PENDING:
+            subscriber = existing  # asked twice: the link is sent again
+        else:
+            logger.info("Already subscribed: %s", existing.id)
+            return
+        logger.info("Subscription requested: %s (pending)", subscriber.id)
+        if mailer is not None:
+            mailer.send_confirmation(subscriber)
+
+    @staticmethod
+    def _request_unsubscription(storage_manager, email_addr: str) -> None:
+        db = storage_manager.subscribers
+        existing = db.get(email_addr)
+        if existing is None:
+            logger.info("Not subscribed: %s", email_addr)
+            return
+        db.unsubscribe(existing.id)
+        logger.info("Unsubscribed: %s", existing.id)
 
     def _open_smtp(self) -> smtplib.SMTP:
         """Open an implicit TLS or STARTTLS SMTP connection."""

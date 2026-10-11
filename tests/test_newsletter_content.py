@@ -25,6 +25,7 @@ from src.models import (
     SourceType,
 )
 from src.newsletter import DetailLevel, DigestPreferences, Frequency, Subscriber, plan_deliveries
+from src.newsletter.mailer import SendSummary
 from src.newsletter.preview import PreviewService
 from src.newsletter.weekly import WeeklyState, iso_week, window
 from src.orchestrator import PipelineOrchestrator
@@ -167,8 +168,11 @@ def weekly_orchestrator(tmp_path, weekly_day, sent):
         digest=SimpleNamespace(profile_order=[]),
         email=EMAIL.model_copy(update={"weekly_day": weekly_day, "weekly_max_items": 2}),
     )
-    orchestrator.email_manager = SimpleNamespace(
-        send_rendered=lambda rendered, subject, recipients: sent.append((rendered, subject, recipients))
+    orchestrator.mailer = SimpleNamespace(
+        links_enabled=False,
+        send_digest=lambda newsletter, recipients, kind, reference: (
+            sent.append((newsletter.email, newsletter.subject, recipients)) or SendSummary(sent=len(recipients))
+        ),
     )
     return orchestrator
 

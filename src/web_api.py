@@ -19,6 +19,8 @@ Subscriber preferences (local only, see ``subscribers_api``):
 
 - ``GET /api/preferences/options``, ``GET /api/subscribers``
 - ``GET /api/subscribers/<id>/preview`` (the newsletter as it would be sent)
+- ``GET /api/deliveries``, ``GET /api/subscribers/<id>/deliveries`` (delivery log)
+- ``POST /api/subscribers/<id>/confirmation`` (send the confirmation link again)
 - ``POST /api/subscribers``, ``PUT /api/subscribers/<id>``, ``DELETE /api/subscribers/<id>``
 
 Quality evaluation (local only, see ``evaluation``):
@@ -72,6 +74,7 @@ from .storage.manager import StorageManager
 from .settings_api import ENV_NAME, SettingsService
 from .source_catalog import CatalogEntry, load_catalog, recommendations
 from .sources_api import SourcesService
+from .newsletter.mailer import build_mailer
 from .newsletter.preview import PreviewService
 from .subscribers_api import SubscriberService
 from .taxonomy import Category, importance_from_score
@@ -84,6 +87,7 @@ MAX_BODY_BYTES = 64 * 1024
 LOCAL_ONLY = {"error": "only available when the API is bound to localhost"}
 LOCAL_PREFIXES = (
     "/api/subscribers",
+    "/api/deliveries",
     "/api/preferences",
     "/api/eval",
     "/api/settings",
@@ -478,6 +482,18 @@ def resolve(ctx: ApiContext, path: str, query: Dict[str, List[str]]) -> tuple[in
         if ctx.subscribers is None:
             return HTTPStatus.FORBIDDEN, LOCAL_ONLY
         return ctx.subscribers.list()
+    if path == "/api/deliveries" or (path.startswith("/api/subscribers/") and path.endswith("/deliveries")):
+        if ctx.subscribers is None:
+            return HTTPStatus.FORBIDDEN, LOCAL_ONLY
+        raw = (query.get("limit") or ["50"])[0]
+        if not raw.isdigit() or not 1 <= int(raw) <= 200:
+            return HTTPStatus.BAD_REQUEST, {"error": "limit must be an integer between 1 and 200"}
+        sub_id = None
+        if path != "/api/deliveries":
+            sub_id = path.removeprefix("/api/subscribers/").removesuffix("/deliveries")
+            if not SUBSCRIBER_ID.match(sub_id):
+                return HTTPStatus.BAD_REQUEST, {"error": "invalid subscriber id"}
+        return ctx.subscribers.deliveries(sub_id, int(raw))
     if path.startswith("/api/subscribers/") and path.endswith("/preview"):
         if ctx.subscribers is None or ctx.previews is None:
             return HTTPStatus.FORBIDDEN, LOCAL_ONLY
@@ -575,6 +591,13 @@ def resolve_write(ctx: ApiContext, method: str, path: str, body: Dict[str, Any])
         return HTTPStatus.FORBIDDEN, LOCAL_ONLY
     if path == "/api/subscribers" and method == "POST":
         return ctx.subscribers.create(body)
+    if path.startswith("/api/subscribers/") and path.endswith("/confirmation"):
+        sub_id = path.removeprefix("/api/subscribers/").removesuffix("/confirmation")
+        if not SUBSCRIBER_ID.match(sub_id):
+            return HTTPStatus.BAD_REQUEST, {"error": "invalid subscriber id"}
+        if method != "POST":
+            return HTTPStatus.METHOD_NOT_ALLOWED, {"error": "method not allowed"}
+        return ctx.subscribers.resend_confirmation(sub_id)
     if path.startswith("/api/subscribers/"):
         sub_id = path.removeprefix("/api/subscribers/")
         if not SUBSCRIBER_ID.match(sub_id):
@@ -710,6 +733,11 @@ def build_context(data_dir: str, config_path: Optional[str], *, local_features: 
                 config.ai.languages,
                 configured_source_keys(config),
                 weekly_day=config.email.weekly_day if config.email else 0,
+                mailer=lambda: (
+                    build_mailer(config.email, storage.subscribers)
+                    if config.email and config.email.enabled
+                    else None
+                ),
             )
             if local_features
             else None

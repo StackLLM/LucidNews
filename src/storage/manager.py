@@ -11,8 +11,7 @@ from pydantic import ValidationError
 
 from .._file_utils import _atomic_write_text
 from ..models import Config
-from ..newsletter.models import Subscriber
-from ..newsletter.store import SubscriberStore
+from ..newsletter.db import SubscriberDB
 
 
 # Matches ${VAR_NAME} in string config values. Names follow env-var rules
@@ -132,9 +131,14 @@ class StorageManager:
         return filepath
 
     @property
-    def subscribers(self) -> SubscriberStore:
-        """Newsletter subscriber store backed by ``<data_dir>/subscribers.json``."""
-        return SubscriberStore(self.data_dir / "subscribers.json")
+    def subscribers(self) -> SubscriberDB:
+        """Subscribers and delivery log, in ``<data_dir>/newsletter.sqlite3``.
+
+        An older ``subscribers.json`` is imported the first time (see ``SubscriberDB``).
+        """
+        if getattr(self, "_subscribers", None) is None:
+            self._subscribers = SubscriberDB(self.data_dir / "newsletter.sqlite3")
+        return self._subscribers
 
     def load_subscribers(self) -> list[str]:
         """Return subscriber email addresses."""
@@ -147,10 +151,3 @@ class StorageManager:
     def remove_subscriber(self, email_addr: str):
         """Removes a subscriber and their preferences."""
         self.subscribers.remove(email_addr)
-
-    def _save_subscribers(self, subscribers: list):
-        """Persist subscribers given as Subscriber records or plain email strings."""
-        self.subscribers.save(
-            Subscriber(email=entry) if isinstance(entry, str) else entry
-            for entry in subscribers
-        )

@@ -15,8 +15,11 @@ from ..archive import ItemArchive
 from ..models import Config, ContentItem
 from .build import render_selection
 from .digest import plan_deliveries
-from .models import Frequency, Subscriber
+from .models import Frequency, Subscriber, SubscriptionStatus
 from .plans import effective_preferences
+from .provider import secret
+from .render import UNSUBSCRIBE_PLACEHOLDER
+from . import tokens
 from .weekly import window
 
 
@@ -68,8 +71,9 @@ class PreviewService:
                 return self._payload(prefs, None, weekly, meta, "no_edition")
             analyzed, unanalyzed, day, total, meta = daily
 
+        links = bool(email and email.public_base_url and len(secret(email.signing_key_env) or "") >= tokens.MIN_KEY_LENGTH)
         plan = plan_deliveries(
-            [subscriber],
+            [subscriber.model_copy(update={"status": SubscriptionStatus.CONFIRMED})],
             analyzed,
             self.config.ai.languages or ["en"],
             frequency=prefs.frequency,
@@ -91,6 +95,7 @@ class PreviewService:
                 sender_name=email.sender_name if email else "LucidNews",
                 unsubscribe_keyword=email.unsubscribe_keyword if email else "UNSUBSCRIBE",
                 week_start=week_start,
+                unsubscribe_link=links,
             )
         )
         payload = self._payload(delivery.preferences, newsletter, weekly, meta, None)
@@ -108,8 +113,9 @@ class PreviewService:
             "weekly_day": email.weekly_day if email else 0,
             "reason": reason,  # "no_edition" when there is nothing to preview
             "subject": newsletter.subject if newsletter else None,
-            "html": newsletter.email.html if newsletter else None,
-            "text": newsletter.email.text if newsletter else None,
+            # Each reader's own signed link replaces the placeholder when the e-mail is sent.
+            "html": newsletter.email.html.replace(UNSUBSCRIBE_PLACEHOLDER, "#") if newsletter else None,
+            "text": newsletter.email.text.replace(UNSUBSCRIBE_PLACEHOLDER, "(unsubscribe link)") if newsletter else None,
             "item_count": newsletter.item_count if newsletter else 0,
             "unanalyzed_count": newsletter.unanalyzed_count if newsletter else 0,
             "empty": newsletter.empty if newsletter else True,

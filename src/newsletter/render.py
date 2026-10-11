@@ -57,17 +57,29 @@ class RenderedEmail:
     text: str
 
 
+# Replaced by each reader's own signed link when the e-mail is sent.
+UNSUBSCRIBE_PLACEHOLDER = "{{unsubscribe_url}}"
+
+
 def render_email(
-    summary_md: str, *, language: str, sender_name: str, unsubscribe_keyword: str
+    summary_md: str,
+    *,
+    language: str,
+    sender_name: str,
+    unsubscribe_keyword: str,
+    unsubscribe_link: bool = False,
 ) -> RenderedEmail:
+    """``unsubscribe_link``: footer carries ``UNSUBSCRIBE_PLACEHOLDER`` instead of the reply keyword."""
     labels = messages(language)
     text = clean_app_summary_markdown(summary_md)
     safe = _LIST_AFTER_TITLE.sub(r"\1\n\n", _escape_markup(text))
     body = markdown.markdown(safe) if markdown else f"<pre>{safe}</pre>"
-    footer = (
-        f"<p>{html.escape(labels['email_footer_sent_by'].format(sender=sender_name))}</p>"
-        f"<p>{html.escape(labels['email_footer_reply'].format(keyword=unsubscribe_keyword))}</p>"
-    )
+    if unsubscribe_link:
+        footer_line = f'<a href="{UNSUBSCRIBE_PLACEHOLDER}">{html.escape(labels["email_footer_link"])}</a>'
+        text += f"\n\n{labels['email_footer_link']}: {UNSUBSCRIBE_PLACEHOLDER}\n"
+    else:
+        footer_line = html.escape(labels["email_footer_reply"].format(keyword=unsubscribe_keyword))
+    footer = f"<p>{html.escape(labels['email_footer_sent_by'].format(sender=sender_name))}</p><p>{footer_line}</p>"
     page = (
         "<!DOCTYPE html>\n"
         f'<html lang="{html.escape(language, quote=True)}">\n<head>\n<meta charset="utf-8">\n'

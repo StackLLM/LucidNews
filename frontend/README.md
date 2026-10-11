@@ -35,7 +35,7 @@ Premium, calme, fin, professionnel. Impressionnant sans être chargé.
 | Édition du jour ✅ | Lire le digest : sections, score, fiabilité. Filtre de date : dernière édition, ou toutes les éditions d'un jour, d'un mois ou d'une année (adresse `?day=`, `?month=`, `?year=`), sans limite de news. Filtre de domaine à côté (`?domain=`) | API `/api/editions/latest`, `/api/editions/period` |
 | Fiche d'une news ✅ | Article complet + colonne Fiabilité (éditeur, affirmation, preuve, corroboration), actions, éditions | API `/api/items/<id>` |
 | Archives ✅ | Retrouver une édition par date (calendrier + liste) | API `/api/editions` |
-| Préférences ✅ | Abonnés (ajout, suppression), langue, thèmes, sources, rythme, niveau de détail (bref / complet), importance, infos non confirmées, limite, offre affichée ; aperçu de l'e-mail dans un cadre sans script | API `/api/subscribers`, `/api/subscribers/<id>/preview` (local) |
+| Préférences ✅ | Abonnés (ajout, suppression), langue, thèmes, sources, rythme, niveau de détail (bref / complet), importance, infos non confirmées, limite, offre affichée ; aperçu de l'e-mail dans un cadre sans script ; statut de chaque lecteur (en attente, confirmé, désinscrit), envoi du lien de confirmation, journal des envois | API `/api/subscribers`, `/api/subscribers/<id>/preview` (local) |
 | Sources ✅ | Onglet Sources : santé (chiffres clés, volume par run), sources configurées par domaine ou par type, domaine affiché sur chaque source : activer, ajouter, modifier, tester, supprimer. Onglet Domaines : couverture des 12 catégories, lacunes, domaines suivis, sources recommandées | API `/api/sources`, `/api/coverage`, `/api/catalog`, `/api/sources/config`, `/api/sources/test` (local) |
 
 | Qualité ✅ | Vue d'ensemble de la veille (couverture, diversité, santé, fraîcheur, doublons, filtrage, fiabilité), annotation à l'aveugle, résultats | API `/api/quality/overview`, `/api/eval/*` (local), voir `docs/evaluation.md` |
@@ -84,6 +84,8 @@ et les clés API (`.env` du projet).
 | `POST /api/subscribers` | Ajouter un abonné (`{"email": …}`) |
 | `PUT /api/subscribers/<id>` | Enregistrer ses préférences |
 | `DELETE /api/subscribers/<id>` | Le supprimer (rien n'est conservé) |
+| `POST /api/subscribers/<id>/confirmation` | Envoyer (à nouveau) le lien de confirmation à un lecteur en attente |
+| `GET /api/deliveries`, `GET /api/subscribers/<id>/deliveries` | Journal des envois (tous, ou d'un lecteur) |
 | `GET /api/subscribers/<id>/preview` | L'e-mail de cet abonné tel qu'il serait envoyé (objet, HTML, texte), depuis l'archive |
 | `GET /api/quality/overview?days=14` | Indicateurs de la veille sur la période, depuis l'archive (résumé des annotations seulement en local) |
 | `GET /api/eval/items` · `GET /api/eval/report` | News à annoter (sans l'avis de l'IA) · résultats |

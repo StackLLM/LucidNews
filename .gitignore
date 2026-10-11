@@ -53,7 +53,8 @@ data/runs/
 data/*.sqlite3*
 data/seen.json
 data/summaries/*.md
-data/subscribers.json
+data/subscribers.json*
+data/weekly_sent.json
 data/mcp.secrets.json
 data/mcp-secrets.json
 data/mcp-runs/

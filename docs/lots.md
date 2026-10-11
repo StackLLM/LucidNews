@@ -41,7 +41,7 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 - [Lot 19 — Qualité de la veille](#lot-19--qualité-de-la-veille) ✅
 - [Lot 20 — Lancer et planifier les runs](#lot-20--lancer-et-planifier-les-runs) ✅
 - [Lot 21 — Newsletter : contenu et préférences](#lot-21--newsletter--contenu-et-préférences) ✅
-- [Lot 22 — Newsletter : envoi fiable](#lot-22--newsletter--envoi-fiable) 📋
+- [Lot 22 — Newsletter : envoi fiable](#lot-22--newsletter--envoi-fiable) ✅
 - [Lot 23 — Recherche dans l'archive](#lot-23--recherche-dans-larchive) 📋
 - [Lot 24 — Finitions de l'interface](#lot-24--finitions-de-linterface) 📋
 - [Lot 25 — Dette technique](#lot-25--dette-technique) 📋
@@ -560,6 +560,33 @@ Demandes hors plan, faites après le lot 21.
 | Vérifié | 772 tests Python, 72 tests d'interface, build. Archive réelle (copie) : octobre = 9 éditions et 20 news ; sur 44 sources listées, 21 ont un domaine (archive ou catalogue), 23 « pas encore déterminé ». |
 | Observé, non corrigé | À 1024 px de large, l'en-tête (groupe langue/éclair à droite) dépasse de 30 px la fenêtre : défaut de l'en-tête, antérieur à ces changements. |
 
+## Lot 22 — Newsletter : envoi fiable
+
+✅ Clôturé (sauf le fuseau horaire, reporté) · Décisions : liens servis par un service public séparé (A) ; Resend comme fournisseur d'API, SMTP conservé ; abonnés en base SQLite.
+
+**Objectif** : des envois sûrs, traçables et conformes.
+
+**Fait**
+
+| Sujet | Contenu |
+|---|---|
+| Double confirmation | Un lecteur ajouté (Préférences ou e-mail `SUBSCRIBE`) est « en attente » et reçoit un lien. **Aucun digest avant confirmation** : le plan d'envoi filtre, et l'envoi revérifie chaque adresse. Ouvrir le lien ne change rien (anti-scanners) ; le bouton confirme. |
+| Liens signés | Jeton HMAC-SHA256 (`NEWSLETTER_SIGNING_KEY`, ≥ 16 caractères, dans `.env`). Confirmation valable 7 jours, désinscription sans expiration. Jeton modifié, expiré, d'une autre action ou d'une autre clé : refusé. Chaque e-mail porte le lien de désinscription de son lecteur et les en-têtes `List-Unsubscribe` / `List-Unsubscribe-Post` (un clic). |
+| Service public | `lucidnews-public` : processus séparé, 4 routes + `/health`, rien d'autre ; ne journalise jamais le jeton ; même base que le pipeline (doit tourner où est `data/`). |
+| Fournisseur | `email.provider` : `smtp` ou `resend` (API HTTPS, clé jamais exposée, erreurs sans clé). Avec Resend, pas de digest sans lien de désinscription. |
+| Abonnés en base | `data/newsletter.sqlite3` (`subscribers`, `deliveries`). `subscribers.json` importé une fois, **comme confirmé** (ils recevaient déjà, pas de preuve de consentement), puis renommé `.migrated`. Supprimer un lecteur efface sa ligne et son journal ; se désinscrire garde l'adresse seule (suppression). |
+| Journal des envois | Chaque envoi (confirmation, quotidien, hebdomadaire) : lecteur, date, objet, édition ou semaine, résultat, erreur. Préférences : journal du lecteur choisi, ou de tous. Une semaine entièrement ratée reste « à envoyer ». |
+| Interface | Préférences : statut de chaque lecteur (en attente, confirmé, désinscrit, avec icône et texte), bandeau d'explication, « Envoyer le lien de confirmation », résultat du premier envoi du lien, journal. |
+| API | `POST /api/subscribers` (en attente + lien), `POST /api/subscribers/<id>/confirmation`, `GET /api/deliveries`, `GET /api/subscribers/<id>/deliveries` (locales). Secrets déclarés dans Réglages › Clés API. |
+
+**Vérifié** : 25 nouveaux tests Python (797 au total : jetons valides, expirés, falsifiés ; migration JSON vers base ; transitions de statut ; rien avant confirmation ; lien propre à chaque lecteur ; journal d'un envoi en échec ; Resend et SMTP avec transports simulés ; service public sur un vrai serveur local), 9 nouveaux tests d'interface (77 au total) ; build. Démo sur une copie, sans aucun envoi possible (SMTP vers un port fermé) : migration de 2 lecteurs, ajout en attente, échec journalisé, lien ouvert sans effet, jeton modifié refusé (400), bouton confirme, désinscription en un clic, routes de l'API absentes du service public (404), aucun jeton dans le journal du service. Téléphone 375 px.
+
+**Reporté** : envoi selon le fuseau horaire du lecteur. L'appliquer vraiment demande un envoi différé à l'heure locale de chaque lecteur, donc une tâche d'envoi qui tourne souvent, en plus de la planification quotidienne du lot 20. Un champ de fuseau sans cela serait un paramètre qui ne s'applique pas. À décider (voir « Blocages »).
+
+**Pas encore vérifié** : un envoi réel avec Resend (aucune clé configurée), et le service public derrière un vrai HTTPS.
+
+---
+
 ---
 
 # Lots suivants
@@ -577,11 +604,11 @@ Plan revu le 9 octobre 2026 pour intégrer le besoin « interface complète et g
 | ✅ | 19 — Qualité de la veille | 18 (couverture), 12 (filtrage) | Clôturé. |
 | ✅ | 20 — Lancer et planifier les runs | 16 | Clôturé (deux vérifications réelles en attente d'accord). |
 | ✅ | 21 — Newsletter : contenu et préférences | 20 (fréquence) | Clôturé. |
-| 1 | 22 — Newsletter : envoi fiable | 21 | Opt-in, désinscription, fournisseur d'e-mails, journal des envois. |
-| 2 | 23 — Recherche dans l'archive | — | Utile seul ; placé après le cœur du pilotage. |
-| 3 | 24 — Finitions de l'interface | 15 à 23 | Mode sombre et contrastes, une fois toutes les pages créées. |
-| 4 | 25 — Dette technique | — | Renommage du paquet en fin de chantier, pour ne pas gêner les lots en cours. |
-| 5 | 26 — Comptes et SaaS | 22, 25 | Hors périmètre actuel. |
+| ✅ | 22 — Newsletter : envoi fiable | 21 | Clôturé (fuseau horaire reporté). |
+| 1 | 23 — Recherche dans l'archive | — | Utile seul ; placé après le cœur du pilotage. |
+| 2 | 24 — Finitions de l'interface | 15 à 23 | Mode sombre et contrastes, une fois toutes les pages créées. |
+| 3 | 25 — Dette technique | — | Renommage du paquet en fin de chantier, pour ne pas gêner les lots en cours. |
+| 4 | 26 — Comptes et SaaS | 22, 25 | Hors périmètre actuel. |
 | En parallèle | 12 — Annoter au moins 30 news | — | Action humaine ; donne les chiffres de filtrage du lot 19. |
 
 **Correspondance avec l'ancien plan** : ancien 15 (finitions) → 24 · ancien 16 (newsletter) → 21 et 22 · ancien 17 (comptes et SaaS) → 26 · ancien 18 (dette technique) → 25.
@@ -609,25 +636,9 @@ On garde les écrans existants et on n'ajoute qu'**une** page : Réglages.
 
 ---
 
-## Lot 22 — Newsletter : envoi fiable
-
-📋 Prochain lot. Reprend la suite de l'ancien lot 16.
-
-- **Objectif** : des envois sûrs, traçables et conformes.
-- **Fonctionnalités** : double opt-in ; lien de désinscription signé ; fournisseur d'e-mails transactionnels à la place du SMTP direct ; journal des envois (qui, quand, quelle édition, résultat) ; abonnés en base de données au lieu du fichier JSON ; envoi selon le fuseau horaire de l'abonné.
-- **Pages** : Préférences (statut d'inscription, journal des envois).
-- **Frontend** : statut de l'abonné (en attente, confirmé, désinscrit) ; journal des envois.
-- **Backend** : jetons signés ; table des envois ; adaptateur du fournisseur ; migration des abonnés.
-- **Données et API** : tables `subscribers` et `deliveries` ; routes de confirmation et de désinscription ; clé du fournisseur gérée par le lot 16.
-- **Critères de validation** : aucun envoi avant confirmation ; un lien de désinscription modifié est refusé ; chaque envoi est journalisé.
-- **Tests** : jetons valides, expirés et falsifiés ; migration JSON vers base ; journal d'un envoi en échec.
-- **Dépendances** : lot 21 ; lot 16 pour la clé du fournisseur.
-
----
-
 ## Lot 23 — Recherche dans l'archive
 
-📋 Planifié.
+📋 Prochain lot.
 
 - **Objectif** : retrouver une news passée par mot-clé, domaine, source ou fiabilité.
 - **Fonctionnalités** : recherche plein texte, filtres, résultats ouverts dans la carte du lot 15.
@@ -701,7 +712,9 @@ Un paramètre n'est ajouté que s'il est réellement appliqué par le système.
 
 | Sujet | Bloque | Recommandation |
 |---|---|---|
-| Lot 21, filtres de l'Édition et sources par domaine : à commiter | Rien, mais à faire avant le lot 22 | Commiter avec les messages préparés. |
+| Lot 22 à commiter | Rien, mais à faire avant le lot 23 | Commiter avec le message préparé. |
+| Clé Resend et service public en HTTPS | La preuve « un vrai e-mail part et ses liens marchent » | Accord demandé : clé Resend, domaine d'envoi vérifié, adresse publique du service. |
+| Fuseau horaire du lecteur | Rien | Reporté : demande une tâche d'envoi fréquente. Recommandation : lot 22 bis seulement si des lecteurs sont dans d'autres fuseaux. |
 | Envoi SMTP réel | La preuve « l'e-mail arrive tel qu'il est prévisualisé » | Accord demandé : un envoi de test vers une adresse à toi, avec un compte SMTP configuré (aucun aujourd'hui). |
 | Vrai run IA lancé depuis l'interface | La preuve « même édition qu'en terminal » | Accord demandé : un run sur une copie des données, avec la clé IA. |
 | Vraie tâche launchd | La preuve « la planification déclenche réellement un run » | Accord demandé : tâche de test chargée quelques minutes puis retirée. |
@@ -717,9 +730,9 @@ Un paramètre n'est ajouté que s'il est réellement appliqué par le système.
 | Envoi hebdomadaire | Lecteurs qui ne veulent pas un e-mail par jour | Archive (`items_between`) | Planification | Sélection de la semaine | Aucun (choix existant) | Doublons d'une semaine sur l'autre | Fait, lot 21 |
 | Niveau de détail | Lecture rapide ou approfondie | Blocs d'enrichissement existants | Rendu e-mail | Rendu à deux niveaux | Champ de préférence | Aucun coût IA | Fait, lot 21 |
 | Aperçu de la newsletter | Vérifier avant d'envoyer | Préférences + digest | Rendu e-mail | Route d'aperçu | Cadre isolé | HTML de source mal échappé | Fait, lot 21 |
-| Double opt-in et désinscription signée | Conformité (RGPD), réputation d'envoi | Jetons, statut d'abonné | Fournisseur d'e-mails | Jetons signés, routes publiques | Statut | Clé de signature à protéger | Retenu, lot 22 |
-| Fournisseur transactionnel | Délivrabilité, rebonds | Clé du fournisseur | Lot 16 | Adaptateur | Aucun | Coût, dépendance externe | Retenu, lot 22 |
-| Journal des envois | Savoir ce qui est parti et ce qui a échoué | Table des envois | Lot 22 | Écriture à chaque envoi | Liste | Données personnelles à limiter | Retenu, lot 22 |
+| Double opt-in et désinscription signée | Conformité (RGPD), réputation d'envoi | Jetons, statut d'abonné | Fournisseur d'e-mails | Jetons signés, routes publiques | Statut | Clé de signature à protéger | Fait, lot 22 |
+| Fournisseur transactionnel | Délivrabilité, rebonds | Clé du fournisseur | Lot 16 | Adaptateur | Aucun | Coût, dépendance externe | Fait (Resend ou SMTP), lot 22 |
+| Journal des envois | Savoir ce qui est parti et ce qui a échoué | Table des envois | Lot 22 | Écriture à chaque envoi | Liste | Données personnelles à limiter | Fait, lot 22 |
 | Recherche dans l'archive | Retrouver une info passée | Archive | Aucune | Index FTS5 | Recherche | Taille de l'index | Retenu, lot 23 |
 | Statistiques d'ouverture et de clic | Mesurer l'intérêt | Pixels et liens suivis | Fournisseur | Webhooks | Graphiques | Vie privée, consentement | Reporté (après le lot 22, sur décision) |
 | Alertes immédiates (news critiques) | Ne pas attendre l'édition | Importance « critique » | Planification, envoi fiable | Envoi hors édition | Préférence | Trop d'e-mails | Reporté |

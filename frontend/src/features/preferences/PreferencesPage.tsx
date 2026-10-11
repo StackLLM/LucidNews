@@ -16,9 +16,11 @@ import {
 } from '../../lib/api'
 import { useLanguage, type MessageKey } from '../../lib/i18n'
 import { listStagger, riseIn, useMotionPreference } from '../../lib/motion'
+import { DeliveryLog } from './DeliveryLog'
 import { NewsletterPreview } from './NewsletterPreview'
 import { PlanCard } from './PlanCard'
 import { PreferencesForm } from './PreferencesForm'
+import { StatusBadge, SubscriptionStatus } from './SubscriptionStatus'
 
 export function PreferencesPage() {
   const options = useQuery({ queryKey: ['preference-options'], queryFn: ({ signal }) => fetchPreferenceOptions(signal) })
@@ -49,20 +51,25 @@ function PreferencesView({ options, subscribers }: { options: PreferenceOptions;
         <motion.div variants={riseIn} className="min-w-0 space-y-6 lg:col-start-2 lg:row-span-2 lg:row-start-1">
           {selected ? (
             <>
+              <SubscriptionStatus key={`status-${selected.id}-${selected.status}`} subscriber={selected} />
               <PreferencesForm key={selected.id} subscriber={selected} options={options} />
               <NewsletterPreview key={`preview-${selected.id}`} subscriber={selected} />
+              <DeliveryLog key={`log-${selected.id}`} subscriberId={selected.id} />
             </>
           ) : (
-            <div className="grid min-h-72 place-items-center rounded-card bg-surface/70 p-10 text-center shadow-card">
-              <div>
-                <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-accent-soft text-accent">
-                  <Inbox size={24} aria-hidden />
-                </span>
-                <p className="mx-auto mt-4 max-w-sm text-[15px] text-muted">
-                  {subscriberId ? t('prefs.notFound') : t('prefs.pick')}
-                </p>
+            <>
+              <div className="grid min-h-72 place-items-center rounded-card bg-surface/70 p-10 text-center shadow-card">
+                <div>
+                  <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-accent-soft text-accent">
+                    <Inbox size={24} aria-hidden />
+                  </span>
+                  <p className="mx-auto mt-4 max-w-sm text-[15px] text-muted">
+                    {subscriberId ? t('prefs.notFound') : t('prefs.pick')}
+                  </p>
+                </div>
               </div>
-            </div>
+              <DeliveryLog />
+            </>
           )}
         </motion.div>
 
@@ -109,6 +116,11 @@ function SubscriberList({ subscribers, selectedId }: { subscribers: Subscriber[]
                     <span className="block text-[12px] uppercase tracking-wide text-faint">
                       {subscriber.preferences.language} · {t(`freq.${subscriber.preferences.frequency}` as MessageKey)}
                     </span>
+                    {subscriber.status !== 'confirmed' && (
+                      <span className="mt-1 block">
+                        <StatusBadge status={subscriber.status} />
+                      </span>
+                    )}
                   </span>
                 </NavLink>
               </li>
@@ -134,7 +146,8 @@ function AddSubscriber() {
     onSuccess: async (subscriber) => {
       await queryClient.invalidateQueries({ queryKey: ['subscribers'] })
       form.reset()
-      navigate({ pathname: `/preferences/${subscriber.id}`, search: `?lang=${language}` })
+      // The first confirmation link's result is shown on the new reader's page.
+      navigate({ pathname: `/preferences/${subscriber.id}`, search: `?lang=${language}` }, { state: { confirmation: subscriber.confirmation } })
     },
     onError: (error) => {
       const message =

@@ -40,6 +40,7 @@ lucidnews-wizard = "src.setup.wizard:main"
 lucidnews-webhook = "src.services.webhook_cli:main"
 lucidnews-sources = "src.sources_cli:main"
 lucidnews-api = "src.web_api:main"
+lucidnews-public = "src.public_api:main"
 lucidnews-eval = "src.evaluation.cli:main"
 lucidnews-reassess = "src.reassess_cli:main"
 

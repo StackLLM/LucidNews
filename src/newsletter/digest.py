@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from ..models import ContentItem
-from .models import DigestPreferences, Frequency, Subscriber
+from .models import DigestPreferences, Frequency, Subscriber, SubscriptionStatus
 from .plans import effective_preferences
 from .selection import select_items, select_unanalyzed
 
@@ -22,6 +22,8 @@ class Delivery:
 class DeliveryPlan:
     deliveries: List[Delivery] = field(default_factory=list)
     skipped_weekly: List[str] = field(default_factory=list)
+    # Pending or unsubscribed readers: they receive nothing.
+    not_confirmed: List[str] = field(default_factory=list)
     language_fallbacks: Dict[str, Tuple[str, str]] = field(default_factory=dict)
 
 
@@ -48,6 +50,9 @@ def plan_deliveries(
     groups: Dict[DigestPreferences, Delivery] = {}
 
     for subscriber in subscribers:
+        if subscriber.status is not SubscriptionStatus.CONFIRMED:
+            plan.not_confirmed.append(subscriber.email)
+            continue
         prefs = effective_preferences(subscriber)
         if max_items_cap is not None and (prefs.max_items is None or prefs.max_items > max_items_cap):
             prefs = prefs.model_copy(update={"max_items": max_items_cap})
