@@ -10,6 +10,7 @@ Endpoints (JSON, GET only):
 - ``/api/items/<item_id>?lang=fr``: one item with its reliability details and editions.
 - ``/api/sources?days=14``: source health (configured sources) and per-run volumes.
 - ``/api/coverage?days=14``: coverage of the 12 categories by the sources (archive).
+- ``/api/sources/domains?days=90``: domain of each configured source (archive, else catalog).
 - ``/api/catalog?category=ai``: recommended sources absent from the configuration.
 - ``/api/quality/overview?days=14``: indicators of the watch (coverage, diversity, health,
   freshness, duplicates, reliability; hand evaluation summary on the local API only).
@@ -61,11 +62,12 @@ from .i18n import DEFAULT_LANGUAGE, is_supported
 from .models import Config, ContentItem, DigestConfig
 from .processing import ProfileRegistry
 from .quality_overview import quality_overview
+from .source_domains import source_domains
 from .runs_api import RunService, ScheduleService
 from .reliability import SourceTier
 from .reliability.assess import ReliabilityPolicy
 from .source_health import assess_health, configured_source_keys, health_to_dict
-from .source_quality import DEFAULT_DAYS, compute_source_quality, quality_to_dict
+from .source_quality import DEFAULT_DAYS, compute_source_quality, item_source_key, quality_to_dict
 from .storage.manager import StorageManager
 from .settings_api import ENV_NAME, SettingsService
 from .source_catalog import CatalogEntry, load_catalog, recommendations
@@ -208,8 +210,8 @@ def list_editions(ctx: ApiContext, limit: int = 30) -> Dict[str, Any]:
     return {"editions": [run_payload(run) for run in runs[:limit]]}
 
 
-def _sections_payload(ctx: ApiContext, selected: List[ContentItem], language: str, cap: Optional[int] = None) -> Dict[str, Any]:
-    """Sections and unanalyzed items of an edition, or of a period (``cap`` bounds the analyzed items)."""
+def _sections_payload(ctx: ApiContext, selected: List[ContentItem], language: str) -> Dict[str, Any]:
+    """Sections and unanalyzed items of an edition, or of a period."""
     items = [item for item in selected if not (item.processing and item.processing.ai_skipped)]
     # Same order as the digest: best-known publishers first, then most recent.
     tier_rank = {tier: rank for rank, tier in enumerate(SourceTier)}
@@ -231,8 +233,6 @@ def _sections_payload(ctx: ApiContext, selected: List[ContentItem], language: st
         )
     )
     analyzed_total = len(items)
-    if cap is not None:
-        items = items[:cap]
 
     groups: Dict[str, List[ContentItem]] = {}
     for item in items:
@@ -266,7 +266,6 @@ def edition_payload(ctx: ApiContext, run: RunRecord, language: str) -> Dict[str,
     return {**run_payload(run), **body}
 
 
-MAX_PERIOD_ITEMS = 100
 MAX_PERIOD_DAYS = 3700
 MAX_EDITIONS_LIMIT = 2000
 
@@ -285,8 +284,7 @@ def _instant(value: Optional[str]) -> Optional[datetime]:
 def period_payload(ctx: ApiContext, since: datetime, until: datetime, language: str) -> Dict[str, Any]:
     """The news of every published edition started in [since, until), best score first.
 
-    An item published by several editions appears once. Only the best ``MAX_PERIOD_ITEMS``
-    analyzed items are listed; ``analyzed_total`` says how many there were.
+    An item published by several editions appears once. Every item is listed, best score first.
     """
     runs = [
         run
@@ -303,7 +301,7 @@ def period_payload(ctx: ApiContext, since: datetime, until: datetime, language: 
                 seen.add(item_id)
                 ids.append(item_id)
     selected = list(ctx.archive.get_items(ids).values())
-    body = _sections_payload(ctx, selected, language, cap=MAX_PERIOD_ITEMS)
+    body = _sections_payload(ctx, selected, language)
     total = body.pop("analyzed_total")
     return {
         "id": "period",
@@ -316,7 +314,6 @@ def period_payload(ctx: ApiContext, since: datetime, until: datetime, language: 
         "ai_skipped_count": 0,
         "edition_count": len(runs),
         "analyzed_total": total,
-        "listed_limit": MAX_PERIOD_ITEMS,
         **body,
     }
 
@@ -375,6 +372,15 @@ def coverage_payload(ctx: ApiContext, days: int) -> Dict[str, Any]:
         "min_items": digest.coverage_min_items,
         **coverage,
     }
+
+
+def source_domains_payload(ctx: ApiContext, days: int) -> Dict[str, Any]:
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    items = ctx.archive.items_between(since)
+    # Every source the interface can list: configured (enabled or not), seen in the archive, or in the catalog.
+    keys = set(ctx.configured_sources) | {item_source_key(item) for item in items} | {entry.key for entry in ctx.catalog}
+    domains = source_domains(items, ctx.catalog, keys)
+    return {"days": days, "domains": domains}
 
 
 def catalog_payload(ctx: ApiContext, category: Optional[str]) -> Dict[str, Any]:
@@ -437,6 +443,11 @@ def resolve(ctx: ApiContext, path: str, query: Dict[str, List[str]]) -> tuple[in
         if (until - since).days > MAX_PERIOD_DAYS:
             return HTTPStatus.BAD_REQUEST, {"error": f"period longer than {MAX_PERIOD_DAYS} days"}
         return HTTPStatus.OK, period_payload(ctx, since, until, language)
+    if path == "/api/sources/domains":
+        days = _days(query)
+        if days is None:
+            return HTTPStatus.BAD_REQUEST, {"error": f"days must be an integer between 1 and {MAX_HEALTH_DAYS}"}
+        return HTTPStatus.OK, source_domains_payload(ctx, days)
     if path in ("/api/sources", "/api/coverage", "/api/quality/overview"):
         days = _days(query)
         if days is None:

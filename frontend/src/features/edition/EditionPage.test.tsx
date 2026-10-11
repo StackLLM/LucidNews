@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { fixtures, mockApi, renderAt } from '../../test/render'
 
 test('renders the edition with sections, figures and reliability labels', async () => {
@@ -98,7 +98,7 @@ function mockPeriodApi(period: Record<string, unknown> = {}) {
     const url = new URL(String(input), 'http://localhost')
     if (url.pathname === '/api/editions/period') {
       return new Response(
-        JSON.stringify({ ...fixtures.editionFr, id: 'period', edition_count: 8, analyzed_total: 13, listed_limit: 100, ...period }),
+        JSON.stringify({ ...fixtures.editionFr, id: 'period', edition_count: 8, analyzed_total: 13, ...period }),
       )
     }
     return inner(input, init)
@@ -150,13 +150,6 @@ test('filters by year and by day, and goes back to the latest edition', async ()
   expect(window.location.search).not.toMatch(/day=|month=|year=/)
 })
 
-test('says when a period lists only the best news of many', async () => {
-  mockPeriodApi({ analyzed_total: 480, listed_limit: 100 })
-  renderAt('/?lang=fr&year=2026')
-
-  expect(await screen.findByText(/Les 100 news les mieux notées sur 480 sont affichées/)).toBeInTheDocument()
-})
-
 test('a period without any edition says so', async () => {
   mockPeriodApi({ edition_count: 0, selected_count: 0, sections: [], unanalyzed: [], analyzed_total: 0 })
   renderAt('/?lang=fr&month=2020-01')
@@ -168,4 +161,60 @@ test('a malformed period in the address is ignored', async () => {
   renderAt('/?lang=fr&month=2026-13')
   expect(await screen.findByRole('heading', { level: 1, name: /6 octobre 2026/i })).toBeInTheDocument()
   expect(periodCalls(spy)).toHaveLength(0)
+})
+
+test('shows every news of a long period, with no limit', async () => {
+  const base = fixtures.editionFr
+  const items = Array.from({ length: 120 }, (_, index) => ({ ...base.sections[0].items[0], id: `bulk-${index}` }))
+  mockPeriodApi({ sections: [{ ...base.sections[0], items }] })
+  renderAt('/?lang=fr&year=2026')
+
+  expect(await screen.findByText('8 éditions · 120 news', {}, { timeout: 8000 })).toBeInTheDocument()
+  expect(screen.getAllByRole('article')).toHaveLength(120)
+  expect(screen.queryByText(/mieux notées/)).not.toBeInTheDocument()
+}, 15000)
+
+// --- Domain filter ---------------------------------------------------------------------------
+
+test('filters the news by domain, next to the date filter', async () => {
+  mockApi()
+  renderAt('/?lang=fr')
+  const filter = await screen.findByRole('region', { name: 'Filtrer par date' }, { timeout: 5000 })
+  await screen.findAllByRole('article')
+  const select = within(filter).getByRole('combobox', { name: 'Domaine' })
+
+  // The counts come from the news on screen (5 of the 13 are about AI).
+  expect(within(select).getByRole('option', { name: 'IA / LLM / Agents (5)' })).toBeInTheDocument()
+  expect(within(select).getByRole('option', { name: 'Bases de données (0)' })).toBeDisabled()
+
+  fireEvent.change(select, { target: { value: 'ai' } })
+
+  await waitFor(() => expect(screen.getAllByRole('article')).toHaveLength(5))
+  expect(window.location.search).toContain('domain=ai')
+  const index = screen.getByRole('navigation', { name: 'Dans cette édition' })
+  expect(within(index).getAllByRole('link').every((link) => /\d+$/.test(link.textContent ?? ''))).toBe(true)
+
+  fireEvent.change(select, { target: { value: '' } })
+  await waitFor(() => expect(screen.getAllByRole('article')).toHaveLength(13))
+  expect(window.location.search).not.toContain('domain')
+})
+
+test('the domain filter works inside a period and ignores an unknown domain', async () => {
+  mockPeriodApi()
+  renderAt('/?lang=fr&month=2026-10&domain=cybersecurity')
+  expect(await screen.findByText('8 éditions · 3 news', {}, { timeout: 5000 })).toBeInTheDocument()
+  expect(screen.getAllByRole('article')).toHaveLength(3)
+
+  mockApi()
+  renderAt('/?lang=fr&domain=not-a-domain')
+  await waitFor(() => expect(screen.getAllByRole('article').length).toBeGreaterThanOrEqual(13))
+})
+
+test('says when a domain has no news, and that unanalyzed news are hidden', async () => {
+  const base = fixtures.editionFr
+  mockApi({ edition: { ...base, unanalyzed: [{ ...base.sections[0].items[0], id: 'u1', categories: [] }] } })
+  renderAt('/?lang=fr&domain=databases')
+
+  expect(await screen.findByText('Aucune news dans ce domaine sur cette période.', {}, { timeout: 5000 })).toBeInTheDocument()
+  expect(screen.getByText(/n’ont pas de domaine/)).toBeInTheDocument()
 })

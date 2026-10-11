@@ -34,6 +34,22 @@ const itemSchema = z.object({
   ai_skipped: z.boolean().default(false),
 })
 
+/** The 12 domains (taxonomy categories), in the order the digest uses. */
+export const domainCategories = [
+  'ai',
+  'software-development',
+  'cloud',
+  'devops',
+  'data',
+  'cybersecurity',
+  'web',
+  'open-source',
+  'developer-tools',
+  'databases',
+  'infrastructure',
+  'emerging-tech',
+] as const
+
 export const aiLimits = ['provider_quota', 'token_budget'] as const
 
 const runSchema = z.object({
@@ -156,9 +172,8 @@ export async function fetchAllEditions(signal?: AbortSignal): Promise<Run[]> {
 
 export const periodSchema = editionSchema.extend({
   edition_count: z.number(),
-  /** Analyzed items found in the period; only the best `listed_limit` are listed. */
+  /** Analyzed items found in the period (all of them are listed). */
   analyzed_total: z.number(),
-  listed_limit: z.number(),
 })
 export type Period = z.infer<typeof periodSchema>
 
@@ -717,4 +732,18 @@ export function fetchSchedule(signal?: AbortSignal): Promise<Schedule> {
 
 export function saveSchedule(body: { enabled: false } | { enabled: true; hour: number; minute: number; weekdays: number[] }): Promise<Schedule> {
   return request('/api/schedule', scheduleSchema, { method: 'PUT', body: JSON.stringify(body) })
+}
+
+// Domain of each configured source (archive first, else the catalog) --------------------------
+
+const sourceDomainSchema = z.object({
+  category: z.string().nullable(),
+  /** `archive`: categories of the news the source produced; `catalog`: declared by the catalog. */
+  origin: z.enum(['archive', 'catalog']).nullable(),
+  categories: z.array(z.object({ category: z.string(), items: z.number() })),
+})
+export type SourceDomain = z.infer<typeof sourceDomainSchema>
+
+export async function fetchSourceDomains(signal?: AbortSignal): Promise<Record<string, SourceDomain>> {
+  return (await getJson('/api/sources/domains?days=90', z.object({ domains: z.record(z.string(), sourceDomainSchema) }), signal)).domains
 }

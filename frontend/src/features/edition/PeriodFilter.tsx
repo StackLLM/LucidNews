@@ -7,7 +7,7 @@ import { Popover } from 'radix-ui'
 import { Segmented } from '../../design/PageState'
 import type { Run } from '../../lib/api'
 import { capitalize, dayKey, formatPeriod, periodBounds, type PeriodKind } from '../../lib/format'
-import { useLanguage } from '../../lib/i18n'
+import { categoryLabel, useLanguage } from '../../lib/i18n'
 
 export type PeriodChoice = { kind: PeriodKind; value: string } | null
 
@@ -22,7 +22,25 @@ const keyOf = (kind: PeriodKind, run: Run) => {
  * Date filter of the Edition page: the latest edition, or every edition of one day, month
  * or year. Only periods that have an edition can be chosen.
  */
-export function PeriodFilter({ runs, choice, onChange }: { runs: Run[]; choice: PeriodChoice; onChange: (choice: PeriodChoice) => void }) {
+export type DomainOption = { category: string; count: number }
+
+export function PeriodFilter({
+  runs,
+  choice,
+  onChange,
+  domain,
+  domainOptions,
+  onDomainChange,
+}: {
+  runs: Run[]
+  choice: PeriodChoice
+  onChange: (choice: PeriodChoice) => void
+  /** Selected domain (taxonomy category), or null for all. */
+  domain: string | null
+  /** Every domain with the number of news it has in what is shown. */
+  domainOptions: DomainOption[]
+  onDomainChange: (domain: string | null) => void
+}) {
   const { language, t } = useLanguage()
   const [dayOpen, setDayOpen] = useState(false)
   const mode: Mode = choice?.kind ?? 'latest'
@@ -110,6 +128,22 @@ export function PeriodFilter({ runs, choice, onChange }: { runs: Run[]; choice: 
           ))}
         </select>
       )}
+
+      <label className="flex items-center gap-2 sm:ml-auto">
+        <span className="text-[14px] font-bold">{t('filter.domain')}</span>
+        <select
+          value={domain ?? ''}
+          onChange={(event) => onDomainChange(event.target.value || null)}
+          className="rounded-control border border-ink/10 bg-white px-3.5 py-2 text-[14px] font-semibold outline-none transition-shadow duration-150 hover:border-accent/40 focus-visible:ring-3 focus-visible:ring-accent/20"
+        >
+          <option value="">{t('filter.domainAll')}</option>
+          {domainOptions.map(({ category, count }) => (
+            <option key={category} value={category} disabled={count === 0 && category !== domain}>
+              {categoryLabel(language, category)} ({count})
+            </option>
+          ))}
+        </select>
+      </label>
     </section>
   )
 }

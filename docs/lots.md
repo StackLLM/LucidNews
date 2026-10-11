@@ -546,17 +546,19 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 
 ---
 
-### Filtre de date de l'Édition
+### Filtres de l'Édition et sources par domaine
 
-Demande hors plan, faite après le lot 21 : filtrer les news par jour, par mois ou par année sur la page Édition.
+Demandes hors plan, faites après le lot 21.
 
 | Sujet | Contenu |
 |---|---|
-| Interface | Barre « Filtrer par date » : Dernière édition, Jour, Mois, Année. Jour : calendrier (jours avec édition seulement). Mois et Année : liste des périodes qui ont une édition. La période est dans l'adresse (`?day=2026-10-06`, `?month=2026-10`, `?year=2026`) : partageable, le bouton Retour marche, une valeur invalide est ignorée. |
-| Résultat | Toutes les éditions commencées dans la période, fusionnées : une news publiée par plusieurs éditions apparaît une fois, rubriques et tri par score comme une édition. Les news non analysées (quota) restent à part. |
-| Limite | Les 100 meilleures news sont listées ; le total est affiché (« Les 100 news les mieux notées sur 480 sont affichées »). Le chiffre « contenus analysés » n'est pas montré pour une période (une même news serait comptée par chaque édition). |
-| API | `GET /api/editions/period?since=&until=&lang=` (instants ISO, bornes locales du navigateur, fin exclue, 3 700 jours au plus) ; `GET /api/editions?limit=` (jusqu'à 2000). |
-| Vérifié | 3 tests Python, 5 tests d'interface (68 au total, test de première page allongé à 5 s) ; démo sur l'archive réelle : octobre = 9 éditions, 20 news ; calendrier du jour. |
+| Filtre de date | Page Édition, barre « Filtrer par date » : Dernière édition, Jour, Mois, Année. Jour : calendrier (jours avec édition seulement). Mois et Année : périodes qui ont une édition. La période est dans l'adresse (`?day=`, `?month=`, `?year=`) : partageable, Retour marche, valeur invalide ignorée. |
+| Résultat d'une période | Toutes les éditions commencées dans la période, fusionnées : une news publiée par plusieurs éditions apparaît une fois ; rubriques et tri par score comme une édition. **Aucune limite** sur le nombre de news affichées. Le chiffre « contenus analysés » n'est pas montré (une même news serait comptée par chaque édition). |
+| Filtre de domaine | À côté du filtre de date, sur la dernière édition comme sur une période : « Tous les domaines » ou l'un des 12 domaines, avec le nombre de news de chacun dans ce qui est affiché (domaine à 0 grisé). Adresse `?domain=ai`. Les news sans analyse IA n'ont pas de domaine : masquées tant qu'un domaine est choisi, et la page le dit. |
+| Sources par domaine | Sources › Sources configurées : regroupées par domaine (ou par type, au choix), le domaine de chaque source est affiché sur sa ligne avec son origine. Domaine = catégorie la plus fréquente des news analysées de la source (90 jours), « d'après N news analysées », avec les autres domaines ; sans news analysée : catégorie du catalogue (« selon le catalogue ») ; sinon « pas encore déterminé », jamais deviné. Les interrupteurs Reddit et Telegram restent dans une section à part. |
+| API | `GET /api/editions/period?since=&until=&lang=` (instants ISO, bornes locales, fin exclue, 3 700 jours au plus) ; `GET /api/editions?limit=` (jusqu'à 2000) ; `GET /api/sources/domains?days=90`. |
+| Vérifié | 772 tests Python, 72 tests d'interface, build. Archive réelle (copie) : octobre = 9 éditions et 20 news ; sur 44 sources listées, 21 ont un domaine (archive ou catalogue), 23 « pas encore déterminé ». |
+| Observé, non corrigé | À 1024 px de large, l'en-tête (groupe langue/éclair à droite) dépasse de 30 px la fenêtre : défaut de l'en-tête, antérieur à ces changements. |
 
 ---
 
@@ -699,7 +701,7 @@ Un paramètre n'est ajouté que s'il est réellement appliqué par le système.
 
 | Sujet | Bloque | Recommandation |
 |---|---|---|
-| Lot 21 et filtre de date de l'Édition terminés, pas encore commités | Rien, mais à faire avant le lot 22 | Commiter avec les messages préparés. |
+| Lot 21, filtres de l'Édition et sources par domaine : à commiter | Rien, mais à faire avant le lot 22 | Commiter avec les messages préparés. |
 | Envoi SMTP réel | La preuve « l'e-mail arrive tel qu'il est prévisualisé » | Accord demandé : un envoi de test vers une adresse à toi, avec un compte SMTP configuré (aucun aujourd'hui). |
 | Vrai run IA lancé depuis l'interface | La preuve « même édition qu'en terminal » | Accord demandé : un run sur une copie des données, avec la clé IA. |
 | Vraie tâche launchd | La preuve « la planification déclenche réellement un run » | Accord demandé : tâche de test chargée quelques minutes puis retirée. |

@@ -19,7 +19,13 @@ const testResult = {
 }
 
 // Real output of the API on config.example.json, health from the local archive.
-function mockSourcesApi(write: (call: Call) => Reply = () => [200, { ...sourceConfig, version: 'v2' }]) {
+const domains = {
+  'rss/OpenAI News': { category: 'ai', origin: 'archive', categories: [{ category: 'ai', items: 12 }, { category: 'web', items: 2 }] },
+  'rss/AWS News Blog': { category: 'cloud', origin: 'catalog', categories: [] },
+  hackernews: { category: 'software-development', origin: 'archive', categories: [{ category: 'software-development', items: 1 }] },
+}
+
+function mockSourcesApi(write: (call: Call) => Reply = () => [200, { ...sourceConfig, version: 'v2' }], withDomains = false) {
   const calls: Call[] = []
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const path = decodeURIComponent(new URL(String(input), 'http://localhost').pathname)
@@ -29,6 +35,7 @@ function mockSourcesApi(write: (call: Call) => Reply = () => [200, { ...sourceCo
     const reply = ([status, payload]: Reply) => new Response(JSON.stringify(payload), { status })
     if (path === '/api/sources') return reply([200, fixtures.sources])
     if (path === '/api/sources/config' && method === 'GET') return reply([200, sourceConfig])
+    if (path === '/api/sources/domains') return withDomains ? reply([200, { days: 90, domains }]) : reply([403, { error: 'off' }])
     if (path === '/api/sources/test') return reply([200, testResult])
     return reply(write({ method, path, body }))
   })
@@ -182,4 +189,30 @@ test('a configuration changed elsewhere asks to reload', async () => {
 
   expect(await within(panel).findByText('La configuration a changé ailleurs. Rechargez, puis réessayez.')).toBeInTheDocument()
   expect(within(panel).getByRole('button', { name: 'Recharger' })).toBeInTheDocument()
+})
+
+test('groups the sources by domain and says where each domain comes from', async () => {
+  mockSourcesApi(undefined, true)
+  const region = await openSources()
+
+  const ai = await within(region).findByRole('region', { name: /IA \/ LLM \/ Agents/ })
+  expect(within(ai).getByText('OpenAI News')).toBeInTheDocument()
+  expect(row(region, 'OpenAI News')).toHaveTextContent('Domaine : IA / LLM / Agents')
+  expect(row(region, 'OpenAI News')).toHaveTextContent('d’après 14 news analysées')
+  expect(row(region, 'OpenAI News')).toHaveTextContent('aussi : Web')
+  // A source with no analyzed news yet gets the catalog's domain, and says so.
+  const cloud = within(region).getByRole('region', { name: /Cloud/ })
+  expect(within(cloud).getByText('AWS News Blog')).toBeInTheDocument()
+  expect(row(region, 'AWS News Blog')).toHaveTextContent('selon le catalogue')
+  // The others are not given a domain by guesswork.
+  const unknown = within(region).getByRole('region', { name: /Domaine pas encore déterminé/ })
+  expect(within(unknown).getByText('Google DeepMind')).toBeInTheDocument()
+  expect(row(region, 'Google DeepMind')).toHaveTextContent('Domaine : pas encore déterminé')
+  // The Reddit and Telegram switches are still there.
+  expect(within(region).getByRole('region', { name: /Interrupteurs et sources spéciales/ })).toBeInTheDocument()
+  expect(within(region).getAllByRole('switch', { name: /Reddit/ }).length).toBeGreaterThan(0)
+
+  fireEvent.click(within(region).getByRole('button', { name: 'Type' }))
+  expect(await within(region).findByRole('heading', { level: 3, name: /Flux RSS/ })).toBeInTheDocument()
+  expect(row(region, 'OpenAI News')).toHaveTextContent('Domaine : IA / LLM / Agents') // still shown in the type view
 })

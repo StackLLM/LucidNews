@@ -16,6 +16,7 @@ from src.models import (
     SourceType,
 )
 from src.reliability.assess import assess_item
+from src.source_quality import item_source_key
 from src.web_api import ApiContext, make_handler, resolve
 
 NOW = datetime(2026, 10, 6, 12, 0, tzinfo=timezone.utc)
@@ -216,18 +217,17 @@ def test_period_merges_the_editions_started_inside_it(tmp_path) -> None:
     assert empty["edition_count"] == 0 and empty["sections"] == []
 
 
-def test_period_lists_only_the_best_items_and_says_how_many_there_were(tmp_path, monkeypatch) -> None:
-    import src.web_api as web_api
-
-    monkeypatch.setattr(web_api, "MAX_PERIOD_ITEMS", 2)
+def test_period_lists_every_news_without_any_limit(tmp_path) -> None:
     archive = ItemArchive(tmp_path / "archive.sqlite3")
-    _dated_run(archive, "2026-10-02T06:00:00+00:00", [make_item(f"i{n}", "tech-news", 5.0 + n) for n in range(4)])
+    _dated_run(archive, "2026-10-02T06:00:00+00:00", [make_item(f"i{n}", "tech-news", 1.0 + n / 20) for n in range(150)])
     ctx = ApiContext(archive=archive)
 
     body = resolve(ctx, "/api/editions/period", {"since": ["2026-10-01T00:00:00Z"], "until": ["2026-10-31T00:00:00Z"]})[1]
 
-    assert [item["id"] for item in body["sections"][0]["items"]] == ["i3", "i2"]
-    assert body["analyzed_total"] == 4 and body["listed_limit"] == 2
+    ids = [item["id"] for item in body["sections"][0]["items"]]
+    assert len(ids) == 150 and ids[0] == "i149" and ids[-1] == "i0"  # best score first
+    assert body["analyzed_total"] == 150
+    assert "listed_limit" not in body
 
 
 def test_period_and_limit_reject_bad_input(tmp_path) -> None:
@@ -241,3 +241,39 @@ def test_period_and_limit_reject_bad_input(tmp_path) -> None:
     assert resolve(ctx, "/api/editions", {"limit": ["0"]})[0] == 400
     assert resolve(ctx, "/api/editions", {"limit": ["x"]})[0] == 400
     assert resolve(ctx, "/api/editions", {"limit": ["500"]})[0] == 200
+
+
+def test_source_domains_use_the_archive_then_the_catalog(tmp_path) -> None:
+    from src.source_catalog import CatalogEntry
+
+    archive = ItemArchive(tmp_path / "archive.sqlite3")
+    ai_items = [make_item(f"ai{n}", "tech-news", 8.0) for n in range(3)]
+    for item in ai_items:
+        item.processing.analysis.categories = ["ai", "web"]
+    web_item = make_item("web1", "tech-news", 8.0)
+    web_item.processing.analysis.categories = ["web"]
+    _dated_run(archive, "2026-10-02T06:00:00+00:00", ai_items + [web_item])
+    key = item_source_key(ai_items[0])
+    catalog = [
+        CatalogEntry("rss/Declared", "rss", "Declared", "databases", {}, None, "example"),
+        CatalogEntry(key, "rss", "Same key", "cloud", {}, None, "example"),  # the archive wins over the catalog
+    ]
+    ctx = ApiContext(
+        archive=archive,
+        catalog=catalog,
+        configured_sources={key: "hackernews", "rss/Declared": "rss", "rss/Unknown": "rss"},
+    )
+
+    status, body = resolve(ctx, "/api/sources/domains", {"days": ["90"]})
+
+    assert status == 200
+    domains = body["domains"]
+    # "web" is on 4 analyzed items, "ai" on 3: the most frequent one is the domain.
+    assert domains[key]["category"] == "web" and domains[key]["origin"] == "archive"
+    assert domains[key]["categories"] == [{"category": "web", "items": 4}, {"category": "ai", "items": 3}]
+    assert domains["rss/Declared"] == {"category": "databases", "origin": "catalog", "categories": []}
+    assert domains["rss/Unknown"] == {"category": None, "origin": None, "categories": []}
+    # A source that is not configured any more still gets its domain (the interface may list it).
+    ctx.configured_sources = {}
+    assert resolve(ctx, "/api/sources/domains", {})[1]["domains"][key]["category"] == "web"
+    assert resolve(ctx, "/api/sources/domains", {"days": ["0"]})[0] == 400

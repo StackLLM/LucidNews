@@ -1,24 +1,31 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Ban, CircleDashed, Eye, Layers, PauseCircle, Plus, Settings2, type LucideIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Segmented } from '../../design/PageState'
 import { Switch } from '../../design/Switch'
 import {
   ApiError,
+  domainCategories,
+  fetchSourceDomains,
   updateSource,
+  type SourceDomain,
   type HealthStatus,
   type SourceConfig,
   type SourceEntry,
   type SourceHealth,
 } from '../../lib/api'
 import { formatItemTime } from '../../lib/format'
-import { useLanguage, type MessageKey } from '../../lib/i18n'
+import { categoryLabel, translatePlural, useLanguage, type MessageKey } from '../../lib/i18n'
 import { HealthBadge, QualityScore, SourceDetail } from './SourceBits'
 import { SourcePanel, type PanelTarget } from './SourcePanel'
 import { kindKey } from './sourceFields'
 
 type State = HealthStatus | 'off' | 'paused' | 'new' | 'untracked' | 'readonly'
 type Filter = 'all' | 'active' | 'off' | 'attention'
+type GroupBy = 'domain' | 'type'
+
+/** One block of the list: a domain or a source type, with its sources (and Reddit/Telegram switches). */
+type Section = { id: string; title: string; entries: SourceEntry[]; switchEntry?: SourceEntry; switches?: SourceEntry[] }
 
 const GROUPS: { id: string; title: MessageKey; kinds: string[]; switchKey?: string }[] = [
   { id: 'rss', title: 'sources.group.rss', kinds: ['rss'] },
@@ -64,9 +71,13 @@ export function SourceManager({
   health: SourceHealth[]
   onReload: () => void
 }) {
-  const { t } = useLanguage()
+  const { language, t } = useLanguage()
   const queryClient = useQueryClient()
   const [filter, setFilter] = useState<Filter>('all')
+  const [groupBy, setGroupBy] = useState<GroupBy>('domain')
+  // The domain of each source: from the archive, else the catalog. Absent when it cannot be read.
+  const domainsQuery = useQuery({ queryKey: ['source-domains'], queryFn: ({ signal }) => fetchSourceDomains(signal), retry: false })
+  const domains = domainsQuery.data
   const [panel, setPanel] = useState<PanelTarget | null>(null)
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null)
   const byKey = new Map(health.map((entry) => [entry.source, entry]))
@@ -104,6 +115,26 @@ export function SourceManager({
     { value: 'attention', label: `${t('sources.filter.attention')} · ${count('attention')}` },
   ]
 
+  const switchEntries = config.sources.filter((entry) => entry.group)
+  const typeSections: Section[] = GROUPS.map((group) => ({
+    id: group.id,
+    title: t(group.title),
+    entries: entries.filter((entry) => group.kinds.includes(entry.kind)),
+    switchEntry: group.switchKey ? config.sources.find((entry) => entry.key === group.switchKey) : undefined,
+  }))
+  const domainOf = (entry: SourceEntry) => domains?.[entry.key]?.category ?? null
+  const domainSections: Section[] = [
+    ...domainCategories.map((category) => ({
+      id: `domain-${category}`,
+      title: categoryLabel(language, category),
+      entries: entries.filter((entry) => domainOf(entry) === category),
+    })),
+    { id: 'domain-unknown', title: t('sources.domain.unknown'), entries: entries.filter((entry) => domainOf(entry) === null) },
+    ...(switchEntries.length > 0 ? [{ id: 'domain-switches', title: t('sources.domainSwitches'), entries: [], switches: switchEntries }] : []),
+  ]
+  // Without domain data (API unreadable) the type view is the only honest grouping.
+  const sections = groupBy === 'domain' && domains ? domainSections : typeSections
+
   return (
     <section aria-labelledby="sources-manage" className="rounded-card bg-surface p-5 shadow-card sm:p-7">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -125,51 +156,59 @@ export function SourceManager({
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <Segmented id="manage-filter" label={t('sources.col.status')} value={filter} onChange={setFilter} options={filters} />
+        {domains && (
+          <span className="flex items-center gap-2">
+            <span className="text-[13px] font-semibold text-muted">{t('sources.groupBy')}</span>
+            <Segmented<GroupBy>
+              id="manage-group-by"
+              label={t('sources.groupBy')}
+              value={groupBy}
+              onChange={setGroupBy}
+              options={[
+                { value: 'domain', label: t('sources.groupBy.domain') },
+                { value: 'type', label: t('sources.groupBy.type') },
+              ]}
+            />
+          </span>
+        )}
         <p role="status" aria-live="polite" className={`text-[13px] font-medium ${notice?.error ? 'text-rumor' : 'text-confirmed'}`}>
           {notice?.text ?? ''}
         </p>
       </div>
 
       <div className="mt-6 space-y-8">
-        {GROUPS.map((group) => {
-          const groupEntries = entries.filter(
-            (entry) => group.kinds.includes(entry.kind) && matches(filter, states.get(entry.key)!),
-          )
-          const switchEntry = group.switchKey ? config.sources.find((entry) => entry.key === group.switchKey) : undefined
-          const total = entries.filter((entry) => group.kinds.includes(entry.kind)).length
-          if (groupEntries.length === 0 && (filter !== 'all' || (total === 0 && !switchEntry))) return null
+        {sections.map((section) => {
+          const shown = section.entries.filter((entry) => matches(filter, states.get(entry.key)!))
+          const total = section.entries.length
+          const hasSwitches = !!section.switchEntry || !!section.switches?.length
+          if (shown.length === 0 && (filter !== 'all' || (total === 0 && !hasSwitches))) return null
           return (
-            <section key={group.id} aria-labelledby={`group-${group.id}`}>
+            <section key={section.id} aria-labelledby={`group-${section.id}`}>
               <div className="flex flex-wrap items-center gap-3 border-b border-line pb-2.5">
-                <h3 id={`group-${group.id}`} className="text-[14px] font-bold">
-                  {t(group.title)}
-                  <span className="ml-2 font-medium text-faint tabular-nums">{total}</span>
+                <h3 id={`group-${section.id}`} className="text-[14px] font-bold">
+                  {section.title}
+                  {!section.switches && <span className="ml-2 font-medium text-faint tabular-nums">{total}</span>}
                 </h3>
-                {switchEntry && (
-                  <div className="ml-auto flex items-center gap-2">
-                    <span className="text-[13px] text-muted">{t('sources.groupSwitch', { group: switchEntry.label })}</span>
-                    <Switch
-                      checked={switchEntry.enabled}
-                      disabled={toggle.isPending}
-                      label={t('sources.groupSwitch', { group: switchEntry.label })}
-                      onCheckedChange={(enabled) => toggle.mutate({ key: switchEntry.key, enabled })}
-                    />
-                    {Object.keys(switchEntry.values).length > 0 && (
-                      <ManageButton label={switchEntry.label} onClick={() => setPanel({ mode: 'edit', entry: switchEntry })} />
-                    )}
-                  </div>
-                )}
+                {section.switchEntry && <GroupSwitch entry={section.switchEntry} busy={toggle.isPending} onToggle={(enabled) => toggle.mutate({ key: section.switchEntry!.key, enabled })} onManage={() => setPanel({ mode: 'edit', entry: section.switchEntry! })} />}
               </div>
-              {groupEntries.length === 0 ? (
+              {section.switches?.map((entry) => (
+                <div key={entry.key} className="flex flex-wrap items-center gap-3 border-b border-line/70 py-3">
+                  <span className="font-semibold">{entry.label}</span>
+                  <GroupSwitch entry={entry} busy={toggle.isPending} onToggle={(enabled) => toggle.mutate({ key: entry.key, enabled })} onManage={() => setPanel({ mode: 'edit', entry })} />
+                </div>
+              ))}
+              {shown.length === 0 && !hasSwitches ? (
                 <p className="py-3 text-[13.5px] text-muted">{t('sources.group.empty')}</p>
               ) : (
                 <ul className="divide-y divide-line/70">
-                  {groupEntries.map((entry) => (
+                  {shown.map((entry) => (
                     <SourceRow
                       key={entry.key}
                       entry={entry}
                       state={states.get(entry.key)!}
                       health={byKey.get(entry.key)}
+                      domain={domains?.[entry.key]}
+                      domainsKnown={!!domains}
                       busy={toggle.isPending}
                       onToggle={(enabled) => toggle.mutate({ key: entry.key, enabled })}
                       onManage={() => setPanel({ mode: 'edit', entry })}
@@ -203,6 +242,8 @@ function SourceRow({
   entry,
   state,
   health,
+  domain,
+  domainsKnown,
   busy,
   onToggle,
   onManage,
@@ -210,6 +251,8 @@ function SourceRow({
   entry: SourceEntry
   state: State
   health?: SourceHealth
+  domain?: SourceDomain
+  domainsKnown: boolean
   busy: boolean
   onToggle: (enabled: boolean) => void
   onManage: () => void
@@ -241,6 +284,7 @@ function SourceRow({
           {entry.label}
         </p>
         <p className="truncate text-[12px] text-faint">{t(kindKey(entry.kind))}</p>
+        {domainsKnown && !entry.readonly && <DomainLine domain={domain} />}
       </div>
 
       <div className="col-start-3 row-start-1 md:col-start-auto md:row-start-auto">
@@ -293,6 +337,37 @@ function SourceRow({
         {!entry.readonly && <ManageButton label={entry.label} onClick={onManage} />}
       </div>
     </li>
+  )
+}
+
+/** The domain of a source, and where that comes from. Never shown as certain when it is not. */
+function DomainLine({ domain }: { domain?: SourceDomain }) {
+  const { language, t } = useLanguage()
+  if (!domain || domain.category === null) {
+    return <p className="mt-1 text-[12px] text-faint">{t('sources.domain')} : {t('sources.domain.unknownShort')}</p>
+  }
+  const total = domain.categories.reduce((sum, entry) => sum + entry.items, 0)
+  const others = domain.categories.slice(1).map((entry) => categoryLabel(language, entry.category))
+  return (
+    <p className="mt-1 text-[12px] text-muted">
+      {t('sources.domain')} :{' '}
+      <span className="rounded-full bg-accent-soft px-2 py-0.5 font-semibold text-accent">{categoryLabel(language, domain.category)}</span>{' '}
+      <span className="text-faint">
+        {domain.origin === 'archive' ? translatePlural(language, 'sources.domain.archive', total, { count: total }) : t('sources.domain.catalog')}
+        {others.length > 0 && ` · ${t('sources.domain.others', { list: others.join(', ') })}`}
+      </span>
+    </p>
+  )
+}
+
+function GroupSwitch({ entry, busy, onToggle, onManage }: { entry: SourceEntry; busy: boolean; onToggle: (enabled: boolean) => void; onManage: () => void }) {
+  const { t } = useLanguage()
+  return (
+    <div className="ml-auto flex items-center gap-2">
+      <span className="text-[13px] text-muted">{t('sources.groupSwitch', { group: entry.label })}</span>
+      <Switch checked={entry.enabled} disabled={busy} label={t('sources.groupSwitch', { group: entry.label })} onCheckedChange={onToggle} />
+      {Object.keys(entry.values).length > 0 && <ManageButton label={entry.label} onClick={onManage} />}
+    </div>
   )
 }
 
