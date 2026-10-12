@@ -11,6 +11,7 @@ import { fetchEditions, type Run } from '../../lib/api'
 import { capitalize, dayKey, formatEditionDate, formatTime } from '../../lib/format'
 import { translatePlural, useLanguage } from '../../lib/i18n'
 import { listStagger, riseIn, useMotionPreference } from '../../lib/motion'
+import { SearchBar, SearchResults, useSearchState } from './SearchSection'
 
 export function ArchivePage() {
   const query = useQuery({ queryKey: ['editions'], queryFn: ({ signal }) => fetchEditions(signal) })
@@ -23,6 +24,7 @@ function ArchiveView({ runs }: { runs: Run[] }) {
   const { language, t } = useLanguage()
   const { enabled } = useMotionPreference()
   const [selectedDay, setSelectedDay] = useState<Date | undefined>()
+  const search = useSearchState()
 
   const byDay = useMemo(() => {
     const groups = new Map<string, Run[]>()
@@ -42,34 +44,42 @@ function ArchiveView({ runs }: { runs: Run[] }) {
     <motion.div variants={listStagger} initial={enabled ? 'hidden' : false} animate="visible" className="space-y-8">
       <PageHeader title={t('archive.title')} subtitle={t('archive.subtitle')} />
 
-      <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)] lg:gap-8">
-        <motion.section
-          variants={riseIn}
-          aria-label={t('archive.calendar')}
-          className="glass self-start rounded-card p-5 lg:sticky lg:top-28"
-        >
-          <DayPicker
-            className="lucid-calendar mx-auto w-fit"
-            mode="single"
-            locale={language === 'fr' ? fr : enGB}
-            weekStartsOn={1}
-            defaultMonth={editionDays[0]}
-            selected={selectedDay}
-            onSelect={setSelectedDay}
-            disabled={(date) => !byDay.has(dayKey(date))}
-            modifiers={{ hasEdition: editionDays }}
-            modifiersClassNames={{ hasEdition: 'has-edition' }}
-          />
-          <div className="mt-3 flex items-center justify-between border-t border-ink/[0.06] px-1 pt-4 text-[13px]">
-            <span className="text-muted">{t('archive.count', { count: runs.length })}</span>
-            {selectedDay && (
-              <button
-                type="button"
-                onClick={() => setSelectedDay(undefined)}
-                className="rounded-full bg-accent-soft px-3 py-1 font-semibold text-accent transition-colors duration-150 hover:bg-accent hover:text-white"
-              >
-                {t('archive.showAll')}
-              </button>
+      <motion.div variants={riseIn}>
+        {/* Keyed by the address's query: Back and Clear reset the field. */}
+        <SearchBar key={search.q} state={search} />
+      </motion.div>
+
+      {search.q ? (
+        <SearchResults state={search} />
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)] lg:gap-8">
+          <motion.section
+            variants={riseIn}
+            aria-label={t('archive.calendar')}
+            className="glass self-start rounded-card p-5 lg:sticky lg:top-28"
+          >
+            <DayPicker
+              className="lucid-calendar mx-auto w-fit"
+              mode="single"
+              locale={language === 'fr' ? fr : enGB}
+              weekStartsOn={1}
+              defaultMonth={editionDays[0]}
+              selected={selectedDay}
+              onSelect={setSelectedDay}
+              disabled={(date) => !byDay.has(dayKey(date))}
+              modifiers={{ hasEdition: editionDays }}
+              modifiersClassNames={{ hasEdition: 'has-edition' }}
+            />
+            <div className="mt-3 flex items-center justify-between border-t border-ink/[0.06] px-1 pt-4 text-[13px]">
+              <span className="text-muted">{t('archive.count', { count: runs.length })}</span>
+              {selectedDay && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedDay(undefined)}
+                  className="rounded-full bg-accent-soft px-3 py-1 font-semibold text-accent transition-colors duration-150 hover:bg-accent hover:text-white"
+                >
+                  {t('archive.showAll')}
+                </button>
             )}
           </div>
         </motion.section>
@@ -96,6 +106,7 @@ function ArchiveView({ runs }: { runs: Run[] }) {
           ))}
         </div>
       </div>
+      )}
     </motion.div>
   )
 }

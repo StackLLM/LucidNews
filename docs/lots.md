@@ -42,7 +42,7 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 - [Lot 20 — Lancer et planifier les runs](#lot-20--lancer-et-planifier-les-runs) ✅
 - [Lot 21 — Newsletter : contenu et préférences](#lot-21--newsletter--contenu-et-préférences) ✅
 - [Lot 22 — Newsletter : envoi fiable](#lot-22--newsletter--envoi-fiable) ✅
-- [Lot 23 — Recherche dans l'archive](#lot-23--recherche-dans-larchive) 📋
+- [Lot 23 — Recherche dans l'archive](#lot-23--recherche-dans-larchive) ✅
 - [Lot 24 — Finitions de l'interface](#lot-24--finitions-de-linterface) 📋
 - [Lot 25 — Dette technique](#lot-25--dette-technique) 📋
 - [Lot 26 — Comptes et SaaS (phase 4)](#lot-26--comptes-et-saas-phase-4) 📋
@@ -587,6 +587,26 @@ Demandes hors plan, faites après le lot 21.
 
 ---
 
+## Lot 23 — Recherche dans l'archive
+
+✅ Clôturé · Décision : l'index porte sur le texte déjà produit (titres, résumés, tags, contexte), pas sur le corps brut des articles.
+
+**Objectif** : retrouver une news passée par mot-clé, domaine, source ou fiabilité.
+
+**Fait**
+
+| Sujet | Contenu |
+|---|---|
+| Index | Table FTS5 `items_fts` dans l'archive (schéma 6), alimentée à chaque enregistrement de news. Indexé : titre original et titres localisés, résumé IA, tags, auteur, texte de tous les blocs d'enrichissement (toutes les langues). Pas le corps brut des articles (long et bruyant). Seules les news analysées sont indexées (les autres n'ont pas de page). |
+| Archive existante | Indexée automatiquement à la première ouverture (81 news de ton archive en moins de 0,2 s) ; une seule fois. Sans FTS5 dans SQLite : l'archive marche, la recherche répond « indisponible » (503) et l'interface l'explique. |
+| Requête | Coupée en mots simples, chacun entre guillemets et en préfixe : accents et majuscules ignorés (`ecosysteme` trouve `écosystème`, `kuber` trouve `Kubernetes`), tous les mots requis. Les opérateurs tapés (`OR`, `NEAR`, `*`, guillemets, `title:`, SQL) sont des mots, jamais des commandes. Vide, 1 lettre, plus de 200 caractères ou plus de 10 mots : refusé proprement (400). |
+| API | `GET /api/search?q=&category=&source=&label=&limit=&offset=&lang=` : résultats avec titre et résumé dans la langue, score, fiabilité, domaines, source, date, édition qui l'a publiée (ou « jamais publiée »), compteurs pour les filtres. `truncated` si plus de 1 000 correspondances (seules les meilleures sont prises en compte, et l'interface le dit). |
+| Interface | Archives : champ de recherche en tête ; filtres Domaine, Fiabilité, Source avec leur nombre de résultats ; mots trouvés surlignés (même règle que la recherche) ; pagination de 30 ; chaque résultat ouvre la fiche de la news, avec retour à son édition. Tout est dans l'adresse (`?q=&category=&label=&source=&offset=`). Sans recherche, la page est inchangée (calendrier et éditions). |
+
+**Vérifié** : 18 tests Python (815 au total : requêtes hostiles, accents et préfixes, mise à jour de l'index, indexation d'une archive existante, filtres et compteurs, pagination, erreurs 400 et 503), 8 tests d'interface (85 au total) ; build. Archive réelle (copie) : « polars » 2 résultats, « sécurité » 3, « kuber » 0 (aucune news sur le sujet), requête SQL hostile sans effet ; réponse en 11 ms. Téléphone 375 px.
+
+---
+
 ---
 
 # Lots suivants
@@ -605,10 +625,10 @@ Plan revu le 9 octobre 2026 pour intégrer le besoin « interface complète et g
 | ✅ | 20 — Lancer et planifier les runs | 16 | Clôturé (deux vérifications réelles en attente d'accord). |
 | ✅ | 21 — Newsletter : contenu et préférences | 20 (fréquence) | Clôturé. |
 | ✅ | 22 — Newsletter : envoi fiable | 21 | Clôturé (fuseau horaire reporté). |
-| 1 | 23 — Recherche dans l'archive | — | Utile seul ; placé après le cœur du pilotage. |
-| 2 | 24 — Finitions de l'interface | 15 à 23 | Mode sombre et contrastes, une fois toutes les pages créées. |
-| 3 | 25 — Dette technique | — | Renommage du paquet en fin de chantier, pour ne pas gêner les lots en cours. |
-| 4 | 26 — Comptes et SaaS | 22, 25 | Hors périmètre actuel. |
+| ✅ | 23 — Recherche dans l'archive | — | Clôturé. |
+| 1 | 24 — Finitions de l'interface | 15 à 23 | Mode sombre et contrastes, une fois toutes les pages créées. |
+| 2 | 25 — Dette technique | — | Renommage du paquet en fin de chantier, pour ne pas gêner les lots en cours. |
+| 3 | 26 — Comptes et SaaS | 22, 25 | Hors périmètre actuel. |
 | En parallèle | 12 — Annoter au moins 30 news | — | Action humaine ; donne les chiffres de filtrage du lot 19. |
 
 **Correspondance avec l'ancien plan** : ancien 15 (finitions) → 24 · ancien 16 (newsletter) → 21 et 22 · ancien 17 (comptes et SaaS) → 26 · ancien 18 (dette technique) → 25.
@@ -636,25 +656,9 @@ On garde les écrans existants et on n'ajoute qu'**une** page : Réglages.
 
 ---
 
-## Lot 23 — Recherche dans l'archive
-
-📋 Prochain lot.
-
-- **Objectif** : retrouver une news passée par mot-clé, domaine, source ou fiabilité.
-- **Fonctionnalités** : recherche plein texte, filtres, résultats ouverts dans la carte du lot 15.
-- **Pages** : Archives.
-- **Frontend** : champ de recherche, filtres, liste de résultats.
-- **Backend** : index plein texte SQLite (FTS5) sur l'archive, alimenté à l'enregistrement des news.
-- **Données et API** : `GET /api/search?q=&category=&source=&label=`.
-- **Critères de validation** : résultats pertinents sur l'archive réelle ; requête vide ou trop longue refusée proprement.
-- **Tests** : indexation, recherche, filtres, caractères spéciaux.
-- **Dépendances** : aucune (profite du lot 15).
-
----
-
 ## Lot 24 — Finitions de l'interface
 
-📋 Planifié. Ancien lot 15.
+📋 Prochain lot. Ancien lot 15.
 
 - **Objectif** : finir le rendu premium sur toutes les pages, y compris les nouvelles.
 - **Fonctionnalités** : mode sombre (couleurs déjà prévues) ; contrastes AA vérifiés sur chaque écran ; socle commun allégé (environ 168 Ko compressé aujourd'hui) ; `eslint` et `prettier`.
@@ -712,7 +716,7 @@ Un paramètre n'est ajouté que s'il est réellement appliqué par le système.
 
 | Sujet | Bloque | Recommandation |
 |---|---|---|
-| Lot 22 à commiter | Rien, mais à faire avant le lot 23 | Commiter avec le message préparé. |
+| Lots 22 et 23 à commiter | Rien, mais à faire avant le lot 24 | Commiter avec les messages préparés. |
 | Clé Resend et service public en HTTPS | La preuve « un vrai e-mail part et ses liens marchent » | Accord demandé : clé Resend, domaine d'envoi vérifié, adresse publique du service. |
 | Fuseau horaire du lecteur | Rien | Reporté : demande une tâche d'envoi fréquente. Recommandation : lot 22 bis seulement si des lecteurs sont dans d'autres fuseaux. |
 | Envoi SMTP réel | La preuve « l'e-mail arrive tel qu'il est prévisualisé » | Accord demandé : un envoi de test vers une adresse à toi, avec un compte SMTP configuré (aucun aujourd'hui). |

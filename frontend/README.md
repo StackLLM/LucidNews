@@ -34,7 +34,7 @@ Premium, calme, fin, professionnel. Impressionnant sans être chargé.
 |---|---|---|
 | Édition du jour ✅ | Lire le digest : sections, score, fiabilité. Filtre de date : dernière édition, ou toutes les éditions d'un jour, d'un mois ou d'une année (adresse `?day=`, `?month=`, `?year=`), sans limite de news. Filtre de domaine à côté (`?domain=`) | API `/api/editions/latest`, `/api/editions/period` |
 | Fiche d'une news ✅ | Article complet + colonne Fiabilité (éditeur, affirmation, preuve, corroboration), actions, éditions | API `/api/items/<id>` |
-| Archives ✅ | Retrouver une édition par date (calendrier + liste) | API `/api/editions` |
+| Archives ✅ | Retrouver une édition par date (calendrier + liste) ; rechercher une news par mot-clé, domaine, source ou fiabilité (résultats surlignés, pagination, adresse partageable) | API `/api/editions`, `/api/search` |
 | Préférences ✅ | Abonnés (ajout, suppression), langue, thèmes, sources, rythme, niveau de détail (bref / complet), importance, infos non confirmées, limite, offre affichée ; aperçu de l'e-mail dans un cadre sans script ; statut de chaque lecteur (en attente, confirmé, désinscrit), envoi du lien de confirmation, journal des envois | API `/api/subscribers`, `/api/subscribers/<id>/preview` (local) |
 | Sources ✅ | Onglet Sources : santé (chiffres clés, volume par run), sources configurées par domaine ou par type, domaine affiché sur chaque source : activer, ajouter, modifier, tester, supprimer. Onglet Domaines : couverture des 12 catégories, lacunes, domaines suivis, sources recommandées | API `/api/sources`, `/api/coverage`, `/api/catalog`, `/api/sources/config`, `/api/sources/test` (local) |
 
@@ -70,6 +70,7 @@ et les clés API (`.env` du projet).
 | Route | Contenu |
 |---|---|
 | `GET /api/editions?limit=30` | Runs ayant publié une édition (jusqu'à 2000) |
+| `GET /api/search?q=&category=&source=&label=&limit=&offset=` | Recherche plein texte de l'archive (FTS5) : résultats, compteurs des filtres |
 | `GET /api/sources/domains?days=90` | Domaine de chaque source (archive, sinon catalogue) |
 | `GET /api/editions/period?since=&until=&lang=` | Les news de toutes les éditions commencées dans la période (instants ISO), sans doublon  ; toutes sont listées |
 | `GET /api/editions/latest?lang=fr` | Dernière édition, dans une langue |

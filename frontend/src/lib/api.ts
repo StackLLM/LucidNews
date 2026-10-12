@@ -781,3 +781,49 @@ export type SourceDomain = z.infer<typeof sourceDomainSchema>
 export async function fetchSourceDomains(signal?: AbortSignal): Promise<Record<string, SourceDomain>> {
   return (await getJson('/api/sources/domains?days=90', z.object({ domains: z.record(z.string(), sourceDomainSchema) }), signal)).domains
 }
+
+// Full-text search of the archive (lot 23) ------------------------------------------------------
+
+const searchHitSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  summary: z.string(),
+  score: z.number().nullable(),
+  reliability: z.enum(reliabilityLabels).nullable(),
+  categories: z.array(z.string()),
+  source: z.string(),
+  source_type: z.string(),
+  published_at: z.string(),
+  /** Latest edition that published it; null when it was analyzed but never published. */
+  edition: z.string().nullable(),
+  edition_at: z.string().nullable(),
+  unanalyzed: z.boolean(),
+})
+
+export const searchSchema = z.object({
+  query: z.string(),
+  terms: z.array(z.string()),
+  total: z.number(),
+  offset: z.number(),
+  limit: z.number(),
+  /** Only the best matches are considered when a word matches a very large number of items. */
+  truncated: z.boolean(),
+  results: z.array(searchHitSchema),
+  facets: z.object({
+    categories: z.record(z.string(), z.number()),
+    labels: z.record(z.string(), z.number()),
+    sources: z.array(z.object({ source: z.string(), count: z.number() })),
+  }),
+})
+export type SearchResult = z.infer<typeof searchSchema>
+export type SearchHit = z.infer<typeof searchHitSchema>
+export type SearchParams = { q: string; category?: string; label?: string; source?: string; offset?: number }
+export const SEARCH_PAGE_SIZE = 30
+export const SEARCH_MAX_QUERY = 200
+
+export function fetchSearch(params: SearchParams, language: string, signal?: AbortSignal): Promise<SearchResult> {
+  const query = new URLSearchParams({ q: params.q, lang: language, limit: String(SEARCH_PAGE_SIZE) })
+  for (const key of ['category', 'label', 'source'] as const) if (params[key]) query.set(key, params[key])
+  if (params.offset) query.set('offset', String(params.offset))
+  return getJson(`/api/search?${query}`, searchSchema, signal)
+}

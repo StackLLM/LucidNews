@@ -10,6 +10,7 @@ Endpoints (JSON, GET only):
 - ``/api/items/<item_id>?lang=fr``: one item with its reliability details and editions.
 - ``/api/sources?days=14``: source health (configured sources) and per-run volumes.
 - ``/api/coverage?days=14``: coverage of the 12 categories by the sources (archive).
+- ``/api/search?q=&category=&source=&label=&limit=&offset=``: full-text search of the archive (FTS5).
 - ``/api/sources/domains?days=90``: domain of each configured source (archive, else catalog).
 - ``/api/catalog?category=ai``: recommended sources absent from the configuration.
 - ``/api/quality/overview?days=14``: indicators of the watch (coverage, diversity, health,
@@ -43,6 +44,7 @@ requests).
 """
 
 import argparse
+from collections import Counter
 import ipaddress
 import json
 import re
@@ -57,6 +59,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 
 from ._cli import add_data_dir_arguments
 from .archive import ItemArchive, RunRecord
+from .archive.search import CANDIDATE_CAP, SearchQueryError, search_terms
 from .coverage import CoverageThresholds, compute_coverage
 from .evaluation import AnnotationStore
 from .evaluation.service import EvaluationService
@@ -66,7 +69,7 @@ from .processing import ProfileRegistry
 from .quality_overview import quality_overview
 from .source_domains import source_domains
 from .runs_api import RunService, ScheduleService
-from .reliability import SourceTier
+from .reliability import ReliabilityLabel, SourceTier
 from .reliability.assess import ReliabilityPolicy
 from .source_health import assess_health, configured_source_keys, health_to_dict
 from .source_quality import DEFAULT_DAYS, compute_source_quality, item_source_key, quality_to_dict
@@ -387,6 +390,96 @@ def source_domains_payload(ctx: ApiContext, days: int) -> Dict[str, Any]:
     return {"days": days, "domains": domains}
 
 
+MAX_SEARCH_LIMIT = 100
+
+
+def search_payload(ctx: ApiContext, query: Dict[str, List[str]], language: str) -> tuple[int, Dict[str, Any]]:
+    """Full-text search: ``q`` (required), filters ``category``, ``source``, ``label``, paging."""
+
+    def one(name: str) -> Optional[str]:
+        values = query.get(name)
+        return values[0] if values and values[0] != "" else None
+
+    try:
+        terms = search_terms(one("q") or "")
+    except SearchQueryError as exc:
+        return HTTPStatus.BAD_REQUEST, {"error": str(exc)}
+    category, source, label = one("category"), one("source"), one("label")
+    if category is not None and category not in {entry.value for entry in Category}:
+        return HTTPStatus.BAD_REQUEST, {"error": "unknown category"}
+    if label is not None and label not in {entry.value for entry in ReliabilityLabel}:
+        return HTTPStatus.BAD_REQUEST, {"error": "unknown reliability label"}
+    if source is not None and not SOURCE_KEY.match(source):
+        return HTTPStatus.BAD_REQUEST, {"error": "invalid source"}
+    try:
+        limit = int(one("limit") or 30)
+        offset = int(one("offset") or 0)
+    except ValueError:
+        return HTTPStatus.BAD_REQUEST, {"error": "limit and offset must be integers"}
+    if not 1 <= limit <= MAX_SEARCH_LIMIT or offset < 0:
+        return HTTPStatus.BAD_REQUEST, {"error": f"limit must be between 1 and {MAX_SEARCH_LIMIT}, offset 0 or more"}
+    try:
+        candidates = ctx.archive.search(terms, CANDIDATE_CAP)
+    except RuntimeError as exc:
+        return HTTPStatus.SERVICE_UNAVAILABLE, {"error": str(exc)}
+
+    # Counts for the filters, over everything the words match (before any filter).
+    facets: Dict[str, Counter] = {"categories": Counter(), "labels": Counter(), "sources": Counter()}
+    matched = []
+    for item, _rank in candidates:
+        processing = item.processing
+        analysis = processing.analysis if processing else None
+        categories = list(analysis.categories) if analysis else []
+        reliability = processing.reliability.label.value if processing and processing.reliability else None
+        key = item_source_key(item)
+        facets["categories"].update(categories)
+        if reliability:
+            facets["labels"][reliability] += 1
+        facets["sources"][key] += 1
+        if (
+            (category is None or category in categories)
+            and (label is None or reliability == label)
+            and (source is None or key == source)
+        ):
+            matched.append((item, key, reliability, categories))
+
+    page = []
+    for item, key, reliability, categories in matched[offset : offset + limit]:
+        payload = item_payload(item, language)
+        editions = ctx.archive.runs_selecting(item.id)
+        page.append(
+            {
+                "id": item.id,
+                "title": payload["title"],
+                "summary": (payload["summary"] or "")[:320],
+                "score": payload["score"],
+                "reliability": reliability,
+                "categories": categories,
+                "source": key,
+                "source_type": item.source_type.value,
+                "published_at": item.published_at.isoformat(),
+                "edition": editions[0].id if editions else None,  # None: analyzed but never published
+                "edition_at": editions[0].started_at if editions else None,
+                "unanalyzed": payload["score"] is None,
+            }
+        )
+    return HTTPStatus.OK, {
+        "query": " ".join(terms),
+        "terms": terms,
+        "total": len(matched),
+        "offset": offset,
+        "limit": limit,
+        # The best CANDIDATE_CAP matches are considered: say so rather than imply completeness.
+        "truncated": len(candidates) >= CANDIDATE_CAP,
+        "results": page,
+        "facets": {
+            "categories": {name: count for name, count in facets["categories"].items()},
+            "labels": dict(facets["labels"]),
+            "sources": [{"source": name, "count": count} for name, count in facets["sources"].most_common(30)],
+        },
+    }
+
+
 def catalog_payload(ctx: ApiContext, category: Optional[str]) -> Dict[str, Any]:
     entries = recommendations(ctx.catalog, ctx.config, category) if ctx.config is not None else [
         entry for entry in ctx.catalog if category is None or entry.category == category
@@ -447,6 +540,8 @@ def resolve(ctx: ApiContext, path: str, query: Dict[str, List[str]]) -> tuple[in
         if (until - since).days > MAX_PERIOD_DAYS:
             return HTTPStatus.BAD_REQUEST, {"error": f"period longer than {MAX_PERIOD_DAYS} days"}
         return HTTPStatus.OK, period_payload(ctx, since, until, language)
+    if path == "/api/search":
+        return search_payload(ctx, query, language)
     if path == "/api/sources/domains":
         days = _days(query)
         if days is None:

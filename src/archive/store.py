@@ -21,8 +21,9 @@ from typing import Iterable, List, Optional, Sequence
 
 from ..models import ContentItem
 from ..source_health import SourceRunOutcome
+from . import search as fts
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 # last_error of an item left unanalyzed because the AI quota ran out (not a failure).
 AI_SKIPPED_PREFIX = "ai_skipped:"
@@ -161,6 +162,21 @@ class ItemArchive:
                 "INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', ?)",
                 (str(SCHEMA_VERSION),),
             )
+            self.search_available = self._init_search(conn)
+
+    def _init_search(self, conn: sqlite3.Connection) -> bool:
+        """Create the full-text index; index the items already archived the first time.
+
+        Returns False when this SQLite has no FTS5: the archive still works, search is off.
+        """
+        try:
+            conn.execute(fts.FTS_SCHEMA)
+        except sqlite3.OperationalError:
+            return False
+        row = conn.execute("SELECT value FROM meta WHERE key = 'fts_version'").fetchone()
+        if row is None or row["value"] != fts.INDEX_VERSION:
+            fts.rebuild(conn)
+        return True
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path)
@@ -374,6 +390,14 @@ class ItemArchive:
                        selected = MAX(run_items.selected, excluded.selected)""",
                 links,
             )
+            if self.search_available:
+                # Index what is stored (an unanalyzed copy never replaced an analysis above).
+                ids = [row[0] for row in rows]
+                for start in range(0, len(ids), 500):
+                    chunk = ids[start : start + 500]
+                    marks = ",".join("?" * len(chunk))
+                    stored = conn.execute(f"SELECT payload FROM items WHERE id IN ({marks})", chunk).fetchall()
+                    fts.reindex(conn, (ContentItem.model_validate_json(r["payload"]) for r in stored))
 
     def get_item(self, item_id: str) -> Optional[ContentItem]:
         with closing(self._connect()) as conn:
@@ -398,6 +422,22 @@ class ItemArchive:
         with closing(self._connect()) as conn:
             rows = conn.execute("SELECT payload FROM items ORDER BY published_at").fetchall()
         return [ContentItem.model_validate_json(row["payload"]) for row in rows]
+
+    def search(self, terms: Sequence[str], limit: int = fts.CANDIDATE_CAP) -> List[tuple[ContentItem, float]]:
+        """Items matching every word (as a prefix), best match first, with their rank.
+
+        Raises ``RuntimeError`` when the index is unavailable (SQLite without FTS5).
+        """
+        if not self.search_available:
+            raise RuntimeError("full-text search is not available (SQLite without FTS5)")
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                "SELECT items.payload AS payload, bm25(items_fts, 4.0, 1.0) AS rank "
+                "FROM items_fts JOIN items ON items.id = items_fts.item_id WHERE items_fts MATCH ? "
+                "ORDER BY rank, items.published_at DESC LIMIT ?",
+                (fts.match_expression(terms), limit),
+            ).fetchall()
+        return [(ContentItem.model_validate_json(row["payload"]), row["rank"]) for row in rows]
 
     def update_reliability(self, items: Iterable[ContentItem]) -> int:
         """Store a new reliability assessment for items; nothing else changes."""
