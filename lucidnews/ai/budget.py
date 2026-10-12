@@ -24,6 +24,7 @@ class AILimit(str, Enum):
 
     PROVIDER_QUOTA = "provider_quota"  # daily quota, credits or balance used up
     TOKEN_BUDGET = "token_budget"  # ai.max_tokens_per_run reached
+    DISABLED = "disabled"  # ai.enabled is off: the reader chose not to use the AI
 
 
 class QuotaExhausted(RuntimeError):

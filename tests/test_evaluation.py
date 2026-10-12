@@ -3,14 +3,14 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.archive import ItemArchive
-from src.evaluation import Annotation, AnnotationStore, evaluate
-from src.evaluation.cli import main as eval_main
-from src.evaluation.metrics import pipeline_selection_rule
-from src.evaluation.service import EvaluationService, excerpt
-from src.models import ClassificationResult, ContentAnalysis, ContentItem, ProcessingResult, SourceType
-from src.reliability.assess import assess_item
-from src.web_api import ApiContext, resolve, resolve_write
+from lucidnews.archive import ItemArchive
+from lucidnews.evaluation import Annotation, AnnotationStore, evaluate
+from lucidnews.evaluation.cli import main as eval_main
+from lucidnews.evaluation.metrics import pipeline_selection_rule
+from lucidnews.evaluation.service import EvaluationService, excerpt
+from lucidnews.models import ClassificationResult, ContentAnalysis, ContentItem, ProcessingResult, SourceType
+from lucidnews.reliability.assess import assess_item
+from lucidnews.web_api import ApiContext, resolve, resolve_write
 
 NOW = datetime(2026, 10, 6, 12, 0, tzinfo=timezone.utc)
 
@@ -189,8 +189,8 @@ def test_cli_rerun_reanalyzes_annotated_items_with_current_prompts(tmp_path, cap
                 )
             return items
 
-    monkeypatch.setattr("src.ai.analyzer.ContentAnalyzer", FakeAnalyzer)
-    monkeypatch.setattr("src.ai.client.create_ai_client", lambda config: object())
+    monkeypatch.setattr("lucidnews.ai.analyzer.ContentAnalyzer", FakeAnalyzer)
+    monkeypatch.setattr("lucidnews.ai.client.create_ai_client", lambda config: object())
 
     assert eval_main(["--data-dir", str(tmp_path), "--rerun", "--json"]) == 0
     report = json.loads(capsys.readouterr().out)

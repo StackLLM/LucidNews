@@ -45,7 +45,7 @@ export function ItemDetails({ item }: { item: EditionItem }) {
           <button
             type="button"
             onClick={() => query.refetch()}
-            className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 font-semibold text-ink/75 ring-1 ring-ink/10 transition-colors duration-150 hover:text-ink"
+            className="flex items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 font-semibold text-ink/75 ring-1 ring-ink/10 transition-colors duration-150 hover:text-ink"
           >
             <RotateCcw size={13} aria-hidden />
             {t('state.retry')}
@@ -60,7 +60,7 @@ export function ItemDetails({ item }: { item: EditionItem }) {
           href={item.url}
           target="_blank"
           rel="noreferrer noopener"
-          className="group flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-[13.5px] font-semibold text-white shadow-accent transition-all duration-150 ease-soft hover:-translate-y-px hover:bg-accent-deep"
+          className="group flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-[13.5px] font-semibold text-on-fill shadow-accent transition-all duration-150 ease-soft hover:-translate-y-px hover:bg-accent-deep"
         >
           {t('detail.openSource')}
           <ArrowUpRight size={15} aria-hidden className="transition-transform duration-150 ease-soft group-hover:-translate-y-px group-hover:translate-x-px" />
@@ -78,9 +78,7 @@ function Essentials({ item }: { item: ItemDetail }) {
     <dl className="grid gap-3 text-[14px] md:grid-cols-2">
       <div className="rounded-control bg-canvas/70 p-4">
         <dt className="text-[12px] font-bold uppercase tracking-[0.08em] text-faint">{t('detail.claim')}</dt>
-        <dd className="mt-1 font-semibold">
-          {item.claim ? t(`claim.${item.claim.status}` as MessageKey) : t('detail.notAssessed')}
-        </dd>
+        <dd className="mt-1 font-semibold">{item.claim ? t(`claim.${item.claim.status}` as MessageKey) : t('detail.notAssessed')}</dd>
         {item.claim?.evidence && (
           <dd className="mt-2 text-[13px] leading-relaxed text-ink/70">
             <span className="mb-0.5 flex items-center gap-1.5 text-[11.5px] font-semibold text-faint">
@@ -106,9 +104,7 @@ function Essentials({ item }: { item: ItemDetail }) {
             {t(tierKey(reliability.source_tier))}
           </dd>
           <dd className="mt-1 text-[13px] text-muted">
-            {reliability.corroborated_by.length > 0
-              ? t('card.corroboratedBy', { list: reliability.corroborated_by.join(', ') })
-              : t('detail.noCorroboration')}
+            {reliability.corroborated_by.length > 0 ? t('card.corroboratedBy', { list: reliability.corroborated_by.join(', ') }) : t('detail.noCorroboration')}
           </dd>
         </div>
       )}
@@ -118,7 +114,7 @@ function Essentials({ item }: { item: ItemDetail }) {
           <dt className="sr-only">{t('detail.tags')}</dt>
           <dd className="flex flex-wrap gap-1.5">
             {item.tags.map((tag) => (
-              <span key={tag} className="rounded-full bg-white px-2.5 py-1 text-[12px] font-medium text-muted ring-1 ring-ink/[0.06]">
+              <span key={tag} className="rounded-full bg-surface px-2.5 py-1 text-[12px] font-medium text-muted ring-1 ring-ink/[0.06]">
                 #{tag}
               </span>
             ))}

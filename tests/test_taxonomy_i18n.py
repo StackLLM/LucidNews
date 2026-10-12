@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
 
-from src.i18n import LANGUAGES, format_timestamp, messages, target_language_instruction
-from src.models import ContentAnalysis
-from src.taxonomy import (
+from lucidnews.i18n import LANGUAGES, format_timestamp, messages, target_language_instruction
+from lucidnews.models import ContentAnalysis
+from lucidnews.taxonomy import (
     Category,
     Importance,
     category_catalog_text,

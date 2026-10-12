@@ -7,22 +7,24 @@
 
   --color-ink: #0f1530;
   --color-muted: #5b6478;
-  --color-faint: #8a93a6;
+  --color-faint: #667085;
   --color-line: #e6eaef;
   --color-canvas: #f2f6f6;
   --color-surface: #ffffff;
   --color-accent: #4c3fd8;
   --color-accent-deep: #362bb0;
   --color-accent-soft: #eeecfc;
+  /* Text on a filled accent / ink / alert surface (white in the light theme). */
+  --color-on-fill: #ffffff;
 
   --color-confirmed: #0e7c5a;
   --color-reliable: #1f6fb2;
-  --color-unverified: #b26a00;
+  --color-unverified: #9a5b00;
   --color-rumor: #b4233c;
   --color-failing: #c2410c;
 
   /* Chart series (validated with the dataviz palette checker) */
-  --color-series-collected: #9c95ec;
+  --color-series-collected: #8479e3;
   --color-series-selected: #4c3fd8;
 
   --radius-card: 24px;
@@ -78,6 +80,36 @@
   }
 }
 
+/* Dark theme: same tokens, chosen on <html data-theme="dark"> (see lib/theme.tsx).
+   Contrast pairs are checked by src/design/contrast.test.ts. */
+html[data-theme='dark'] {
+  color-scheme: dark;
+  --color-ink: #e9ecf8;
+  --color-muted: #a6b0c6;
+  --color-faint: #8d97ad;
+  --color-line: #262d46;
+  --color-canvas: #0b0f1e;
+  --color-surface: #151b30;
+  --color-accent: #a198f7;
+  --color-accent-deep: #8176ee;
+  --color-accent-soft: #25235a;
+  --color-on-fill: #0b0f1e;
+
+  --color-confirmed: #3fd3a2;
+  --color-reliable: #6db1ea;
+  --color-unverified: #e4a640;
+  --color-rumor: #f47d93;
+  --color-failing: #f28b55;
+
+  --color-series-collected: #6a62cc;
+  --color-series-selected: #a198f7;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 40px -16px rgb(0 0 0 / 0.55);
+  --shadow-card-hover: 0 1px 2px rgb(0 0 0 / 0.35), 0 22px 56px -18px rgb(0 0 0 / 0.7);
+  --shadow-float: 0 24px 64px -24px rgb(0 0 0 / 0.65);
+  --shadow-accent: 0 12px 28px -12px rgb(161 152 247 / 0.35);
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
@@ -87,10 +119,10 @@
     font-feature-settings: 'ss01';
   }
   ::selection {
-    background: rgb(76 63 216 / 0.16);
+    background: color-mix(in oklab, var(--color-accent) 22%, transparent);
   }
   :focus-visible {
-    outline: 3px solid rgb(76 63 216 / 0.35);
+    outline: 3px solid color-mix(in oklab, var(--color-accent) 40%, transparent);
     outline-offset: 2px;
     border-radius: 8px;
   }
@@ -99,7 +131,7 @@
 @layer components {
   /* Floating surfaces only: never under long-form text. */
   .glass {
-    @apply border border-white/70 bg-white/60 shadow-float backdrop-blur-xl backdrop-saturate-150;
+    @apply border border-surface/70 bg-surface/60 shadow-float backdrop-blur-xl backdrop-saturate-150;
   }
 }
 
@@ -153,7 +185,7 @@ html[data-motion='off'] *::after {
 }
 .lucid-calendar .rdp-selected .rdp-day_button {
   background: var(--color-accent);
-  color: white;
+  color: var(--color-on-fill);
   font-weight: 700;
 }
 .lucid-calendar .has-edition:not(.rdp-selected) .rdp-day_button {

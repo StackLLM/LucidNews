@@ -1,6 +1,6 @@
 # Newsletter
 
-Le module `src/newsletter/` pose les fondations d'une plateforme de newsletter tech : abonnés, préférences, plans, sélection personnalisée, plan d'envoi, double confirmation et journal des envois. Les abonnés arrivent par l'écran Préférences, par e-mail (IMAP) ou via le code, et **ne reçoivent rien avant d'avoir confirmé**.
+Le module `lucidnews/newsletter/` pose les fondations d'une plateforme de newsletter tech : abonnés, préférences, plans, sélection personnalisée, plan d'envoi, double confirmation et journal des envois. Les abonnés arrivent par l'écran Préférences, par e-mail (IMAP) ou via le code, et **ne reçoivent rien avant d'avoir confirmé**.
 
 ## Modèle
 
@@ -58,11 +58,11 @@ Dans Préférences, « Voir l'aperçu » montre l'e-mail d'un abonné avec ses p
 
 ## Rendu de l'e-mail
 
-`src/newsletter/render.py` convertit le Markdown du digest en e-mail HTML et texte. Le texte des sources est déjà échappé par le générateur de digest ; tout `<` restant devient littéral. Aucun script, aucune image distante, aucun formulaire.
+`lucidnews/newsletter/render.py` convertit le Markdown du digest en e-mail HTML et texte. Le texte des sources est déjà échappé par le générateur de digest ; tout `<` restant devient littéral. Aucun script, aucune image distante, aucun formulaire.
 
 ## Plans Free / Premium
 
-`src/newsletter/plans.py` contient `PLAN_LIMITS` : nombre maximal de catégories, de sources, d'items, fréquences autorisées. **Les deux plans sont illimités aujourd'hui.** Le jour où l'offre Premium existera, il suffira de modifier cette table : le code d'envoi applique déjà les limites. Il n'y a ni paiement ni paywall.
+`lucidnews/newsletter/plans.py` contient `PLAN_LIMITS` : nombre maximal de catégories, de sources, d'items, fréquences autorisées. **Les deux plans sont illimités aujourd'hui.** Le jour où l'offre Premium existera, il suffira de modifier cette table : le code d'envoi applique déjà les limites. Il n'y a ni paiement ni paywall.
 
 ## Stockage
 
@@ -116,9 +116,9 @@ Avec `email.imap_enabled`, la boîte configurée est relevée à chaque run :
 ## Ajouter un abonné depuis le code
 
 ```python
-from src.newsletter import DigestPreferences
+from lucidnews.newsletter import DigestPreferences
 
-from src.newsletter.db import SubscriberDB
+from lucidnews.newsletter.db import SubscriberDB
 
 db = SubscriberDB("data/newsletter.sqlite3")
 db.add("lecteur@example.com", DigestPreferences(language="fr", categories=["ai", "cybersecurity"], min_importance="high"))  # confirmé d'office : à réserver à vos propres adresses

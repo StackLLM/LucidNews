@@ -1,6 +1,6 @@
 """Reliability data types.
 
-Kept free of imports from ``src.models`` so the core models can embed them.
+Kept free of imports from ``lucidnews.models`` so the core models can embed them.
 """
 
 from enum import Enum

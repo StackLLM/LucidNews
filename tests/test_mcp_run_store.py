@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-import src._file_utils as file_utils
-from src.mcp.run_store import RunStore
+import lucidnews._file_utils as file_utils
+from lucidnews.mcp.run_store import RunStore
 
 
 def test_create_run_writes_meta(tmp_path: Path) -> None:

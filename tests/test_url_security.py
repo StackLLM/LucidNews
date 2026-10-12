@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.url_security import UnsafeURLError, safe_request, validate_public_http_url
+from lucidnews.url_security import UnsafeURLError, safe_request, validate_public_http_url
 
 
 def _run(coro):
@@ -50,7 +50,7 @@ def test_rejects_unsafe_url_forms(url):
 
 def test_rejects_hostname_when_any_resolved_ip_is_private():
     with patch(
-        "src.url_security._resolve_hostname",
+        "lucidnews.url_security._resolve_hostname",
         new=AsyncMock(return_value={"93.184.216.34", "10.0.0.2"}),
     ):
         with pytest.raises(UnsafeURLError, match="10.0.0.2"):
@@ -59,7 +59,7 @@ def test_rejects_hostname_when_any_resolved_ip_is_private():
 
 def test_accepts_public_ipv4_and_ipv6_dns_answers():
     with patch(
-        "src.url_security._resolve_hostname",
+        "lucidnews.url_security._resolve_hostname",
         new=AsyncMock(return_value={"93.184.216.34", "2606:2800:220:1:248:1893:25c8:1946"}),
     ):
         assert _run(validate_public_http_url("https://example.com/hook"))
@@ -74,7 +74,7 @@ def test_redirect_is_validated_before_second_request():
     client.get = AsyncMock(return_value=redirect)
 
     with patch(
-        "src.url_security._resolve_hostname",
+        "lucidnews.url_security._resolve_hostname",
         new=AsyncMock(side_effect=[{"93.184.216.34"}, {"127.0.0.1"}]),
     ):
         with pytest.raises(UnsafeURLError, match="non-public"):
@@ -92,7 +92,7 @@ def test_public_relative_redirect_is_followed():
     client.get = AsyncMock(side_effect=[redirect, success])
 
     with patch(
-        "src.url_security._resolve_hostname",
+        "lucidnews.url_security._resolve_hostname",
         new=AsyncMock(return_value={"93.184.216.34"}),
     ):
         result = _run(safe_request(client, "GET", "https://example.com/start"))

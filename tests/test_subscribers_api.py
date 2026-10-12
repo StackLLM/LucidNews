@@ -5,10 +5,10 @@ from http.server import ThreadingHTTPServer
 
 import pytest
 
-from src.archive import ItemArchive
-from src.newsletter.db import SubscriberDB
-from src.subscribers_api import SubscriberService, source_options, subscriber_id
-from src.web_api import ApiContext, is_loopback, make_handler, resolve, resolve_write
+from lucidnews.archive import ItemArchive
+from lucidnews.newsletter.db import SubscriberDB
+from lucidnews.subscribers_api import SubscriberService, source_options, subscriber_id
+from lucidnews.web_api import ApiContext, is_loopback, make_handler, resolve, resolve_write
 
 CONFIGURED = {
     "rss/LWN.net": "rss",
@@ -160,7 +160,7 @@ class FakeMailer:
         self.confirmations = []
 
     def send_confirmation(self, subscriber):
-        from src.newsletter.provider import SendResult
+        from lucidnews.newsletter.provider import SendResult
 
         self.confirmations.append(subscriber.email)
         return SendResult(self.ok, error=None if self.ok else "Resend 422: invalid address")

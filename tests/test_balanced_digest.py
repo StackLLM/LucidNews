@@ -7,7 +7,7 @@ import pytest
 from pydantic import ValidationError
 from rich.console import Console
 
-from src.models import (
+from lucidnews.models import (
     AIConfig,
     CategoryGroupConfig,
     ClassificationResult,
@@ -21,8 +21,8 @@ from src.models import (
     SourceType,
     SourcesConfig,
 )
-from src.orchestrator import PipelineOrchestrator
-from src.processing import ProfileRegistry
+from lucidnews.orchestrator import PipelineOrchestrator
+from lucidnews.processing import ProfileRegistry
 
 
 def make_item(item_id: str, score: float, category: str | None) -> ContentItem:
@@ -372,8 +372,8 @@ def test_run_balances_after_twitter_reanalysis(tmp_path, monkeypatch) -> None:
 
 
 def test_reliability_exclusions_filter_selected_labels() -> None:
-    from src.models import ReliabilityConfig
-    from src.reliability import ReliabilityAssessment
+    from lucidnews.models import ReliabilityConfig
+    from lucidnews.reliability import ReliabilityAssessment
 
     orchestrator = make_orchestrator(DigestConfig())
     orchestrator.config.reliability = ReliabilityConfig(exclude_labels=["rumor"])
@@ -387,8 +387,8 @@ def test_reliability_exclusions_filter_selected_labels() -> None:
 
 
 def test_topic_dedup_keeps_corroborating_urls_and_upgrades_reliability(monkeypatch) -> None:
-    from src.reliability import ReliabilityAssessment
-    from src.reliability.assess import ReliabilityPolicy
+    from lucidnews.reliability import ReliabilityAssessment
+    from lucidnews.reliability.assess import ReliabilityPolicy
 
     orchestrator = make_orchestrator(DigestConfig())
     orchestrator.reliability_policy = ReliabilityPolicy()
@@ -403,7 +403,7 @@ def test_topic_dedup_keeps_corroborating_urls_and_upgrades_reliability(monkeypat
         async def complete(self, system, user):  # type: ignore[no-untyped-def]
             return '{"duplicates": [[0, 1]]}'
 
-    monkeypatch.setattr("src.orchestrator.create_ai_client", lambda config: FakeClient())
+    monkeypatch.setattr("lucidnews.orchestrator.create_ai_client", lambda config: FakeClient())
     orchestrator.config.ai = None
 
     result = asyncio.run(orchestrator.filter_items([primary, duplicate], apply_balance=False, log=False))

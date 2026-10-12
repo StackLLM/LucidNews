@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
-from src.ai.classifier import ContentClassifier
-from src.models import (
+from lucidnews.ai.classifier import ContentClassifier
+from lucidnews.models import (
     ClassificationResult,
     ContentAnalysis,
     ContentArtifact,
@@ -13,7 +13,7 @@ from src.models import (
     ProcessingResult,
     SourceType,
 )
-from src.processing import ProfileRegistry
+from lucidnews.processing import ProfileRegistry
 
 
 BASE_PROFILES = ProfileRegistry.load(

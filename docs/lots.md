@@ -43,8 +43,9 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 - [Lot 21 — Newsletter : contenu et préférences](#lot-21--newsletter--contenu-et-préférences) ✅
 - [Lot 22 — Newsletter : envoi fiable](#lot-22--newsletter--envoi-fiable) ✅
 - [Lot 23 — Recherche dans l'archive](#lot-23--recherche-dans-larchive) ✅
-- [Lot 24 — Finitions de l'interface](#lot-24--finitions-de-linterface) 📋
-- [Lot 25 — Dette technique](#lot-25--dette-technique) 📋
+- [Lot 24 — Finitions de l'interface](#lot-24--finitions-de-linterface) ✅
+- [Lot 25 — Dette technique](#lot-25--dette-technique) ✅
+- [Lot 25 bis — IA facultative et clés hors de l'interface](#lot-25-bis--ia-facultative-et-clés-hors-de-linterface) ✅
 - [Lot 26 — Comptes et SaaS (phase 4)](#lot-26--comptes-et-saas-phase-4) 📋
 - [Paramètres : où ils vivent](#paramètres--où-ils-vivent-et-comment-ils-sappliquent)
 - [Blocages et décisions en attente](#blocages-et-décisions-en-attente)
@@ -516,7 +517,7 @@ Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ pr
 
 **Vérifié** : 20 tests Python (755 au total) avec un faux pipeline et un faux `launchctl` (aucun appel IA, aucune tâche chargée), dont un `plutil -lint` de la tâche générée ; 6 tests d'interface (58 au total) ; build. Démo réelle sur une copie des données, sans clé IA et sans envoi possible : le run part depuis l'interface, la collecte se fait (31 contenus), l'échec « clé manquante » s'affiche avec son code et son journal ; un second lancement est refusé (409) et un lancement en terminal pendant ce temps aussi (code 75) ; aucune valeur de clé dans les journaux. Téléphone 375 px.
 
-**Pas encore vérifié** : un vrai run avec l'IA lancé depuis l'interface, et une vraie tâche launchd qui se déclenche (accord demandé).
+**Vérifié** : une vraie tâche launchd se déclenche à l'heure prévue et le run aboutit (copie des données, IA désactivée). **Pas encore vérifié** : un vrai run avec l'IA lancé depuis l'interface (accord demandé).
 
 **Corrigé pendant les essais** : étape fausse quand un traceback citait le code ; page élargie à 776 px sur téléphone par les longues lignes du journal ; suivi figé quand l'onglet est en arrière-plan.
 
@@ -626,8 +627,9 @@ Plan revu le 9 octobre 2026 pour intégrer le besoin « interface complète et g
 | ✅ | 21 — Newsletter : contenu et préférences | 20 (fréquence) | Clôturé. |
 | ✅ | 22 — Newsletter : envoi fiable | 21 | Clôturé (fuseau horaire reporté). |
 | ✅ | 23 — Recherche dans l'archive | — | Clôturé. |
-| 1 | 24 — Finitions de l'interface | 15 à 23 | Mode sombre et contrastes, une fois toutes les pages créées. |
-| 2 | 25 — Dette technique | — | Renommage du paquet en fin de chantier, pour ne pas gêner les lots en cours. |
+| ✅ | 24 — Finitions de l'interface | 15 à 23 | Clôturé. |
+| ✅ | 25 — Dette technique | — | Clôturé. |
+| ✅ | 25 bis — IA facultative | — | Clôturé. |
 | 3 | 26 — Comptes et SaaS | 22, 25 | Hors périmètre actuel. |
 | En parallèle | 12 — Annoter au moins 30 news | — | Action humaine ; donne les chiffres de filtrage du lot 19. |
 
@@ -658,33 +660,52 @@ On garde les écrans existants et on n'ajoute qu'**une** page : Réglages.
 
 ## Lot 24 — Finitions de l'interface
 
-📋 Prochain lot. Ancien lot 15.
+✅ Clôturé. Ancien lot 15.
 
 - **Objectif** : finir le rendu premium sur toutes les pages, y compris les nouvelles.
-- **Fonctionnalités** : mode sombre (couleurs déjà prévues) ; contrastes AA vérifiés sur chaque écran ; socle commun allégé (environ 168 Ko compressé aujourd'hui) ; `eslint` et `prettier`.
+- **Réalisé** :
+  - **Mode sombre** : clair par défaut, bouton soleil/lune dans la barre du haut, choix gardé dans le navigateur (`lucidnews.theme`) et appliqué avant le premier affichage (pas de flash). Mêmes jetons de couleur, redéfinis sous `html[data-theme='dark']`. Un jeton `on-fill` donne le texte posé sur un fond plein (blanc en clair, sombre en sombre).
+  - **Contrastes AA** : `src/design/contrast.test.ts` lit les couleurs dans `styles.css` et vérifie 26 paires par thème (texte 4,5 : 1 ; graphiques et focus 3 : 1). Il a révélé trois couleurs claires sous le seuil, corrigées : texte discret, « non vérifié » et série « collectées ».
+  - **Socle allégé** : le moteur d'animation est chargé après le premier affichage (`LazyMotion`). Noyau JS : 184,8 Ko → 146,1 Ko compressés (−21 %).
+  - **Lint et format** : `oxlint` (0 erreur, 3 avertissements voulus : formulaires qui suivent les données du serveur) et `prettier` (largeur 160). Scripts `npm run lint`, `format`, `format:check`. `eslint` n'est pas utilisé : `typescript-eslint` n'accepte pas encore TypeScript 7.
+  - **Barre du haut** : le menu reste en haut dès 1024 px ; espaces resserrés entre 1024 et 1279 px pour que le bouton de thème tienne sans débordement.
 - **Pages** : toutes.
-- **Frontend** : jetons de couleur sombres, contrôle des contrastes, découpage du socle.
 - **Backend** : aucun.
-- **Critères de validation** : chaque page lisible dans les deux thèmes ; aucune erreur de lint ; poids du socle réduit et mesuré.
-- **Tests** : tests existants dans les deux thèmes, contrôle automatique des contrastes.
-- **Dépendances** : lots 15 à 23 (pour couvrir toutes les pages).
-
----
+- **Critères de validation** : chaque page lisible dans les deux thèmes (contrôlées une à une dans le navigateur) ; aucune erreur de lint ; poids du socle mesuré avant et après.
+- **Tests** : 140 tests interface (dont 53 de contraste et 2 de bascule du thème).
+- **Non couvert** : l'aperçu de la newsletter reste volontairement sur fond blanc (c'est le rendu réel de l'e-mail) ; le thème ne suit pas le réglage du système (choix B).
 
 ## Lot 25 — Dette technique
 
-📋 Planifié. Ancien lot 18.
+✅ Clôturé. Ancien lot 18.
 
-- Renommer le paquet Python `src` en `lucidnews` : tous les imports et points d'entrée sont concernés.
-- Découper `orchestrator.py` (environ 1 450 lignes) en étapes : collecte, sélection, envoi.
-- Métadonnées fusionnées entre sources : les auteurs peuvent se mélanger (par exemple « Lobsters » affiché sur une news Hacker News).
-- **Critère** : aucun changement de comportement ; tous les tests passent sans modification de fond.
+- **Paquet renommé** : `src` → `lucidnews` (dossier, imports, points d'entrée `uv run lucidnews-*`, `python -m lucidnews.main`, Dockerfile, documentation). Le paquet construit embarque toujours les profils intégrés (vérifié sur la roue).
+- **Orchestrateur découpé** : `orchestrator.py` passe de 1 620 à 784 lignes. Les étapes vivent dans `lucidnews/pipeline/` : `collect.py` (collecte des sources, fusion des doublons entre sources), `select.py` (seuil, filtre de profil, digest équilibré, news non analysées), `deliver.py` (newsletters et texte du digest). `PipelineOrchestrator` les assemble : mêmes méthodes, même comportement.
+- **Défaut corrigé** : fusionner deux sources sur une même URL ne recopie plus le nom de flux, le dépôt, le sous-reddit, etc. de l'autre source. Une news Hacker News ne s'affiche plus avec « Lobsters ». Les chiffres d'engagement (commentaires, score) restent combinés.
+- **Tests** : 816 (un ajouté pour le défaut). Seul changement dans les tests existants : les noms `src.` deviennent `lucidnews.`, et les doubles de scrapers visent `lucidnews.pipeline.collect` là où le code est maintenant.
+- **Non fait** : `ruff` signale 25 avertissements anciens (non liés) ; aucun outil de format Python n'est imposé par le projet.
+
+---
+
+## Lot 25 bis — IA facultative et clés hors de l'interface
+
+✅ Clôturé. Demande : projet open source, application utilisable sans IA, aucune clé saisie dans l'interface.
+
+- **Clés** : la saisie de clés API est supprimée de l'interface (lot 16). Plus aucune route n'écrit ou supprime une clé : `PUT` et `DELETE /api/secrets/<nom>` répondent 405. `GET /api/secrets` reste, en lecture seule : il dit si la variable est définie, jamais sa valeur. Les clés se fournissent hors de l'interface : `.env`, terminal, secret GitHub (Codespaces, Actions). Documenté dans le README, section « Activer l'analyse IA (facultatif) ».
+- **Case à cocher** « Activer l'analyse par IA » dans Réglages (`ai.enabled`). **Désactivée par défaut** pour une nouvelle configuration. Désactivée : aucun client d'IA n'est créé, aucune clé n'est nécessaire, rien n'est envoyé à un fournisseur ; ni déduplication par sujet, ni enrichissement, ni relecture des réponses X n'appellent l'IA. Le run collecte, fusionne les doublons, applique la fiabilité de l'éditeur et liste les news **sans analyse** (même mécanisme que le quota épuisé, nouvelle raison `disabled`). Les analyses déjà en archive restent réutilisées.
+- **IA activée mais sans clé** : le run ne plante plus. Un avertissement est affiché et le run continue comme « désactivée ».
+- **Interface** : les champs fournisseur, modèle et limites ne s'affichent que si l'IA est activée, avec l'état de la clé (détectée ou non). Les textes « quota épuisé » deviennent « sans analyse IA » quand la raison peut être l'une ou l'autre.
+- **Assistant** (`lucidnews-wizard`) : active l'IA, puisque l'utilisateur vient de choisir un fournisseur.
+- **Vérifié** : run réel sur une copie des données, IA désactivée alors qu'une clé existait dans `.env` : 0 token, 42 news listées sans analyse, run en succès, `ai_limit = disabled`. Même run déclenché par une vraie tâche launchd (voir Blocages).
+- **À savoir** : une configuration existante sans `ai.enabled` passe à « désactivée » ; il suffit de cocher la case.
+- **Défaut du lot 25 corrigé au passage** : un import différé dans `pipeline/collect.py` pointait au mauvais endroit (la collecte échouait dès la première exécution réelle) et une variable `src` avait été renommée par erreur dans `setup/presets.py`. Ajout de `tests/test_package_layout.py` (import de chaque module, résolution de chaque import relatif).
+- **Tests** : 819 Python, 142 interface.
 
 ---
 
 ## Lot 26 — Comptes et SaaS (phase 4)
 
-📋 Planifié, hors périmètre actuel. Ancien lot 17.
+📋  Planifié, hors périmètre actuel. Ancien lot 17.
 
 - Comptes utilisateurs et authentification. Les pages Préférences et Réglages passeront alors d'un usage local à un usage par compte, avec des rôles (administrateur, abonné).
 - Activation des limites de l'offre Free et de l'offre Premium.
@@ -716,12 +737,11 @@ Un paramètre n'est ajouté que s'il est réellement appliqué par le système.
 
 | Sujet | Bloque | Recommandation |
 |---|---|---|
-| Lots 22 et 23 à commiter | Rien, mais à faire avant le lot 24 | Commiter avec les messages préparés. |
 | Clé Resend et service public en HTTPS | La preuve « un vrai e-mail part et ses liens marchent » | Accord demandé : clé Resend, domaine d'envoi vérifié, adresse publique du service. |
 | Fuseau horaire du lecteur | Rien | Reporté : demande une tâche d'envoi fréquente. Recommandation : lot 22 bis seulement si des lecteurs sont dans d'autres fuseaux. |
 | Envoi SMTP réel | La preuve « l'e-mail arrive tel qu'il est prévisualisé » | Accord demandé : un envoi de test vers une adresse à toi, avec un compte SMTP configuré (aucun aujourd'hui). |
 | Vrai run IA lancé depuis l'interface | La preuve « même édition qu'en terminal » | Accord demandé : un run sur une copie des données, avec la clé IA. |
-| Vraie tâche launchd | La preuve « la planification déclenche réellement un run » | Accord demandé : tâche de test chargée quelques minutes puis retirée. |
+| Vraie tâche launchd | — | Fait : tâche de test chargée sur une copie des données, déclenchée à l'heure prévue, run en succès (IA désactivée, 0 token), puis retirée (aucun agent restant). |
 | Annotations du lot 12 | Les chiffres de filtrage du lot 19 (affichés « échantillon insuffisant » d'ici là) | Annoter au fil de l'eau. |
 | Domaines personnalisés au-delà des 12 catégories | Tranché : les 12 catégories (lot 18) | — |
 | Méthode de planification des runs | Tranché : tâche système launchd générée par l'interface (lot 20) | — |

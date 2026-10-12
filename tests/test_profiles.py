@@ -5,9 +5,9 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-import src.processing.profiles as profile_module
-from src.models import ProcessingConfig, ProfileSettingsConfig
-from src.processing import ProfileRegistry
+import lucidnews.processing.profiles as profile_module
+from lucidnews.models import ProcessingConfig, ProfileSettingsConfig
+from lucidnews.processing import ProfileRegistry
 
 
 def test_loads_builtin_profiles():

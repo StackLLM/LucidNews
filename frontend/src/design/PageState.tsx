@@ -1,5 +1,5 @@
 import { RefreshCw, ServerOff } from 'lucide-react'
-import { motion } from 'motion/react'
+import { m } from 'motion/react'
 import type { ReactNode } from 'react'
 import { ApiError } from '../lib/api'
 import { useLanguage } from '../lib/i18n'
@@ -7,13 +7,13 @@ import { riseIn } from '../lib/motion'
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle: string; actions?: ReactNode }) {
   return (
-    <motion.header variants={riseIn} className="flex flex-wrap items-end justify-between gap-4 px-1">
+    <m.header variants={riseIn} className="flex flex-wrap items-end justify-between gap-4 px-1">
       <div>
         <h1 className="font-serif text-[34px] leading-[1.1] font-medium tracking-[-0.01em] sm:text-[40px]">{title}</h1>
         <p className="mt-1.5 text-[15px] text-muted">{subtitle}</p>
       </div>
       {actions}
-    </motion.header>
+    </m.header>
   )
 }
 
@@ -36,7 +36,7 @@ export function ApiErrorCard({ error, onRetry, notFound }: { error: Error; onRet
       <button
         type="button"
         onClick={onRetry}
-        className="mt-6 inline-flex items-center gap-2 rounded-control bg-accent px-5 py-2.5 text-sm font-semibold text-white shadow-accent transition-all duration-150 ease-soft hover:-translate-y-0.5 hover:bg-accent-deep active:translate-y-0 active:scale-[0.98]"
+        className="mt-6 inline-flex items-center gap-2 rounded-control bg-accent px-5 py-2.5 text-sm font-semibold text-on-fill shadow-accent transition-all duration-150 ease-soft hover:-translate-y-0.5 hover:bg-accent-deep active:translate-y-0 active:scale-[0.98]"
       >
         <RefreshCw size={15} aria-hidden />
         {t('state.retry')}
@@ -50,9 +50,9 @@ export function PageSkeleton({ blocks = 3 }: { blocks?: number }) {
   return (
     <div role="status" aria-live="polite" className="space-y-6">
       <span className="sr-only">{t('page.loading')}</span>
-      <div className="h-16 w-72 animate-shimmer rounded-card bg-white/60" />
+      <div className="h-16 w-72 animate-shimmer rounded-card bg-surface/60" />
       {Array.from({ length: blocks }, (_, index) => (
-        <div key={index} className="h-48 animate-shimmer rounded-card bg-white/80 shadow-card" />
+        <div key={index} className="h-48 animate-shimmer rounded-card bg-surface/80 shadow-card" />
       ))}
     </div>
   )
@@ -73,17 +73,17 @@ export function Segmented<T extends string | number>({
   id: string
 }) {
   return (
-    <div role="group" aria-label={label} className="inline-flex max-w-full flex-wrap gap-1 rounded-full bg-white/70 p-1 shadow-card ring-1 ring-ink/[0.04]">
+    <div role="group" aria-label={label} className="inline-flex max-w-full flex-wrap gap-1 rounded-full bg-surface/70 p-1 shadow-card ring-1 ring-ink/[0.04]">
       {options.map((option) => (
         <button
           key={String(option.value)}
           type="button"
           aria-pressed={option.value === value}
           onClick={() => onChange(option.value)}
-          className="relative rounded-full px-3.5 py-1.5 text-[13px] font-semibold text-muted transition-colors duration-150 hover:text-ink aria-pressed:text-white"
+          className="relative rounded-full px-3.5 py-1.5 text-[13px] font-semibold text-muted transition-colors duration-150 hover:text-ink aria-pressed:text-on-fill"
         >
           {option.value === value && (
-            <motion.span
+            <m.span
               layoutId={`segmented-${id}`}
               transition={{ type: 'spring', stiffness: 380, damping: 32 }}
               className="absolute inset-0 rounded-full bg-ink"

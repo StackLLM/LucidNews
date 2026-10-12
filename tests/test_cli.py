@@ -2,7 +2,7 @@ import argparse
 
 import pytest
 
-from src._cli import add_data_dir_arguments, add_log_level_argument
+from lucidnews._cli import add_data_dir_arguments, add_log_level_argument
 
 
 def _parser(*builders) -> argparse.ArgumentParser:

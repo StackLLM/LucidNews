@@ -28,7 +28,15 @@ export function highlight(text: string, terms: string[]): ReactNode {
     let end = index
     while (end < characters.length && marked[end] === marked[index]) end += 1
     const piece = characters.slice(index, end).join('')
-    parts.push(marked[index] ? <mark key={index} className="rounded-sm bg-accent/15 px-0.5 text-inherit">{piece}</mark> : piece)
+    parts.push(
+      marked[index] ? (
+        <mark key={index} className="rounded-sm bg-accent/15 px-0.5 text-inherit">
+          {piece}
+        </mark>
+      ) : (
+        piece
+      ),
+    )
     index = end
   }
   return parts

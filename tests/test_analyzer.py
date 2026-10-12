@@ -5,11 +5,11 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-import src.ai.analyzer as analyzer_module
-from src.ai.analyzer import ContentAnalyzer
-from src.ai.prompting.analysis import analysis_system_prompt
-from src.models import ContentArtifact, ContentItem, SourceType
-from src.processing import ProfileRegistry
+import lucidnews.ai.analyzer as analyzer_module
+from lucidnews.ai.analyzer import ContentAnalyzer
+from lucidnews.ai.prompting.analysis import analysis_system_prompt
+from lucidnews.models import ContentArtifact, ContentItem, SourceType
+from lucidnews.processing import ProfileRegistry
 
 
 PROFILES = ProfileRegistry.load(

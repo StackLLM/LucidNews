@@ -3,8 +3,8 @@
 import asyncio
 from datetime import datetime, timezone
 
-from src.ai.summarizer import DailySummarizer
-from src.models import (
+from lucidnews.ai.summarizer import DailySummarizer
+from lucidnews.models import (
     ArtifactSource,
     ClassificationResult,
     ContentAnalysis,
@@ -485,7 +485,7 @@ def test_generate_summary_preserves_normal_http_links():
 
 
 def test_generate_summary_flags_unconfirmed_items_and_localizes_reliability():
-    from src.reliability import ReliabilityAssessment
+    from lucidnews.reliability import ReliabilityAssessment
 
     summarizer = DailySummarizer()
     confirmed = _make_item(1)
@@ -507,7 +507,7 @@ def test_generate_summary_flags_unconfirmed_items_and_localizes_reliability():
 
 
 def test_reliability_line_mentions_corroboration_in_each_language():
-    from src.reliability import ReliabilityAssessment
+    from lucidnews.reliability import ReliabilityAssessment
 
     summarizer = DailySummarizer()
     item = _make_item(1)

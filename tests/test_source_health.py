@@ -7,11 +7,11 @@ from types import SimpleNamespace
 import httpx
 from rich.console import Console
 
-from src.archive import ItemArchive
-from src.models import Config, ContentItem, RSSSourceConfig, SourceType
-from src.orchestrator import FetchReport, PipelineOrchestrator, SourceFetchOutcome
-from src.scrapers.rss import RSSScraper
-from src.source_health import (
+from lucidnews.archive import ItemArchive
+from lucidnews.models import Config, ContentItem, RSSSourceConfig, SourceType
+from lucidnews.orchestrator import FetchReport, PipelineOrchestrator, SourceFetchOutcome
+from lucidnews.scrapers.rss import RSSScraper
+from lucidnews.source_health import (
     HealthStatus,
     SourceRunOutcome,
     assess_health,
@@ -19,7 +19,7 @@ from src.source_health import (
     configured_source_keys,
     source_key,
 )
-from src.sources_cli import main as sources_main
+from lucidnews.sources_cli import main as sources_main
 
 NOW = datetime(2026, 10, 6, 12, 0, tzinfo=timezone.utc)
 

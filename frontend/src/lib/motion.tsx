@@ -1,7 +1,10 @@
-import { MotionConfig, type Transition, type Variants } from 'motion/react'
+import { LazyMotion, MotionConfig, type Transition, type Variants } from 'motion/react'
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 const STORAGE_KEY = 'lucidnews.motion'
+
+// The animation engine (layout animations included) is fetched after the first paint, not shipped in the core bundle.
+const loadFeatures = () => import('./motionFeatures').then((module) => module.default)
 
 export const easeSoft = [0.22, 1, 0.36, 1] as const
 
@@ -60,7 +63,9 @@ export function MotionProvider({ children }: { children: ReactNode }) {
 
   return (
     <MotionContext.Provider value={value}>
-      <MotionConfig reducedMotion={enabled ? 'never' : 'always'}>{children}</MotionConfig>
+      <LazyMotion features={loadFeatures} strict>
+        <MotionConfig reducedMotion={enabled ? 'never' : 'always'}>{children}</MotionConfig>
+      </LazyMotion>
     </MotionContext.Provider>
   )
 }

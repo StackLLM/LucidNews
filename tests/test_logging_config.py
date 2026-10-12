@@ -2,7 +2,7 @@ import logging
 
 from rich.console import Console
 
-from src.logging_config import configure_logging
+from lucidnews.logging_config import configure_logging
 
 
 def test_configure_logging_forces_shared_console(monkeypatch):

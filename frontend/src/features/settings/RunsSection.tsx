@@ -91,12 +91,7 @@ function RunCard() {
           </h3>
           <p className="mt-1 text-[13px] text-muted">{t('runs.costHint')}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => start.mutate()}
-          disabled={running || start.isPending || current.isPending}
-          className={primaryButton}
-        >
+        <button type="button" onClick={() => start.mutate()} disabled={running || start.isPending || current.isPending} className={primaryButton}>
           {running || start.isPending ? <Loader2 size={15} aria-hidden className="animate-spin" /> : <Play size={15} aria-hidden />}
           {start.isPending ? t('runs.starting') : t('runs.start')}
         </button>
@@ -114,7 +109,10 @@ function RunCard() {
           <summary className="cursor-pointer px-3.5 py-2.5 text-[13px] font-semibold text-ink/80">
             {t('runs.log')} <span className="font-normal text-muted">· {t('runs.logHint')}</span>
           </summary>
-          <pre ref={logRef} className="max-h-64 overflow-auto px-3.5 pb-3 font-mono text-[11.5px] leading-relaxed whitespace-pre-wrap text-ink/80 [overflow-wrap:anywhere]">
+          <pre
+            ref={logRef}
+            className="max-h-64 overflow-auto px-3.5 pb-3 font-mono text-[11.5px] leading-relaxed whitespace-pre-wrap text-ink/80 [overflow-wrap:anywhere]"
+          >
             {data.log}
           </pre>
         </details>
@@ -167,7 +165,7 @@ function Steps({ data }: { data: RunCurrent }) {
         const done = index < reached || (index === reached && (step === 'done' || (!data.running && !failed)))
         const active = data.running && index === reached
         const tone = active
-          ? 'bg-accent text-white'
+          ? 'bg-accent text-on-fill'
           : done
             ? 'bg-confirmed/10 text-confirmed'
             : failed && index === reached
@@ -273,7 +271,7 @@ function ScheduleCard() {
                       aria-pressed={on}
                       onClick={() => setDays((current) => (on ? current.filter((value) => value !== day) : [...current, day]))}
                       className={`h-9 min-w-11 rounded-full px-2 text-[12.5px] font-semibold transition-colors duration-150 disabled:opacity-50 ${
-                        on ? 'bg-ink text-white' : 'bg-canvas text-ink/70 hover:bg-accent-soft'
+                        on ? 'bg-ink text-on-fill' : 'bg-canvas text-ink/70 hover:bg-accent-soft'
                       }`}
                     >
                       {t(`schedule.day.${day}` as MessageKey)}
@@ -362,9 +360,7 @@ function HistoryRow({ run, language }: { run: HistoryRun; language: Language }) 
       >
         {KNOWN_STATUSES.includes(run.status) ? t(statusKey) : run.status}
       </span>
-      <span className="text-muted tabular-nums">
-        {t('runs.counts', { fetched: run.fetched_count, selected: run.selected_count })}
-      </span>
+      <span className="text-muted tabular-nums">{t('runs.counts', { fetched: run.fetched_count, selected: run.selected_count })}</span>
       {run.ai_limit && <span className="text-[12.5px] text-unverified">{t(`runs.aiLimit.${run.ai_limit}` as MessageKey)}</span>}
       {run.status === 'success' && run.selected_count > 0 && (
         <Link to={`/editions/${run.id}?lang=${language}`} className="ml-auto text-[13px] font-semibold text-accent hover:underline">

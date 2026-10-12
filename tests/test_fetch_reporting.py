@@ -9,8 +9,8 @@ from unittest.mock import AsyncMock
 import pytest
 from rich.console import Console
 
-from src.models import ContentItem, SourceType
-from src.orchestrator import FetchReport, PipelineOrchestrator, SourceFetchOutcome
+from lucidnews.models import ContentItem, SourceType
+from lucidnews.orchestrator import FetchReport, PipelineOrchestrator, SourceFetchOutcome
 
 
 SINCE = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -69,7 +69,7 @@ def test_all_success_empty_has_normal_success_report(monkeypatch) -> None:
         sources=make_sources(github=[object()]), extractors={}
     )
     monkeypatch.setattr(
-        "src.orchestrator.GitHubScraper",
+        "lucidnews.pipeline.collect.GitHubScraper",
         lambda config, client: StubScraper(),
     )
 
@@ -92,11 +92,11 @@ def test_partial_failure_keeps_items_and_source_names(monkeypatch) -> None:
         extractors={},
     )
     monkeypatch.setattr(
-        "src.orchestrator.GitHubScraper",
+        "lucidnews.pipeline.collect.GitHubScraper",
         lambda config, client: StubScraper([kept]),
     )
     monkeypatch.setattr(
-        "src.orchestrator.HackerNewsScraper",
+        "lucidnews.pipeline.collect.HackerNewsScraper",
         lambda config, client: StubScraper(error=ValueError("unavailable")),
     )
 

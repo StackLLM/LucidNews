@@ -15,19 +15,14 @@ export function PlanCard({ plans, current }: { plans: PreferenceOptions['plans']
           const unlimited = plan.max_categories === null && plan.max_sources === null && plan.max_items === null
           const isCurrent = plan.id === current
           return (
-            <li
-              key={plan.id}
-              className={`rounded-control p-3.5 ${isCurrent ? 'bg-white shadow-card ring-1 ring-accent/25' : 'bg-white/50'}`}
-            >
+            <li key={plan.id} className={`rounded-control p-3.5 ${isCurrent ? 'bg-surface shadow-card ring-1 ring-accent/25' : 'bg-surface/50'}`}>
               <p className="flex items-center gap-1.5 text-[14px] font-bold">
                 {plan.id === 'premium' && <Crown size={14} className="text-unverified" aria-hidden />}
                 {t(`prefs.plan.${plan.id}` as MessageKey)}
               </p>
               <p className="mt-1 text-[12px] leading-snug text-muted">{unlimited ? t('prefs.unlimited') : '—'}</p>
               {isCurrent && (
-                <span className="mt-2 inline-block rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent">
-                  {t('prefs.current')}
-                </span>
+                <span className="mt-2 inline-block rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent">{t('prefs.current')}</span>
               )}
             </li>
           )

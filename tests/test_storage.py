@@ -4,9 +4,9 @@ from typing import cast
 
 import pytest
 from pathlib import Path
-import src._file_utils as file_utils
-from src.storage.manager import StorageManager, ConfigError, _expand_env_vars, safe_output_path
-from src.models import AIConfig, Config
+import lucidnews._file_utils as file_utils
+from lucidnews.storage.manager import StorageManager, ConfigError, _expand_env_vars, safe_output_path
+from lucidnews.models import AIConfig, Config
 from pydantic import ValidationError
 
 def test_load_config_missing_file(tmp_path):
@@ -216,8 +216,8 @@ def test_save_daily_summary_replace_failure_preserves_destination(tmp_path, monk
 
 
 def test_legacy_subscriber_file_write_failure_preserves_destination(tmp_path, monkeypatch):
-    from src.newsletter.models import Subscriber
-    from src.newsletter.store import SubscriberStore
+    from lucidnews.newsletter.models import Subscriber
+    from lucidnews.newsletter.store import SubscriberStore
 
     store = SubscriberStore(tmp_path / "subscribers.json")
 

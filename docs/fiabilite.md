@@ -22,7 +22,7 @@ Règles de résolution :
 - Le domaine le plus spécifique gagne : `lilianweng.github.io` (reconnu) l'emporte sur `github.io` (communautaire).
 - `github.com/<owner>/<repo>/releases/...` est `official` : c'est une publication du projet lui-même.
 - Un **compte de réseau social enregistré** l'emporte sur la plateforme (voir ci-dessous).
-- Ordre de priorité : `trust` du flux RSS > comptes (`reliability.accounts`, puis registre) > `reliability.domains` de la config > registre intégré des domaines (`src/reliability/registry.py`).
+- Ordre de priorité : `trust` du flux RSS > comptes (`reliability.accounts`, puis registre) > `reliability.domains` de la config > registre intégré des domaines (`lucidnews/reliability/registry.py`).
 
 ### Comptes de réseaux sociaux
 
@@ -55,7 +55,7 @@ Journal du hacker, Korben).
 
 ## 2. Statut de l'affirmation (`ClaimStatus`)
 
-L'IA applique ces définitions (voir `src/ai/prompting/analysis.py`) :
+L'IA applique ces définitions (voir `lucidnews/ai/prompting/analysis.py`) :
 
 | Statut | Signification |
 |---|---|

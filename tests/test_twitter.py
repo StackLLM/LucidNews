@@ -6,9 +6,9 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 
-from src.models import TwitterConfig
-from src.scrapers.twitter import TwitterScraper
-from src.scrapers.twitter_playwright import TwitterPlaywrightScraper
+from lucidnews.models import TwitterConfig
+from lucidnews.scrapers.twitter import TwitterScraper
+from lucidnews.scrapers.twitter_playwright import TwitterPlaywrightScraper
 
 
 def _make_config(**kwargs) -> TwitterConfig:
@@ -545,7 +545,7 @@ def test_fetch_replies_appends_top_comments(monkeypatch):
     )
     scraper = TwitterScraper(cfg, client)
 
-    from src.models import ContentItem, SourceType
+    from lucidnews.models import ContentItem, SourceType
     from datetime import datetime, timezone
 
     item = ContentItem(
@@ -572,7 +572,7 @@ def test_fetch_replies_appends_top_comments(monkeypatch):
 
 
 def test_append_discussion_content_adds_marker():
-    from src.models import ContentItem, SourceType
+    from lucidnews.models import ContentItem, SourceType
 
     item = ContentItem(
         id="twitter:tweet:1",
@@ -591,7 +591,7 @@ def test_append_discussion_content_adds_marker():
 
 
 def test_append_discussion_content_empty_lines_no_change():
-    from src.models import ContentItem, SourceType
+    from lucidnews.models import ContentItem, SourceType
 
     item = ContentItem(
         id="twitter:tweet:2",
@@ -615,7 +615,7 @@ def test_fetch_replies_no_conversation_id_returns_empty(monkeypatch):
     cfg = _make_config(fetch_reply_text=True)
     scraper = TwitterScraper(cfg, client)
 
-    from src.models import ContentItem, SourceType
+    from lucidnews.models import ContentItem, SourceType
 
     item = ContentItem(
         id="twitter:tweet:x",

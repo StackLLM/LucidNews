@@ -1,8 +1,8 @@
 import asyncio
 import time
 
-from src.ai.client import RateLimitedClient, RequestRateLimiter, create_ai_client
-from src.models import AIConfig
+from lucidnews.ai.client import RateLimitedClient, RequestRateLimiter, create_ai_client
+from lucidnews.models import AIConfig
 
 
 def test_limiter_spaces_requests_evenly() -> None:

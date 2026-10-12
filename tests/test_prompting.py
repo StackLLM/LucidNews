@@ -1,20 +1,20 @@
 from pathlib import Path
 from datetime import datetime, timezone
 
-from src.ai.prompting.enrichment import (
+from lucidnews.ai.prompting.enrichment import (
     artifact_prompt,
     block_prompt,
     item_context,
     tool_planning_prompt,
 )
-from src.models import (
+from lucidnews.models import (
     ClassificationResult,
     ContentAnalysis,
     ContentItem,
     ProcessingResult,
     SourceType,
 )
-from src.processing import ProfileRegistry
+from lucidnews.processing import ProfileRegistry
 
 
 PROFILES = ProfileRegistry.load(

@@ -45,7 +45,7 @@ Using a type name directly (e.g. `"content_extractor": "trafilatura"`) also work
 
 ### `trafilatura`
 
-**File**: `src/extractors/trafilatura.py`
+**File**: `lucidnews/extractors/trafilatura.py`
 
 Uses the [trafilatura](https://trafilatura.readthedocs.io/) library to extract main article text from HTML. It is included in the base install for both local and Docker deployments. Enable it per RSS source with `content_extractor`; no extra dependency is needed.
 
@@ -63,10 +63,10 @@ Uses the [trafilatura](https://trafilatura.readthedocs.io/) library to extract m
 
 ## Adding a new extractor type
 
-1. Add an entry to `ExtractorType` in `src/models.py`.
+1. Add an entry to `ExtractorType` in `lucidnews/models.py`.
 2. Add a config class (e.g. `MyExtractorConfig`) with `type: Literal[ExtractorType.MY_TYPE]`.
-3. Add the new config to the `ExtractorConfig` union in `src/models.py`.
-4. Implement the class in `src/extractors/my_extractor.py`, subclassing `BaseExtractor`.
-5. Export it from `src/extractors/__init__.py`.
-6. Add a `case MyExtractorConfig()` branch in `_build()` in `src/extractors/registry.py`.
-7. Add a default entry to `_DEFAULTS` in `src/extractors/registry.py`.
+3. Add the new config to the `ExtractorConfig` union in `lucidnews/models.py`.
+4. Implement the class in `lucidnews/extractors/my_extractor.py`, subclassing `BaseExtractor`.
+5. Export it from `lucidnews/extractors/__init__.py`.
+6. Add a `case MyExtractorConfig()` branch in `_build()` in `lucidnews/extractors/registry.py`.
+7. Add a default entry to `_DEFAULTS` in `lucidnews/extractors/registry.py`.

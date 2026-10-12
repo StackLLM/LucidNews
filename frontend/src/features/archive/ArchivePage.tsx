@@ -1,7 +1,7 @@
 import 'react-day-picker/style.css'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowRight, Clock, Hourglass } from 'lucide-react'
-import { motion } from 'motion/react'
+import { m } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { DayPicker } from 'react-day-picker'
 import { enGB, fr } from 'react-day-picker/locale'
@@ -36,28 +36,22 @@ function ArchiveView({ runs }: { runs: Run[] }) {
   }, [runs])
   const editionDays = useMemo(() => runs.map((run) => new Date(run.started_at)), [runs])
 
-  const visibleDays = selectedDay
-    ? [...byDay.entries()].filter(([key]) => key === dayKey(selectedDay))
-    : [...byDay.entries()]
+  const visibleDays = selectedDay ? [...byDay.entries()].filter(([key]) => key === dayKey(selectedDay)) : [...byDay.entries()]
 
   return (
-    <motion.div variants={listStagger} initial={enabled ? 'hidden' : false} animate="visible" className="space-y-8">
+    <m.div variants={listStagger} initial={enabled ? 'hidden' : false} animate="visible" className="space-y-8">
       <PageHeader title={t('archive.title')} subtitle={t('archive.subtitle')} />
 
-      <motion.div variants={riseIn}>
+      <m.div variants={riseIn}>
         {/* Keyed by the address's query: Back and Clear reset the field. */}
         <SearchBar key={search.q} state={search} />
-      </motion.div>
+      </m.div>
 
       {search.q ? (
         <SearchResults state={search} />
       ) : (
         <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)] lg:gap-8">
-          <motion.section
-            variants={riseIn}
-            aria-label={t('archive.calendar')}
-            className="glass self-start rounded-card p-5 lg:sticky lg:top-28"
-          >
+          <m.section variants={riseIn} aria-label={t('archive.calendar')} className="glass self-start rounded-card p-5 lg:sticky lg:top-28">
             <DayPicker
               className="lucid-calendar mx-auto w-fit"
               mode="single"
@@ -76,38 +70,35 @@ function ArchiveView({ runs }: { runs: Run[] }) {
                 <button
                   type="button"
                   onClick={() => setSelectedDay(undefined)}
-                  className="rounded-full bg-accent-soft px-3 py-1 font-semibold text-accent transition-colors duration-150 hover:bg-accent hover:text-white"
+                  className="rounded-full bg-accent-soft px-3 py-1 font-semibold text-accent transition-colors duration-150 hover:bg-accent hover:text-on-fill"
                 >
                   {t('archive.showAll')}
                 </button>
-            )}
-          </div>
-        </motion.section>
+              )}
+            </div>
+          </m.section>
 
-        <div className="min-w-0 space-y-8">
-          {runs.length === 0 && <p className="text-muted">{t('archive.empty')}</p>}
-          {visibleDays.map(([key, dayRuns]) => (
-            <motion.section key={key} variants={riseIn} aria-labelledby={`day-${key}`} className="space-y-3">
-              <h2
-                id={`day-${key}`}
-                className="flex items-center gap-3 px-1 text-[13px] font-bold uppercase tracking-[0.1em] text-muted"
-              >
-                {capitalize(formatEditionDate(dayRuns[0].started_at, language))}
-                <span className="h-px flex-1 bg-ink/10" />
-              </h2>
-              <ul className="space-y-3">
-                {dayRuns.map((run) => (
-                  <li key={run.id}>
-                    <EditionRow run={run} />
-                  </li>
-                ))}
-              </ul>
-            </motion.section>
-          ))}
+          <div className="min-w-0 space-y-8">
+            {runs.length === 0 && <p className="text-muted">{t('archive.empty')}</p>}
+            {visibleDays.map(([key, dayRuns]) => (
+              <m.section key={key} variants={riseIn} aria-labelledby={`day-${key}`} className="space-y-3">
+                <h2 id={`day-${key}`} className="flex items-center gap-3 px-1 text-[13px] font-bold uppercase tracking-[0.1em] text-muted">
+                  {capitalize(formatEditionDate(dayRuns[0].started_at, language))}
+                  <span className="h-px flex-1 bg-ink/10" />
+                </h2>
+                <ul className="space-y-3">
+                  {dayRuns.map((run) => (
+                    <li key={run.id}>
+                      <EditionRow run={run} />
+                    </li>
+                  ))}
+                </ul>
+              </m.section>
+            ))}
+          </div>
         </div>
-      </div>
       )}
-    </motion.div>
+    </m.div>
   )
 }
 
@@ -143,11 +134,7 @@ function EditionRow({ run }: { run: Run }) {
       </div>
       <span className="flex items-center gap-1.5 text-[13px] font-semibold text-accent">
         <span className="hidden sm:inline">{t('archive.open')}</span>
-        <ArrowRight
-          size={16}
-          aria-hidden
-          className="transition-transform duration-150 ease-soft group-hover:translate-x-0.5"
-        />
+        <ArrowRight size={16} aria-hidden className="transition-transform duration-150 ease-soft group-hover:translate-x-0.5" />
       </span>
     </Link>
   )

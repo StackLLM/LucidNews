@@ -1,22 +1,27 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, RotateCcw, Save } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, m } from 'motion/react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Controller, useForm, type Path } from 'react-hook-form'
 import { z } from 'zod'
 import { Chip } from '../../design/Chip'
 import { errorClass, Field, ghostButton, hintClass, inputClass, labelClass, primaryButton } from '../../design/Field'
 import { Switch } from '../../design/Switch'
-import { ApiError, reliabilityLabels, saveSettings, type Settings, type SettingsValues } from '../../lib/api'
+import { ApiError, reliabilityLabels, saveSettings, type Secret, type Settings, type SettingsValues } from '../../lib/api'
 import { labelKey, useLanguage, type MessageKey } from '../../lib/i18n'
 
 const int = (min: number, max: number) =>
-  z.number({ error: 'settings.errNumber' }).int({ error: 'settings.errNumber' }).min(min, { error: 'settings.errNumber' }).max(max, { error: 'settings.errNumber' })
+  z
+    .number({ error: 'settings.errNumber' })
+    .int({ error: 'settings.errNumber' })
+    .min(min, { error: 'settings.errNumber' })
+    .max(max, { error: 'settings.errNumber' })
 
-// Mirrors the server rules (src/models.py); the server checks again on save.
+// Mirrors the server rules (lucidnews/models.py); the server checks again on save.
 const schema = z.object({
   ai: z.object({
+    enabled: z.boolean(),
     provider: z.string(),
     model: z.string().trim().min(1, { error: 'settings.errRequired' }),
     api_key_env: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]{0,99}$/, { error: 'settings.errVariable' }),
@@ -47,7 +52,7 @@ const schema = z.object({
 
 const asNumber = (value: unknown) => (value === '' || value === null || value === undefined ? null : Number(value))
 
-export function SettingsForm({ settings, onConflict }: { settings: Settings; onConflict: () => void }) {
+export function SettingsForm({ settings, secrets, onConflict }: { settings: Settings; secrets: Secret[] | undefined; onConflict: () => void }) {
   const { language, t } = useLanguage()
   const queryClient = useQueryClient()
   const [saved, setSaved] = useState(false)
@@ -92,8 +97,7 @@ export function SettingsForm({ settings, onConflict }: { settings: Settings; onC
 
   const message = (path: string): string | undefined => {
     const error = path.split('.').reduce<unknown>((node, key) => (node as Record<string, unknown> | undefined)?.[key], errors) as
-      | { message?: string }
-      | undefined
+      { message?: string } | undefined
     if (!error?.message) return undefined
     return error.message.startsWith('settings.') ? t(error.message as MessageKey) : error.message
   }
@@ -120,55 +124,90 @@ export function SettingsForm({ settings, onConflict }: { settings: Settings; onC
       shouldValidate: true,
     })
   }
+  const aiEnabled = form.watch('ai.enabled')
+  const savedKey = secrets?.find((secret) => secret.name === settings.values.ai.api_key_env)
   const languagesValue = form.watch('ai.languages')
   const excludedValue = form.watch('reliability.exclude_labels')
 
   return (
     <form onSubmit={form.handleSubmit((values) => save.mutate(values))} className="space-y-6" noValidate>
       <Section title={t('settings.ai')}>
-        <Field label={t('settings.provider')} locked={locked.has('ai.provider')}>
-          {(id) => (
-            <select
-              id={id}
-              disabled={locked.has('ai.provider')}
-              {...form.register('ai.provider', {
-                onChange: (event) => {
-                  // A new provider starts from its usual model and key variable.
-                  const provider = options.providers.find((entry) => entry.id === event.target.value)
-                  if (!provider) return
-                  if (!locked.has('ai.model')) form.setValue('ai.model', provider.model, { shouldDirty: true, shouldValidate: true })
-                  if (!locked.has('ai.api_key_env') && provider.api_key_env)
-                    form.setValue('ai.api_key_env', provider.api_key_env, { shouldDirty: true, shouldValidate: true })
-                },
-              })}
-              className={inputClass}
-            >
-              {options.providers.map((provider) => (
-                <option key={provider.id} value={provider.id}>
-                  {provider.id}
-                </option>
-              ))}
-            </select>
-          )}
-        </Field>
-        <Field label={t('settings.model')} error={message('ai.model')} locked={locked.has('ai.model')}>
-          {(id) => <input id={id} disabled={locked.has('ai.model')} {...form.register('ai.model')} className={inputClass} />}
-        </Field>
-        <Field label={t('settings.apiKeyEnv')} hint={t('settings.apiKeyEnvHint')} error={message('ai.api_key_env')} locked={locked.has('ai.api_key_env')}>
-          {(id, describedBy) => (
+        <div className="sm:col-span-2">
+          <label className="flex cursor-pointer items-start gap-3">
             <input
-              id={id}
-              spellCheck={false}
-              autoComplete="off"
-              disabled={locked.has('ai.api_key_env')}
-              aria-describedby={describedBy}
-              {...form.register('ai.api_key_env')}
-              className={`${inputClass} font-mono`}
+              type="checkbox"
+              disabled={locked.has('ai.enabled')}
+              aria-describedby="ai-enable-hint"
+              {...form.register('ai.enabled')}
+              className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer rounded-md accent-accent"
             />
-          )}
-        </Field>
-        {numberField('ai.max_requests_per_minute', 'settings.rpm', 'settings.rpmHint')}
-        {numberField('ai.max_tokens_per_run', 'settings.budget', 'settings.budgetHint', 1000)}
+            <span className="text-[14.5px] font-semibold">{t('settings.aiEnable')}</span>
+          </label>
+          <p id="ai-enable-hint" className={`${hintClass} ml-8`}>
+            {t('settings.aiEnableHint')}
+          </p>
+        </div>
+        {aiEnabled && (
+          <div className="space-y-3 rounded-control bg-canvas/70 p-4 sm:col-span-2">
+            <p className="text-[13.5px] leading-relaxed text-muted">{t('settings.aiKeyWhere')}</p>
+            {savedKey && (
+              <p className="flex items-center gap-2 text-[13.5px] font-semibold">
+                <span aria-hidden className={`h-2 w-2 rounded-full ${savedKey.in_file || savedKey.in_environment ? 'bg-confirmed' : 'bg-unverified'}`} />
+                <span>
+                  {t('settings.aiKey', { name: savedKey.name })} ·{' '}
+                  {t(savedKey.in_file || savedKey.in_environment ? 'settings.aiKeyFound' : 'settings.aiKeyMissing')}
+                </span>
+              </p>
+            )}
+          </div>
+        )}
+        {aiEnabled && (
+          <>
+            <Field label={t('settings.provider')} locked={locked.has('ai.provider')}>
+              {(id) => (
+                <select
+                  id={id}
+                  disabled={locked.has('ai.provider')}
+                  {...form.register('ai.provider', {
+                    onChange: (event) => {
+                      // A new provider starts from its usual model and key variable.
+                      const provider = options.providers.find((entry) => entry.id === event.target.value)
+                      if (!provider) return
+                      if (!locked.has('ai.model')) form.setValue('ai.model', provider.model, { shouldDirty: true, shouldValidate: true })
+                      if (!locked.has('ai.api_key_env') && provider.api_key_env)
+                        form.setValue('ai.api_key_env', provider.api_key_env, { shouldDirty: true, shouldValidate: true })
+                    },
+                  })}
+                  className={inputClass}
+                >
+                  {options.providers.map((provider) => (
+                    <option key={provider.id} value={provider.id}>
+                      {provider.id}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+            <Field label={t('settings.model')} error={message('ai.model')} locked={locked.has('ai.model')}>
+              {(id) => <input id={id} disabled={locked.has('ai.model')} {...form.register('ai.model')} className={inputClass} />}
+            </Field>
+            <Field label={t('settings.apiKeyEnv')} hint={t('settings.apiKeyEnvHint')} error={message('ai.api_key_env')} locked={locked.has('ai.api_key_env')}>
+              {(id, describedBy) => (
+                <input
+                  id={id}
+                  spellCheck={false}
+                  autoComplete="off"
+                  disabled={locked.has('ai.api_key_env')}
+                  aria-describedby={describedBy}
+                  {...form.register('ai.api_key_env')}
+                  className={`${inputClass} font-mono`}
+                />
+              )}
+            </Field>
+            {numberField('ai.max_requests_per_minute', 'settings.rpm', 'settings.rpmHint')}
+            {numberField('ai.max_tokens_per_run', 'settings.budget', 'settings.budgetHint', 1000)}
+          </>
+        )}
         <fieldset className="sm:col-span-2">
           <legend className={labelClass}>{t('settings.languages')}</legend>
           <p className={hintClass}>{t('settings.languagesHint')}</p>
@@ -200,9 +239,7 @@ export function SettingsForm({ settings, onConflict }: { settings: Settings; onC
                     <Controller
                       control={form.control}
                       name={dedup}
-                      render={({ field }) => (
-                        <Switch checked={Boolean(field.value)} onCheckedChange={field.onChange} labelledBy={dedupLabel} />
-                      )}
+                      render={({ field }) => <Switch checked={Boolean(field.value)} onCheckedChange={field.onChange} labelledBy={dedupLabel} />}
                     />
                     <span id={dedupLabel} className="text-[13.5px] text-ink/75">
                       {t('settings.dedup')}
@@ -265,7 +302,7 @@ export function SettingsForm({ settings, onConflict }: { settings: Settings; onC
       {/* Floating save bar: visible while something is unsaved or just saved. */}
       <AnimatePresence>
         {(isDirty || saved || conflict || errors.root) && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
@@ -303,7 +340,7 @@ export function SettingsForm({ settings, onConflict }: { settings: Settings; onC
                 </>
               )
             )}
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </form>

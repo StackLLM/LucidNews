@@ -1,4 +1,4 @@
-// Taxonomy IDs, in the order of src/taxonomy.py (Category enum).
+// Taxonomy IDs, in the order of lucidnews/taxonomy.py (Category enum).
 export const categories = [
   'ai',
   'software-development',

@@ -1,4 +1,4 @@
-"""Settings and API keys editable from the web app (local API routes only).
+"""Settings editable from the web app, and the status of the API keys (local API routes only).
 
 Configuration: ``config.json`` is edited **raw**. Only whitelisted fields change,
 ``${VARIABLE}`` placeholders elsewhere stay untouched, and a field holding a
@@ -7,10 +7,10 @@ by loading the result through ``Config``, saved atomically, and preceded by a
 timestamped backup that can be restored. A version (hash of the file) makes a
 write fail if the file changed since it was read.
 
-API keys: written to the project's ``.env`` file (ignored by Git, mode 600), the
-file ``lucidnews`` loads at start. Only variable names the configuration refers
-to are accepted. A value is never returned, logged or echoed in an error: the
-API only says whether a key is set, and where.
+API keys are **not** entered here. They live in the environment of whoever runs the
+project: the ``.env`` file (ignored by Git), the shell, or a GitHub secret. The web app
+only reports whether each variable the configuration refers to is set (never its value)
+so a reader knows whether turning the AI on can work; see the README.
 """
 
 import copy
@@ -41,12 +41,12 @@ ENV_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,99}$")
 KEY_PREFIXES = ("sk-", "sk_", "AIza", "xai-", "gsk_", "hf_")
 BACKUP_NAME = re.compile(r"^config-\d{8}T\d{6}(?:\d{6})?Z\.json$")
 MAX_BACKUPS = 10
-MAX_SECRET_LENGTH = 4096
 
 Response = Tuple[int, Dict[str, Any]]
 
 # Editable fields: public path -> path in config.json. Profiles are handled apart.
 FIELDS: Dict[str, Tuple[str, ...]] = {
+    "ai.enabled": ("ai", "enabled"),
     "ai.provider": ("ai", "provider"),
     "ai.model": ("ai", "model"),
     "ai.api_key_env": ("ai", "api_key_env"),
@@ -356,7 +356,7 @@ class SettingsService:
             self.on_change()
         return self.get()
 
-    # API keys ---------------------------------------------------------------------
+    # API keys: read-only status ----------------------------------------------------
 
     def _declared_secrets(self) -> Dict[str, List[str]]:
         """Environment variables the configuration refers to, with what uses them."""
@@ -387,6 +387,9 @@ class SettingsService:
                 add(config.email.resend_api_key_env, "email:resend")
         if config.webhook is not None:
             add(config.webhook.url_env, "webhook")
+        if config.auth.enabled:
+            add(config.auth.google_client_id_env, "auth:google")
+            add(config.auth.google_client_secret_env, "auth:google")
         if config.sources.twitter is not None:
             add(config.sources.twitter.apify_token_env, "twitter")
         for match in _ENV_VAR_PATTERN.finditer(json.dumps(raw)):
@@ -422,53 +425,8 @@ class SettingsService:
             ],
         }
 
-    def set_secret(self, name: str, body: Dict[str, Any]) -> Response:
-        if name not in self._declared_secrets():
-            return HTTPStatus.NOT_FOUND, {"error": "unknown variable: the configuration does not use it"}
-        value = body.get("value")
-        if not isinstance(value, str):
-            return HTTPStatus.UNPROCESSABLE_ENTITY, {"error": "invalid value", "fields": {"value": "required"}}
-        value = value.strip()
-        if not value or len(value) > MAX_SECRET_LENGTH or any(ord(char) < 32 or ord(char) == 127 for char in value):
-            return HTTPStatus.UNPROCESSABLE_ENTITY, {
-                "error": "invalid value",
-                "fields": {"value": f"1 to {MAX_SECRET_LENGTH} printable characters, on one line"},
-            }
-        with self._lock:
-            self._write_env(name, value)
-        return HTTPStatus.OK, {"name": name, "in_file": True}
-
-    def delete_secret(self, name: str) -> Response:
-        if not ENV_NAME.match(name):
-            return HTTPStatus.BAD_REQUEST, {"error": "invalid variable name"}
-        with self._lock:
-            removed = self._write_env(name, None)
-        if not removed:
-            return HTTPStatus.NOT_FOUND, {"error": "not set in .env"}
-        return HTTPStatus.OK, {"name": name, "in_file": False}
-
-    def _write_env(self, name: str, value: Optional[str]) -> bool:
-        """Set (or remove, with ``None``) one variable in .env; keeps other lines as they are."""
-        lines = self.env_path.read_text(encoding="utf-8").splitlines() if self.env_path.exists() else []
-        pattern = re.compile(rf"^\s*(?:export\s+)?{re.escape(name)}\s*=")
-        kept = [line for line in lines if not pattern.match(line)]
-        found = len(kept) != len(lines)
-        if value is not None:
-            kept.append(f"{name}={_quote_env(value)}")
-        elif not found:
-            return False
-        _atomic_write(self.env_path, "\n".join(kept) + "\n", mode=0o600)
-        return True
-
 
 def _backup_time(name: str) -> str:
     stamp = name.removeprefix("config-").removesuffix(".json")
     fmt = "%Y%m%dT%H%M%S%fZ" if len(stamp) > 16 else "%Y%m%dT%H%M%SZ"
     return datetime.strptime(stamp, fmt).replace(tzinfo=timezone.utc).isoformat(timespec="seconds")
-
-
-def _quote_env(value: str) -> str:
-    """Quote a value so python-dotenv reads it back unchanged."""
-    if "'" not in value:
-        return f"'{value}'"  # single quotes: taken literally
-    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'

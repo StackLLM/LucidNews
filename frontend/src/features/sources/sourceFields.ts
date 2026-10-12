@@ -48,10 +48,7 @@ export type FormValues = Record<string, string>
 /** API values -> strings for the inputs (lists joined with commas). */
 export function toForm(values: SourceValues): FormValues {
   return Object.fromEntries(
-    Object.entries(values).map(([name, value]) => [
-      name,
-      Array.isArray(value) ? value.join(', ') : value === null || value === undefined ? '' : String(value),
-    ]),
+    Object.entries(values).map(([name, value]) => [name, Array.isArray(value) ? value.join(', ') : value === null || value === undefined ? '' : String(value)]),
   )
 }
 
@@ -88,7 +85,5 @@ export function fromForm(
 
 /** Only what differs from the saved source: unchanged fields stay as written in config.json. */
 export function changedValues(entry: SourceEntry, values: SourceValues): SourceValues {
-  return Object.fromEntries(
-    Object.entries(values).filter(([name, value]) => JSON.stringify(entry.values[name] ?? null) !== JSON.stringify(value)),
-  )
+  return Object.fromEntries(Object.entries(values).filter(([name, value]) => JSON.stringify(entry.values[name] ?? null) !== JSON.stringify(value)))
 }

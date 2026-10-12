@@ -8,7 +8,7 @@ import pytest
 from pydantic import ValidationError
 from rich.console import Console
 
-from src.models import (
+from lucidnews.models import (
     ClassificationResult,
     EmailConfig,
     ContentAnalysis,
@@ -16,7 +16,7 @@ from src.models import (
     ProcessingResult,
     SourceType,
 )
-from src.newsletter import (
+from lucidnews.newsletter import (
     PLAN_LIMITS,
     DigestPreferences,
     Frequency,
@@ -28,10 +28,10 @@ from src.newsletter import (
     plan_deliveries,
     select_items,
 )
-from src.newsletter.mailer import SendSummary
-from src.orchestrator import PipelineOrchestrator
-from src.reliability import ReliabilityAssessment
-from src.storage.manager import StorageManager
+from lucidnews.newsletter.mailer import SendSummary
+from lucidnews.orchestrator import PipelineOrchestrator
+from lucidnews.reliability import ReliabilityAssessment
+from lucidnews.storage.manager import StorageManager
 
 
 def make_item(item_id, score, categories, label="confirmed", source=SourceType.RSS, **metadata):

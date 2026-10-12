@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock
 import httpx
 from bs4 import BeautifulSoup
 
-from src.models import TelegramChannelConfig, TelegramConfig
-from src.scrapers.telegram import TelegramScraper
+from lucidnews.models import TelegramChannelConfig, TelegramConfig
+from lucidnews.scrapers.telegram import TelegramScraper
 
 
 def _scraper() -> TelegramScraper:

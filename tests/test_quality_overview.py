@@ -8,9 +8,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.ai.budget import AILimit
-from src.archive import ItemArchive
-from src.models import (
+from lucidnews.ai.budget import AILimit
+from lucidnews.archive import ItemArchive
+from lucidnews.models import (
     ArchiveConfig,
     ClassificationResult,
     ContentAnalysis,
@@ -19,10 +19,10 @@ from src.models import (
     ProcessingResult,
     SourceType,
 )
-from src.quality_overview import quality_overview
-from src.reliability import ReliabilityAssessment, ReliabilityLabel, SourceTier
-from src.source_health import SourceRunOutcome
-from src.web_api import build_context, resolve
+from lucidnews.quality_overview import quality_overview
+from lucidnews.reliability import ReliabilityAssessment, ReliabilityLabel, SourceTier
+from lucidnews.source_health import SourceRunOutcome
+from lucidnews.web_api import build_context, resolve
 from tests.test_archive import make_orchestrator
 
 ROOT = Path(__file__).resolve().parents[1]

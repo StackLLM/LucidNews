@@ -39,7 +39,7 @@ uv run lucidnews-sources --days 30 --status dead --status failing
 uv run lucidnews-sources --json       # pour un outil ou un tableau de bord
 ```
 
-Les seuils sont des constantes en tête de `src/source_health.py`.
+Les seuils sont des constantes en tête de `lucidnews/source_health.py`.
 
 ### Score de qualité
 
@@ -106,7 +106,7 @@ Le détail de chaque scraper est dans [scrapers.md](scrapers.md) (anglais).
 
 **Un nouveau type de source** :
 
-1. Créer `src/scrapers/<nom>.py` avec une classe héritant de `BaseScraper` et implémentant `fetch(since)`.
-2. Ajouter le type à `SourceType` et `SOURCE_REGISTRY`, et son modèle de config à `SourcesConfig` (`src/models.py`).
+1. Créer `lucidnews/scrapers/<nom>.py` avec une classe héritant de `BaseScraper` et implémentant `fetch(since)`.
+2. Ajouter le type à `SourceType` et `SOURCE_REGISTRY`, et son modèle de config à `SourcesConfig` (`lucidnews/models.py`).
 3. L'enregistrer dans `PipelineOrchestrator.fetch_all_sources`.
 4. Ajouter des tests (HTTP simulé) sur le modèle de `tests/test_rss.py`.

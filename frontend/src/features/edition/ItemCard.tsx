@@ -1,5 +1,5 @@
 import { ArrowUpRight, ChevronDown, Clock, FileText, MessageSquare, TriangleAlert } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, m } from 'motion/react'
 import { useId, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { Link } from 'react-router'
 import { ReliabilityBadge } from '../../design/ReliabilityBadge'
@@ -10,7 +10,7 @@ import { expand, riseIn } from '../../lib/motion'
 import { ItemDetails } from './ItemDetails'
 
 const importanceTone: Record<string, string> = {
-  critical: 'bg-ink text-white',
+  critical: 'bg-ink text-on-fill',
   high: 'bg-accent-soft text-accent',
   medium: 'bg-ink/5 text-muted',
   low: 'bg-ink/5 text-faint',
@@ -41,7 +41,7 @@ export function ItemCard({ item, editionId }: { item: EditionItem; editionId?: s
   }
 
   return (
-    <motion.article
+    <m.article
       variants={riseIn}
       id={`item-${item.id}`}
       onClick={onCardClick}
@@ -110,7 +110,7 @@ export function ItemCard({ item, editionId }: { item: EditionItem; editionId?: s
 
       <AnimatePresence initial={false}>
         {open && (
-          <motion.div
+          <m.div
             id={detailsId}
             key="details"
             initial={{ height: 0, opacity: 0 }}
@@ -120,7 +120,7 @@ export function ItemCard({ item, editionId }: { item: EditionItem; editionId?: s
             className="overflow-hidden"
           >
             <ItemDetails item={item} />
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 
@@ -170,17 +170,13 @@ export function ItemCard({ item, editionId }: { item: EditionItem; editionId?: s
             aria-expanded={open}
             aria-controls={detailsId}
             onClick={() => setOpen((value) => !value)}
-            className="flex items-center gap-1.5 rounded-full bg-accent-soft px-3.5 py-1.5 text-[13px] font-semibold text-accent transition-all duration-150 ease-soft hover:bg-accent hover:text-white active:scale-95"
+            className="flex items-center gap-1.5 rounded-full bg-accent-soft px-3.5 py-1.5 text-[13px] font-semibold text-accent transition-all duration-150 ease-soft hover:bg-accent hover:text-on-fill active:scale-95"
           >
             {t(open ? 'item.readLess' : 'card.open')}
-            <ChevronDown
-              size={14}
-              aria-hidden
-              className={`transition-transform duration-250 ease-soft ${open ? 'rotate-180' : ''}`}
-            />
+            <ChevronDown size={14} aria-hidden className={`transition-transform duration-250 ease-soft ${open ? 'rotate-180' : ''}`} />
           </button>
         </span>
       </footer>
-    </motion.article>
+    </m.article>
   )
 }

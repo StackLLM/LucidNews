@@ -1,7 +1,7 @@
 """Start the pipeline from the web app and schedule it (local API routes only).
 
 **Runs**: the pipeline runs in a separate process, the same command as in a
-terminal (``python -m src.main``), so it produces the same edition. It writes its
+terminal (``python -m lucidnews.main``), so it produces the same edition. It writes its
 output to ``<data dir>/runs/``; the web app reads the end of that log, with ANSI
 codes and every known key value removed, and the current step. One run at a
 time: the pipeline holds ``run_lock`` for its whole duration, whoever started it.
@@ -30,7 +30,7 @@ from .run_lock import LOG_ENV, ORIGIN_ENV, current_holder
 Response = tuple[int, Dict[str, Any]]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-ALREADY_RUNNING = 75  # exit code of src.main when another run holds the lock
+ALREADY_RUNNING = 75  # exit code of lucidnews.main when another run holds the lock
 LOG_LINES = 40
 MIN_SECRET_LENGTH = 6
 ANSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
@@ -104,7 +104,7 @@ class RunService:
     def pipeline_command(self) -> List[str]:
         if self.command is not None:
             return list(self.command)
-        command = [sys.executable, "-m", "src.main", "--data-dir", str(Path(self.data_dir).resolve())]
+        command = [sys.executable, "-m", "lucidnews.main", "--data-dir", str(Path(self.data_dir).resolve())]
         if self.config_path:
             command += ["--config", str(Path(self.config_path).resolve())]
         return command
@@ -259,7 +259,7 @@ class ScheduleService:
         self.launchctl(["bootout", f"{self._domain()}/{self.label}"])  # fails harmlessly when not loaded
 
     def plist(self, hour: int, minute: int, weekdays: List[int]) -> Dict[str, Any]:
-        command = [self.python, "-m", "src.main", "--data-dir", str(Path(self.data_dir).resolve())]
+        command = [self.python, "-m", "lucidnews.main", "--data-dir", str(Path(self.data_dir).resolve())]
         if self.config_path:
             command += ["--config", str(Path(self.config_path).resolve())]
         intervals = [{"Hour": hour, "Minute": minute, "Weekday": day} for day in weekdays] or [{"Hour": hour, "Minute": minute}]

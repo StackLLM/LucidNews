@@ -53,7 +53,10 @@ export function SubscriptionStatus({ subscriber }: { subscriber: Subscriber }) {
           : t('status.confirmedLegacy')
 
   return (
-    <section aria-label={t(`status.${status}` as MessageKey)} className="flex flex-wrap items-center gap-3 rounded-card bg-surface px-5 py-4 shadow-card sm:px-7">
+    <section
+      aria-label={t(`status.${status}` as MessageKey)}
+      className="flex flex-wrap items-center gap-3 rounded-card bg-surface px-5 py-4 shadow-card sm:px-7"
+    >
       <StatusBadge status={status} />
       <p className="min-w-[14rem] flex-1 text-[13.5px] text-muted">{body}</p>
       {status !== 'confirmed' && (
@@ -61,7 +64,7 @@ export function SubscriptionStatus({ subscriber }: { subscriber: Subscriber }) {
           type="button"
           disabled={resend.isPending}
           onClick={() => resend.mutate()}
-          className="flex items-center gap-1.5 rounded-control bg-accent-soft px-3.5 py-2 text-[13.5px] font-semibold text-accent transition-colors duration-150 hover:bg-accent hover:text-white disabled:opacity-60"
+          className="flex items-center gap-1.5 rounded-control bg-accent-soft px-3.5 py-2 text-[13.5px] font-semibold text-accent transition-colors duration-150 hover:bg-accent hover:text-on-fill disabled:opacity-60"
         >
           <Send size={14} aria-hidden />
           {result ? t('status.resendAgain') : t('status.resend')}

@@ -602,13 +602,15 @@ and is removed from the same screen.
 ## Editing settings from the web app
 
 The **Settings** screen (`/settings`, local API only) edits the common settings
-of this file and the API keys, without a terminal. See `frontend/README.md`:
+of this file (including the AI on/off checkbox), without a terminal. See `frontend/README.md`:
 
 - only changed fields are written; `${VARIABLE}` placeholders stay as they are,
   and a field holding one is shown locked;
 - every write is validated, atomic, and preceded by a copy in `data/backups/`
   (last 10), which the screen can restore;
-- API keys are written to the project's `.env` (mode 600) and never shown again.
+- API keys are **not** entered there. The screen only says whether the variable named in
+  `ai.api_key_env` is detected (never its value). Put keys in `.env`, the environment or a
+  GitHub secret; see the README, "Activer l'analyse IA".
 
 Settings take effect at the next run; the API reloads them at once.
 
@@ -826,7 +828,7 @@ Email delivery is optional and disabled unless `email.enabled` is `true`. LucidN
 - `weekly_max_items`: Maximum items in a weekly e-mail (default 15; a subscriber's own `max_items` applies if lower).
 - `provider`: `smtp` (default) or `resend` (Resend's HTTPS API, key in `resend_api_key_env`, default `RESEND_API_KEY`). With `resend`, a digest without an unsubscribe link is refused.
 - `public_base_url`: Public `https` address of the `lucidnews-public` service (confirmation and unsubscribe links). Without it, confirmation links cannot be sent and new readers stay pending.
-- `signing_key_env`: Environment variable holding the secret (16+ characters) that signs those links. Defaults to `NEWSLETTER_SIGNING_KEY`. Generate one with `openssl rand -hex 32` and set it in Settings › API keys.
+- `signing_key_env`: Environment variable holding the secret (16+ characters) that signs those links. Defaults to `NEWSLETTER_SIGNING_KEY`. Generate one with `openssl rand -hex 32` and set it in `.env` or the environment (never in `config.json`).
 - Readers only receive digests once confirmed (double opt-in); see `docs/newsletter.md`.
 
 Resend SMTP example:
@@ -1057,4 +1059,4 @@ uv run lucidnews-mcp
 
 Available tools include `hz_validate_config`, `hz_fetch_items`, `hz_score_items`, `hz_filter_items`, `hz_enrich_items`, `hz_generate_summary`, and `hz_run_pipeline`.
 
-See [`src/mcp/README.md`](../src/mcp/README.md) for the full tool reference and [`src/mcp/integration.md`](../src/mcp/integration.md) for client setup.
+See [`lucidnews/mcp/README.md`](../lucidnews/mcp/README.md) for the full tool reference and [`lucidnews/mcp/integration.md`](../lucidnews/mcp/integration.md) for client setup.

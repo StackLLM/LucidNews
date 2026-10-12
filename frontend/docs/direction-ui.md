@@ -5,10 +5,10 @@ construit.
 
 ## 1. Les deux références analysées
 
-| Référence | Ce que c'est | Ce qu'elle apporte |
-|---|---|---|
-| **A — « Agenta »** (`Templates/image.png` du dépôt LucidNews) | Page d'accueil marketing d'un SaaS | L'ambiance : fond clair teinté, cartes translucides, profondeur, graphique, fil chronologique |
-| **B — « Paypay »** (`Mysalary/Templates/image.png`) | Écran d'application (édition de facture) | Les composants d'app : grille 2 colonnes, cartes blanches, tableau, champs, interrupteur, boutons |
+| Référence                                                     | Ce que c'est                             | Ce qu'elle apporte                                                                                |
+| ------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **A — « Agenta »** (`Templates/image.png` du dépôt LucidNews) | Page d'accueil marketing d'un SaaS       | L'ambiance : fond clair teinté, cartes translucides, profondeur, graphique, fil chronologique     |
+| **B — « Paypay »** (`Mysalary/Templates/image.png`)           | Écran d'application (édition de facture) | Les composants d'app : grille 2 colonnes, cartes blanches, tableau, champs, interrupteur, boutons |
 
 **Choix retenu : A pour l'atmosphère, B pour la structure des écrans.**
 A seul est une page vitrine, il ne fournit aucun composant d'application.
@@ -144,33 +144,33 @@ ports, double dépôt) ne s'appliquent pas à LucidNews.
 
 ## 3. Ce qu'on ne reprend pas
 
-| Élément | Pourquoi |
-|---|---|
-| Dégradés violet saturé, cartes orange et rose de A | Trop chargé. Contraire de « calme » |
-| Gros bloc noir pleine largeur de A | Rupture trop forte pour un outil de lecture |
-| Chiffres marketing « 45+ », « 89 % » | Aucun chiffre inventé dans LucidNews |
-| Icônes 3D jaunes de A | Style différent du reste, bruit visuel |
-| Flux de paiement, « Send Invoice », logo Wise de B | Pas de paiement dans cette phase |
-| Avatar emoji de B | Le produit n'a pas encore de comptes utilisateurs |
+| Élément                                            | Pourquoi                                          |
+| -------------------------------------------------- | ------------------------------------------------- |
+| Dégradés violet saturé, cartes orange et rose de A | Trop chargé. Contraire de « calme »               |
+| Gros bloc noir pleine largeur de A                 | Rupture trop forte pour un outil de lecture       |
+| Chiffres marketing « 45+ », « 89 % »               | Aucun chiffre inventé dans LucidNews              |
+| Icônes 3D jaunes de A                              | Style différent du reste, bruit visuel            |
+| Flux de paiement, « Send Invoice », logo Wise de B | Pas de paiement dans cette phase                  |
+| Avatar emoji de B                                  | Le produit n'a pas encore de comptes utilisateurs |
 
 ## 4. Couleurs propres à LucidNews
 
 La couleur d'accent ne doit **jamais** se confondre avec les couleurs de fiabilité.
 La fiabilité est le cœur du produit : elle a sa propre gamme.
 
-| Rôle | Clair | Usage |
-|---|---|---|
-| Encre | `#0F1530` | Texte principal, navigation (reprend le bleu nuit de A) |
-| Texte secondaire | `#5B6478` | Métadonnées, légendes |
-| Fond | `#F2F6F6` | Fond de page, teinte menthe très pâle (A) |
-| Surface | `#FFFFFF` | Cartes de lecture |
-| Verre | `rgba(255,255,255,0.62)` + flou 20 px + bordure `rgba(255,255,255,0.7)` | Éléments flottants |
-| Accent | `#4C3FD8` | Bouton principal, lien actif, courbe (indigo de B, désaturé) |
-| Accent pâle | `#EEECFC` | Boutons secondaires, pastilles d'icône |
-| Confirmé | `#0E7C5A` | Étiquette « Confirmé » |
-| Fiable | `#1F6FB2` | Étiquette « Fiable » |
-| Non vérifié | `#B26A00` | Étiquette « Non vérifié » |
-| Rumeur | `#B4233C` | Étiquette « Rumeur » |
+| Rôle             | Clair                                                                   | Usage                                                        |
+| ---------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Encre            | `#0F1530`                                                               | Texte principal, navigation (reprend le bleu nuit de A)      |
+| Texte secondaire | `#5B6478`                                                               | Métadonnées, légendes                                        |
+| Fond             | `#F2F6F6`                                                               | Fond de page, teinte menthe très pâle (A)                    |
+| Surface          | `#FFFFFF`                                                               | Cartes de lecture                                            |
+| Verre            | `rgba(255,255,255,0.62)` + flou 20 px + bordure `rgba(255,255,255,0.7)` | Éléments flottants                                           |
+| Accent           | `#4C3FD8`                                                               | Bouton principal, lien actif, courbe (indigo de B, désaturé) |
+| Accent pâle      | `#EEECFC`                                                               | Boutons secondaires, pastilles d'icône                       |
+| Confirmé         | `#0E7C5A`                                                               | Étiquette « Confirmé »                                       |
+| Fiable           | `#1F6FB2`                                                               | Étiquette « Fiable »                                         |
+| Non vérifié      | `#B26A00`                                                               | Étiquette « Non vérifié »                                    |
+| Rumeur           | `#B4233C`                                                               | Étiquette « Rumeur »                                         |
 
 - Chaque étiquette de fiabilité = couleur **+ texte + icône**. Jamais la couleur seule.
 - Contrastes à vérifier (AA minimum) au moment du développement : à confirmer.
@@ -178,11 +178,11 @@ La fiabilité est le cœur du produit : elle a sa propre gamme.
 
 ## 5. Ombres et rayons
 
-| Token | Valeur |
-|---|---|
-| `radius-card` | 24 px |
-| `radius-control` | 12 px |
-| `radius-pill` | 999 px |
-| `shadow-card` | `0 1px 2px rgba(15,21,48,.04), 0 12px 40px -16px rgba(15,21,48,.12)` |
-| `shadow-float` | `0 24px 64px -24px rgba(15,21,48,.22)` |
-| `shadow-accent` | `0 12px 28px -12px rgba(76,63,216,.45)` (bouton principal seulement) |
+| Token            | Valeur                                                               |
+| ---------------- | -------------------------------------------------------------------- |
+| `radius-card`    | 24 px                                                                |
+| `radius-control` | 12 px                                                                |
+| `radius-pill`    | 999 px                                                               |
+| `shadow-card`    | `0 1px 2px rgba(15,21,48,.04), 0 12px 40px -16px rgba(15,21,48,.12)` |
+| `shadow-float`   | `0 24px 64px -24px rgba(15,21,48,.22)`                               |
+| `shadow-accent`  | `0 12px 28px -12px rgba(76,63,216,.45)` (bouton principal seulement) |

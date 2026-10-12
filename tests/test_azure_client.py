@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.ai.client import AzureOpenAIClient, create_ai_client
-from src.models import AIConfig, AIProvider
+from lucidnews.ai.client import AzureOpenAIClient, create_ai_client
+from lucidnews.models import AIConfig, AIProvider
 
 
 def _make_config(**overrides) -> AIConfig:

@@ -5,11 +5,11 @@ from types import SimpleNamespace
 
 from rich.console import Console
 
-import src.orchestrator as orchestrator_module
-from src.ai.enricher import EnrichmentBatchResult
-from src.models import ClassificationResult, ContentAnalysis, ContentItem, ProcessingResult, SourceType
-from src.orchestrator import PipelineOrchestrator
-from src.reliability.assess import ReliabilityPolicy
+import lucidnews.orchestrator as orchestrator_module
+from lucidnews.ai.enricher import EnrichmentBatchResult
+from lucidnews.models import ClassificationResult, ContentAnalysis, ContentItem, ProcessingResult, SourceType
+from lucidnews.orchestrator import PipelineOrchestrator
+from lucidnews.reliability.assess import ReliabilityPolicy
 
 
 def make_item(item_id: str) -> ContentItem:

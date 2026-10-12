@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from src.models import GitHubSourceConfig
+from lucidnews.models import GitHubSourceConfig
 
 
 def test_repo_url_is_normalized_to_owner_and_repo() -> None:

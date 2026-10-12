@@ -75,7 +75,9 @@ test('the funnel uses only the runs that recorded the counters', async () => {
 
   const selection = card('Doublons et filtrage')
   const numbers = Object.fromEntries(
-    within(selection).getAllByRole('term').map((term) => [term.textContent, term.nextElementSibling?.textContent]),
+    within(selection)
+      .getAllByRole('term')
+      .map((term) => [term.textContent, term.nextElementSibling?.textContent]),
   )
   expect(numbers).toEqual({ Collectés: '40', 'Fusionnés par URL': '3', 'Au-dessus du seuil': '9', 'Fusionnés par sujet': '2', Publiés: '6' })
   expect(selection).toHaveTextContent('1 run de la période a été enregistré avant ces compteurs : pas de donnée pour lui.')

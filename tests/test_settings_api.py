@@ -13,10 +13,10 @@ from pathlib import Path
 import pytest
 from dotenv import dotenv_values
 
-from src.archive import ItemArchive
-from src.processing import ProfileRegistry
-from src.settings_api import SettingsService
-from src.web_api import build_context, make_handler, resolve
+from lucidnews.archive import ItemArchive
+from lucidnews.processing import ProfileRegistry
+from lucidnews.settings_api import SettingsService
+from lucidnews.web_api import build_context, make_handler, resolve
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILES = ProfileRegistry.load(ROOT / "profiles", "tech-news")
@@ -177,35 +177,31 @@ def test_secrets_lists_declared_variables_without_values(service, monkeypatch) -
     assert "https://example.com" not in json.dumps(body)
 
 
-def test_a_secret_is_written_to_env_privately_and_never_returned(service) -> None:
-    (service.env_path).write_text("# my notes\nOTHER=keep\nGOOGLE_API_KEY=old\n")
-
-    status, body = service.set_secret("GOOGLE_API_KEY", {"value": f"  {SECRET}  "})
-
-    assert status == 200 and body == {"name": "GOOGLE_API_KEY", "in_file": True}
-    assert dotenv_values(service.env_path) == {"OTHER": "keep", "GOOGLE_API_KEY": SECRET}
-    assert service.env_path.read_text().startswith("# my notes\n")
-    assert stat.S_IMODE(os.stat(service.env_path).st_mode) == 0o600
-    listing = json.dumps(service.secrets()[1])
-    assert SECRET not in listing and "in_file\": true" in listing
-
-    assert service.delete_secret("GOOGLE_API_KEY")[0] == 200
-    assert dotenv_values(service.env_path) == {"OTHER": "keep"}
-    assert service.delete_secret("GOOGLE_API_KEY")[0] == 404
-
-
-@pytest.mark.parametrize("value", ["", "   ", "line1\nline2", "x" * 5000])
-def test_invalid_secret_values_are_refused(service, value) -> None:
-    status, body = service.set_secret("GOOGLE_API_KEY", {"value": value})
-
-    assert status == 422
+def test_keys_cannot_be_written_through_the_service(service) -> None:
+    for name in ("set_secret", "delete_secret"):
+        assert not hasattr(service, name)
     assert not service.env_path.exists()
-    assert value.strip() == "" or value not in json.dumps(body)
 
 
-def test_undeclared_variables_cannot_be_written(service) -> None:
-    assert service.set_secret("PATH", {"value": "/tmp"})[0] == 404
-    assert not service.env_path.exists()
+def test_a_key_set_in_env_is_reported_but_never_returned(service) -> None:
+    service.env_path.write_text(f"GOOGLE_API_KEY={SECRET}\n")
+
+    status, body = service.secrets()
+
+    assert status == 200
+    entry = {item["name"]: item for item in body["secrets"]}["GOOGLE_API_KEY"]
+    assert entry["in_file"] is True
+    assert SECRET not in json.dumps(body)
+
+
+def test_ai_is_off_until_the_reader_turns_it_on(service) -> None:
+    status, body = service.get()
+    assert status == 200 and body["values"]["ai"]["enabled"] is False
+
+    status, body = service.update({"version": body["version"], "values": {"ai": {"enabled": True}}})
+
+    assert status == 200 and body["values"]["ai"]["enabled"] is True
+    assert json.loads(service.config_path.read_text())["ai"]["enabled"] is True
 
 
 # HTTP ---------------------------------------------------------------------------------
@@ -243,11 +239,11 @@ def test_http_settings_are_local_only_and_reload_the_api(api, capfd) -> None:
     status, current = _request(port, "GET", "/api/settings")
     assert status == 200
     assert _request(port, "GET", "/api/settings", headers={"Host": "evil.example"})[0] == 403
-    assert _request(port, "PUT", "/api/secrets/GOOGLE_API_KEY", {"value": SECRET},
-                    {"Origin": "https://evil.example"})[0] == 403
-
-    status, _ = _request(port, "PUT", "/api/secrets/GOOGLE_API_KEY", {"value": SECRET}, local)
-    assert status == 200
+    # No route writes a key any more, from anywhere.
+    assert _request(port, "PUT", "/api/secrets/GOOGLE_API_KEY", {"value": SECRET}, {"Origin": "https://evil.example"})[0] == 403
+    assert _request(port, "PUT", "/api/secrets/GOOGLE_API_KEY", {"value": SECRET}, local)[0] == 405
+    assert _request(port, "DELETE", "/api/secrets/GOOGLE_API_KEY", None, local)[0] == 405
+    assert not ctx.settings.env_path.exists()
     status, body = _request(port, "PUT", "/api/settings",
                             {"version": current["version"], "values": {"ai": {"languages": ["fr"]}}}, local)
     assert status == 200 and body["values"]["ai"]["languages"] == ["fr"]

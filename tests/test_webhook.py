@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 from pydantic import ValidationError
 
-from src.models import (
+from lucidnews.models import (
     ClassificationResult,
     ContentAnalysis,
     ContentArtifact,
@@ -20,7 +20,7 @@ from src.models import (
     SourceType,
     WebhookConfig,
 )
-from src.services.webhook import (
+from lucidnews.services.webhook import (
     WebhookNotifier,
     WebhookDeliveryStatus,
     _format_markdown_for_webhook,
@@ -32,7 +32,7 @@ from src.services.webhook import (
     redact_headers,
     redact_url,
 )
-from src.ai.summarizer import DailySummarizer
+from lucidnews.ai.summarizer import DailySummarizer
 
 _TEST_URL_ENV = "TEST_WEBHOOK_URL"
 _TEST_URL = "https://example.com/webhook"

@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
 @pytest.fixture(autouse=True)
 def _fresh_ai_budget():
     """Each test starts with the AI available (the run budget is process-wide)."""
-    from src.ai import budget
+    from lucidnews.ai import budget
 
     budget.start_run(None)
     yield

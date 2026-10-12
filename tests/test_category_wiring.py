@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from bs4 import BeautifulSoup
 
-from src.models import (
+from lucidnews.models import (
     GitHubSourceConfig,
     HackerNewsConfig,
     OSSInsightConfig,
@@ -17,12 +17,12 @@ from src.models import (
     TelegramConfig,
     TwitterConfig,
 )
-from src.scrapers.github import GitHubScraper
-from src.scrapers.hackernews import HackerNewsScraper
-from src.scrapers.ossinsight import OSSInsightScraper
-from src.scrapers.reddit import RedditScraper
-from src.scrapers.telegram import TelegramScraper
-from src.scrapers.twitter import TwitterScraper
+from lucidnews.scrapers.github import GitHubScraper
+from lucidnews.scrapers.hackernews import HackerNewsScraper
+from lucidnews.scrapers.ossinsight import OSSInsightScraper
+from lucidnews.scrapers.reddit import RedditScraper
+from lucidnews.scrapers.telegram import TelegramScraper
+from lucidnews.scrapers.twitter import TwitterScraper
 
 _SINCE = datetime(2020, 1, 1, tzinfo=timezone.utc)
 _NOW = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
@@ -152,7 +152,7 @@ def _reddit_post(subreddit: str = "LocalLLaMA") -> dict:
 
 
 def _reddit_config(category: str | None = None):
-    from src.models import RedditConfig
+    from lucidnews.models import RedditConfig
 
     return RedditConfig(
         enabled=True,
@@ -188,7 +188,7 @@ def test_reddit_parse_post_category_none_when_unset():
 
 
 def test_reddit_rss_fallback_category_in_metadata():
-    from src.models import RedditConfig
+    from lucidnews.models import RedditConfig
 
     cfg = RedditSubredditConfig(
         subreddit="LocalLLaMA", sort="hot", fetch_limit=5, min_score=1, category="forum"
@@ -212,8 +212,8 @@ def test_reddit_rss_fallback_category_in_metadata():
 
     feed = feedparser.parse(rss_xml)
     # Simulate what _fetch_subreddit_rss produces from the parsed feed
-    from src.models import SourceType
-    from src.scrapers.reddit import RedditScraper as RS
+    from lucidnews.models import SourceType
+    from lucidnews.scrapers.reddit import RedditScraper as RS
 
     items = []
     for entry in feed.entries[: cfg.fetch_limit]:
@@ -225,7 +225,7 @@ def test_reddit_rss_fallback_category_in_metadata():
         from typing import Any, cast
 
         items.append(
-            __import__("src.models", fromlist=["ContentItem"]).ContentItem(
+            __import__("lucidnews.models", fromlist=["ContentItem"]).ContentItem(
                 id=scraper._generate_id("reddit", "subreddit-rss", entry_id),
                 source_type=SourceType.REDDIT,
                 title=str(entry.get("title") or "Untitled"),

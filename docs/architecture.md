@@ -5,7 +5,7 @@ LucidNews est une application Python asynchrone en ligne de commande. Elle n'a n
 ## Vue d'ensemble
 
 ```
-             ┌────────────────────── src/orchestrator.py (PipelineOrchestrator.run) ──────────────────────┐
+             ┌────────────────────── lucidnews/orchestrator.py (PipelineOrchestrator.run) ──────────────────────┐
  sources ──▶ │ 1 Collecte ─▶ 2 Fusion ─▶ 3 Classification ─▶ 4 Analyse ─▶ 5 Fiabilité ─▶ 6 Filtrage      │
  (scrapers)  │   parallèle    doublons     (profil)          score, catégories, claim    seuils, dédup     │
              │                                                                            sujet, quotas    │
@@ -31,39 +31,40 @@ LucidNews est une application Python asynchrone en ligne de commande. Elle n'a n
 
 | Chemin | Responsabilité |
 |---|---|
-| `src/main.py` | CLI `lucidnews` : charge `.env` et la config, lance l'orchestrateur |
-| `src/orchestrator.py` | Enchaîne les étapes ; seul endroit qui connaît tout le pipeline |
-| `src/models.py` | Modèles Pydantic des items (`ContentItem`, `ProcessingResult`…) et **schéma complet de la configuration** (`Config`) |
-| `src/scrapers/` | `BaseScraper.fetch(since) → list[ContentItem]` pour chaque source |
-| `src/extractors/` | Extraction du texte intégral d'une page (trafilatura) pour les flux RSS tronqués |
-| `src/ai/client.py` | Clients IA (OpenAI, Anthropic, Gemini, Azure, DeepSeek, Ollama…), chaîne de repli entre fournisseurs, limiteur de débit |
-| `src/ai/classifier.py`, `analyzer.py`, `enricher.py` | Étapes IA |
-| `src/ai/prompting/` | Construction des prompts (règles de preuve communes, catégories, vérification) |
-| `src/ai/summarizer.py` | Rendu Markdown du digest et des messages webhook |
-| `src/processing/profiles.py` | Chargement et validation des profils éditoriaux (`profiles/*/profile.json`) |
-| `src/processing/tools.py`, `history.py` | Outils d'enrichissement : recherche web, recherche dans l'historique |
-| `src/reliability/` | Registre de confiance des domaines, règles de combinaison, types |
-| `src/taxonomy.py` | 12 catégories IT, alias, libellés, niveaux d'importance |
-| `src/i18n.py` | Registre des langues, textes fixes du digest, format des dates |
-| `src/archive/` | Archive SQLite des runs et des news ; réutilisation des analyses ; compteurs de sélection par run (schéma 5) |
-| `src/quality_overview.py` | Indicateurs de la page Qualité : couverture, diversité, santé, fraîcheur, doublons, filtrage, fiabilité publiée |
-| `src/source_health.py`, `src/sources_cli.py` | Identifiants de source, résultat par run, classement de santé, commande `lucidnews-sources` |
-| `src/source_quality.py` | Score de qualité par source (départage des news de même score) |
-| `src/settings_api.py` | Réglages et clés API depuis l'interface : édition brute de `config.json`, copies de sauvegarde, `.env` |
-| `src/coverage.py` | Couverture des 12 catégories par les sources, calculée sur l'archive ; lacunes des domaines suivis |
-| `src/source_catalog.py` | Catalogue des sources recommandées (config d'exemple et catalogue de l'assistant), sans les sources déjà configurées |
-| `src/run_lock.py` | Verrou d'un run à la fois (terminal, interface, planification) |
-| `src/runs_api.py` | Lancer le pipeline depuis l'interface, suivre son journal, planification launchd |
-| `src/sources_api.py` | Sources depuis l'interface : liste avec la clé de santé, ajout, modification, suppression, test d'une source sans IA |
-| `src/reassess_cli.py` | Commande `lucidnews-reassess` : recalcul des étiquettes de l'archive avec le registre actuel |
-| `src/evaluation/` | Annotations humaines, calcul des scores (sélection, importance, thèmes, affirmation, faux fiables), commande `lucidnews-eval` |
-| `src/web_api.py`, `src/subscribers_api.py` | API HTTP du frontend : archive en lecture (éditions, news, sources), préférences des abonnés en écriture locale, commande `lucidnews-api` |
-| `src/newsletter/` | Abonnés, préférences, plans, sélection, plan d'envoi, stockage |
-| `src/services/email.py` | SMTP (envoi) et IMAP (inscription / désinscription par email) |
-| `src/services/webhook.py` | Webhooks génériques et plateformes (Slack, Discord, Feishu/Lark, DingTalk) |
-| `src/storage/manager.py` | Lecture de la config (avec `${VAR}`), écriture atomique des digests, accès abonnés |
-| `src/mcp/` | Serveur MCP : le même pipeline exposé par étapes (`ln_fetch_items`, `ln_score_items`…) |
-| `src/setup/` | Assistant `lucidnews-wizard` et catalogue `data/presets.json` |
+| `lucidnews/main.py` | CLI `lucidnews` : charge `.env` et la config, lance l'orchestrateur |
+| `lucidnews/orchestrator.py` | Enchaîne les étapes ; seul endroit qui connaît tout le pipeline (`run`, enrichissement, analyse, archive) |
+| `lucidnews/pipeline/` | Étapes assemblées par l'orchestrateur : `collect.py` (collecte, doublons entre sources), `select.py` (filtres, digest équilibré), `deliver.py` (newsletters) |
+| `lucidnews/models.py` | Modèles Pydantic des items (`ContentItem`, `ProcessingResult`…) et **schéma complet de la configuration** (`Config`) |
+| `lucidnews/scrapers/` | `BaseScraper.fetch(since) → list[ContentItem]` pour chaque source |
+| `lucidnews/extractors/` | Extraction du texte intégral d'une page (trafilatura) pour les flux RSS tronqués |
+| `lucidnews/ai/client.py` | Clients IA (OpenAI, Anthropic, Gemini, Azure, DeepSeek, Ollama…), chaîne de repli entre fournisseurs, limiteur de débit |
+| `lucidnews/ai/classifier.py`, `analyzer.py`, `enricher.py` | Étapes IA |
+| `lucidnews/ai/prompting/` | Construction des prompts (règles de preuve communes, catégories, vérification) |
+| `lucidnews/ai/summarizer.py` | Rendu Markdown du digest et des messages webhook |
+| `lucidnews/processing/profiles.py` | Chargement et validation des profils éditoriaux (`profiles/*/profile.json`) |
+| `lucidnews/processing/tools.py`, `history.py` | Outils d'enrichissement : recherche web, recherche dans l'historique |
+| `lucidnews/reliability/` | Registre de confiance des domaines, règles de combinaison, types |
+| `lucidnews/taxonomy.py` | 12 catégories IT, alias, libellés, niveaux d'importance |
+| `lucidnews/i18n.py` | Registre des langues, textes fixes du digest, format des dates |
+| `lucidnews/archive/` | Archive SQLite des runs et des news ; réutilisation des analyses ; compteurs de sélection par run (schéma 5) |
+| `lucidnews/quality_overview.py` | Indicateurs de la page Qualité : couverture, diversité, santé, fraîcheur, doublons, filtrage, fiabilité publiée |
+| `lucidnews/source_health.py`, `lucidnews/sources_cli.py` | Identifiants de source, résultat par run, classement de santé, commande `lucidnews-sources` |
+| `lucidnews/source_quality.py` | Score de qualité par source (départage des news de même score) |
+| `lucidnews/settings_api.py` | Réglages depuis l'interface : édition brute de `config.json`, copies de sauvegarde ; état (présente ou non, jamais la valeur) des variables de clés. Aucune clé n'est écrite |
+| `lucidnews/coverage.py` | Couverture des 12 catégories par les sources, calculée sur l'archive ; lacunes des domaines suivis |
+| `lucidnews/source_catalog.py` | Catalogue des sources recommandées (config d'exemple et catalogue de l'assistant), sans les sources déjà configurées |
+| `lucidnews/run_lock.py` | Verrou d'un run à la fois (terminal, interface, planification) |
+| `lucidnews/runs_api.py` | Lancer le pipeline depuis l'interface, suivre son journal, planification launchd |
+| `lucidnews/sources_api.py` | Sources depuis l'interface : liste avec la clé de santé, ajout, modification, suppression, test d'une source sans IA |
+| `lucidnews/reassess_cli.py` | Commande `lucidnews-reassess` : recalcul des étiquettes de l'archive avec le registre actuel |
+| `lucidnews/evaluation/` | Annotations humaines, calcul des scores (sélection, importance, thèmes, affirmation, faux fiables), commande `lucidnews-eval` |
+| `lucidnews/web_api.py`, `lucidnews/subscribers_api.py` | API HTTP du frontend : archive en lecture (éditions, news, sources), préférences des abonnés en écriture locale, commande `lucidnews-api` |
+| `lucidnews/newsletter/` | Abonnés, préférences, plans, sélection, plan d'envoi, stockage |
+| `lucidnews/services/email.py` | SMTP (envoi) et IMAP (inscription / désinscription par email) |
+| `lucidnews/services/webhook.py` | Webhooks génériques et plateformes (Slack, Discord, Feishu/Lark, DingTalk) |
+| `lucidnews/storage/manager.py` | Lecture de la config (avec `${VAR}`), écriture atomique des digests, accès abonnés |
+| `lucidnews/mcp/` | Serveur MCP : le même pipeline exposé par étapes (`ln_fetch_items`, `ln_score_items`…) |
+| `lucidnews/setup/` | Assistant `lucidnews-wizard` et catalogue `data/presets.json` |
 | `profiles/` | Profils éditoriaux : `match.md` (routage), `analysis.md` (grille de score), `enrichment.md` (rédaction) |
 
 ## Données
@@ -96,7 +97,7 @@ Fichiers sous `data/` :
 
 ## Configuration
 
-Toute la configuration est centralisée dans un seul schéma, `Config` (`src/models.py`), chargé depuis `data/config.json` :
+Toute la configuration est centralisée dans un seul schéma, `Config` (`lucidnews/models.py`), chargé depuis `data/config.json` :
 
 | Section | Rôle |
 |---|---|
@@ -128,7 +129,7 @@ Usages :
 - **Réutilisation des analyses** : si une news revient inchangée (même titre, URL, contenu et routage), son analyse est reprise au lieu de rappeler l'IA. On peut le désactiver avec `archive.reuse_analysis: false`, par exemple après un changement de consigne.
 - **Réutilisation de l'enrichissement** : avec une analyse reprise, l'enrichissement (titre traduit, résumé, contexte) est repris aussi s'il existe dans toutes les langues configurées. Désactivable avec `archive.reuse_enrichment: false`.
 - **Quota IA épuisé** : quand le budget de tokens du run (`ai.max_tokens_per_run`) est atteint, ou que le fournisseur annonce son quota épuisé, l'IA n'est plus appelée du tout jusqu'à la fin du run. Les news pas encore analysées sont marquées `ai_skipped`, reprises au run suivant sans consommer de tentative, et une partie est publiée à part, sans analyse (voir [fiabilite.md](fiabilite.md)). Chaque run garde la raison (`ai_limit`), les tokens utilisés (`tokens_used`) et le nombre de news non analysées (`ai_skipped_count`).
-- **Recherche plein texte** : table FTS5 `items_fts` (titres, résumés, tags, enrichissement, accents ignorés), mise à jour à chaque `record_items`, reconstruite à l'ouverture d'une archive qui n'en a pas ; voir `src/archive/search.py` et `GET /api/search`.
+- **Recherche plein texte** : table FTS5 `items_fts` (titres, résumés, tags, enrichissement, accents ignorés), mise à jour à chaque `record_items`, reconstruite à l'ouverture d'une archive qui n'en a pas ; voir `lucidnews/archive/search.py` et `GET /api/search`.
 - **Historique** : `ItemArchive.items_between(depuis, jusqu_a, selected_only=...)` sert de base à l'envoi hebdomadaire (7 derniers jours) et aux statistiques de sources.
 - **Reprise des échecs** : une news que l'IA n'a pas pu noter est d'abord retentée une fois en fin d'analyse, après une pause (`ai.failed_retry_delay_sec`). Si elle échoue encore, elle reste « en attente » dans l'archive et est reprise aux runs suivants, dans la limite de `archive.max_analysis_attempts` runs et de `archive.retry_window_hours` heures. L'enrichissement raté est aussi retenté une fois. Chaque run garde le nombre de news restées non notées (`unscored_count`).
 - L'archive est « au mieux » : si elle est inaccessible, le run continue et produit le digest, avec un avertissement.

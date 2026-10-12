@@ -1,9 +1,8 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import { vi } from 'vitest'
 import { renderAt } from '../../test/render'
 import settingsFixture from '../../test/fixtures/settings.json'
 
-const KEY = 'AIza-test-value-never-shown'
 type Call = { method: string; path: string; body: unknown }
 
 function mockSettingsApi({
@@ -16,7 +15,6 @@ function mockSettingsApi({
   put?: (body: unknown) => [number, unknown]
 } = {}) {
   const calls: Call[] = []
-  let currentSecrets = secrets
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const path = new URL(String(input), 'http://localhost').pathname
     const method = init?.method ?? 'GET'
@@ -26,11 +24,7 @@ function mockSettingsApi({
     if (path === '/api/settings' && method === 'GET') return reply(200, settings)
     if (path === '/api/settings' && method === 'PUT') return reply(...put(body))
     if (path === '/api/settings/backups') return reply(200, { backups: [] })
-    if (path === '/api/secrets') return reply(200, { secrets: currentSecrets })
-    if (path.startsWith('/api/secrets/') && method === 'PUT') {
-      currentSecrets = currentSecrets.map((secret) => ({ ...(secret as object), in_file: true }))
-      return reply(200, { name: 'GOOGLE_API_KEY', in_file: true })
-    }
+    if (path === '/api/secrets') return reply(200, { secrets })
     return reply(404, { error: 'not found' })
   })
   return calls
@@ -41,6 +35,11 @@ async function openSettings() {
   return screen.findByRole('heading', { level: 1, name: 'Réglages' }, { timeout: 5000 })
 }
 
+const withAi = (enabled: boolean) => ({
+  ...(settingsFixture as { values: { ai: object } }),
+  values: { ...(settingsFixture as { values: object }).values, ai: { ...(settingsFixture as { values: { ai: object } }).values.ai, enabled } },
+})
+
 test('shows the real settings and the key status', async () => {
   mockSettingsApi()
   await openSettings()
@@ -48,10 +47,7 @@ test('shows the real settings and the key status', async () => {
   expect(await screen.findByLabelText('Modèle')).toHaveValue('gemini-2.5-flash')
   expect(screen.getByLabelText('Variable de la clé')).toHaveValue('GOOGLE_API_KEY')
   expect(screen.getByRole('button', { name: /Français/ })).toHaveAttribute('aria-pressed', 'true')
-  const keys = screen.getByRole('region', { name: 'Clés API' })
-  expect(within(keys).getByText('GOOGLE_API_KEY')).toBeInTheDocument()
-  expect(within(keys).getByText('Absente')).toBeInTheDocument()
-  expect(within(keys).getByText('IA · gemini')).toBeInTheDocument()
+  expect(screen.getByText(/Clé GOOGLE_API_KEY · non détectée/)).toBeInTheDocument()
 })
 
 test('saves edited settings with the version that was read', async () => {
@@ -117,20 +113,39 @@ test('locked fields cannot be edited', async () => {
   expect(screen.getByText('Défini par une variable dans config.json')).toBeInTheDocument()
 })
 
-test('a key is sent once and never shown again', async () => {
-  const calls = mockSettingsApi()
+test('AI analysis is an opt-in checkbox: off hides the provider settings and needs no key', async () => {
+  mockSettingsApi({ settings: withAi(false) })
   await openSettings()
-  const keys = await screen.findByRole('region', { name: 'Clés API' })
 
-  fireEvent.click(await within(keys).findByRole('button', { name: 'Saisir' }))
-  const input = within(keys).getByLabelText('Valeur de GOOGLE_API_KEY')
-  expect(input).toHaveAttribute('type', 'password')
-  fireEvent.change(input, { target: { value: KEY } })
-  fireEvent.click(within(keys).getByRole('button', { name: 'Enregistrer la clé' }))
+  const box = await screen.findByRole('checkbox', { name: 'Activer l’analyse par IA' })
+  expect(box).not.toBeChecked()
+  expect(screen.queryByLabelText('Fournisseur')).toBeNull()
+  expect(screen.queryByText(/non détectée/)).toBeNull()
+  // Languages stay editable: they also name the digest languages.
+  expect(screen.getByRole('button', { name: /Français/ })).toBeInTheDocument()
+})
 
-  expect(await within(keys).findByText('Clé enregistrée. Elle ne sera plus affichée.')).toBeInTheDocument()
-  expect(calls.find((call) => call.method === 'PUT' && call.path === '/api/secrets/GOOGLE_API_KEY')?.body).toEqual({ value: KEY })
-  await waitFor(() => expect(within(keys).getByText('Enregistrée dans .env')).toBeInTheDocument())
-  expect(within(keys).queryByLabelText('Valeur de GOOGLE_API_KEY')).toBeNull()
-  expect(document.body.innerHTML).not.toContain(KEY)
+test('ticking the box saves ai.enabled and reveals the provider settings', async () => {
+  const calls = mockSettingsApi({ settings: withAi(false) })
+  await openSettings()
+
+  fireEvent.click(await screen.findByRole('checkbox', { name: 'Activer l’analyse par IA' }))
+  expect(await screen.findByLabelText('Fournisseur')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+  await screen.findByText('Enregistré. Appliqué dès le prochain run.')
+  const put = calls.find((call) => call.method === 'PUT' && call.path === '/api/settings')!
+  expect(put.body).toMatchObject({ values: { ai: { enabled: true } } })
+})
+
+test('no key can be typed in the interface, and none is ever sent', async () => {
+  const calls = mockSettingsApi({ secrets: [{ name: 'GOOGLE_API_KEY', used_by: ['ai:gemini'], in_file: true, in_environment: false }] })
+  await openSettings()
+
+  expect(await screen.findByText(/Clé GOOGLE_API_KEY · détectée/)).toBeInTheDocument()
+  expect(screen.queryByRole('region', { name: 'Clés API' })).toBeNull()
+  expect(document.querySelector('input[type="password"]')).toBeNull()
+  expect(screen.queryByRole('button', { name: /Saisir|Enregistrer la clé/ })).toBeNull()
+  expect(screen.getByText(/ne se saisissent jamais ici/)).toBeInTheDocument()
+  expect(calls.some((call) => call.path.startsWith('/api/secrets') && call.method !== 'GET')).toBe(false)
 })

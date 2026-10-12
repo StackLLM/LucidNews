@@ -86,8 +86,7 @@ export function periodBounds(kind: PeriodKind, value: string): { since: Date; un
   if (!match) return null
   const [year, month = 1, day = 1] = match.slice(1).map(Number)
   const since = new Date(year, month - 1, day)
-  const until =
-    kind === 'day' ? new Date(year, month - 1, day + 1) : kind === 'month' ? new Date(year, month, 1) : new Date(year + 1, 0, 1)
+  const until = kind === 'day' ? new Date(year, month - 1, day + 1) : kind === 'month' ? new Date(year, month, 1) : new Date(year + 1, 0, 1)
   // `new Date(2026, 12, 40)` rolls over: reject values that are not real calendar dates.
   return Number.isNaN(since.getTime()) || dayKey(since).slice(0, value.length) !== value ? null : { since, until }
 }
@@ -96,6 +95,10 @@ export function formatPeriod(kind: PeriodKind, value: string, language: Language
   const bounds = periodBounds(kind, value)
   if (!bounds) return value
   const options: Intl.DateTimeFormatOptions =
-    kind === 'day' ? { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' } : kind === 'month' ? { month: 'long', year: 'numeric' } : { year: 'numeric' }
+    kind === 'day'
+      ? { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }
+      : kind === 'month'
+        ? { month: 'long', year: 'numeric' }
+        : { year: 'numeric' }
   return new Intl.DateTimeFormat(locales[language], options).format(bounds.since)
 }

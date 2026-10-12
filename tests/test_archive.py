@@ -5,8 +5,8 @@ from types import SimpleNamespace
 
 from rich.console import Console
 
-from src.archive import ItemArchive, content_hash
-from src.models import (
+from lucidnews.archive import ItemArchive, content_hash
+from lucidnews.models import (
     ArchiveConfig,
     ClassificationResult,
     ContentAnalysis,
@@ -14,8 +14,8 @@ from src.models import (
     ProcessingResult,
     SourceType,
 )
-from src.orchestrator import FetchReport, PipelineOrchestrator, SourceFetchOutcome
-from src.reliability.assess import ReliabilityPolicy
+from lucidnews.orchestrator import FetchReport, PipelineOrchestrator, SourceFetchOutcome
+from lucidnews.reliability.assess import ReliabilityPolicy
 
 NOW = datetime(2026, 10, 6, 12, 0, tzinfo=timezone.utc)
 
@@ -194,7 +194,7 @@ def test_failed_analyses_are_counted_and_offered_for_retry(tmp_path) -> None:
 def test_version_1_archive_is_migrated_in_place(tmp_path) -> None:
     import sqlite3
 
-    from src.archive.store import _SCHEMA
+    from lucidnews.archive.store import _SCHEMA
 
     path = tmp_path / "archive.sqlite3"
     with sqlite3.connect(path) as conn:

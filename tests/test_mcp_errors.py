@@ -1,4 +1,4 @@
-from src.mcp.errors import LucidNewsMcpError
+from lucidnews.mcp.errors import LucidNewsMcpError
 
 
 def test_lucidnews_mcp_error_string_representation() -> None:

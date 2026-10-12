@@ -10,16 +10,16 @@ from urllib.parse import parse_qs, urlsplit
 import httpx
 import pytest
 
-from src.models import EmailConfig
-from src.newsletter import DigestPreferences, Subscriber, SubscriptionStatus, subscriber_id, tokens
-from src.newsletter.build import Newsletter
-from src.newsletter.db import SubscriberDB
-from src.newsletter.digest import plan_deliveries
-from src.newsletter.mailer import Mailer
-from src.newsletter.provider import ResendProvider, SendResult, SmtpProvider
-from src.newsletter.render import UNSUBSCRIBE_PLACEHOLDER, RenderedEmail, render_email
-from src.newsletter.store import SubscriberStore
-from src.public_api import PublicService, make_handler
+from lucidnews.models import EmailConfig
+from lucidnews.newsletter import DigestPreferences, Subscriber, SubscriptionStatus, subscriber_id, tokens
+from lucidnews.newsletter.build import Newsletter
+from lucidnews.newsletter.db import SubscriberDB
+from lucidnews.newsletter.digest import plan_deliveries
+from lucidnews.newsletter.mailer import Mailer
+from lucidnews.newsletter.provider import ResendProvider, SendResult, SmtpProvider
+from lucidnews.newsletter.render import UNSUBSCRIBE_PLACEHOLDER, RenderedEmail, render_email
+from lucidnews.newsletter.store import SubscriberStore
+from lucidnews.public_api import PublicService, make_handler
 
 KEY = "k" * 32
 BASE = "https://news.example.org"

@@ -5,8 +5,8 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from http.server import ThreadingHTTPServer
 
-from src.archive import ItemArchive
-from src.models import (
+from lucidnews.archive import ItemArchive
+from lucidnews.models import (
     ClassificationResult,
     ContentAnalysis,
     ContentArtifact,
@@ -15,9 +15,9 @@ from src.models import (
     ProcessingResult,
     SourceType,
 )
-from src.reliability.assess import assess_item
-from src.source_quality import item_source_key
-from src.web_api import ApiContext, make_handler, resolve
+from lucidnews.reliability.assess import assess_item
+from lucidnews.source_quality import item_source_key
+from lucidnews.web_api import ApiContext, make_handler, resolve
 
 NOW = datetime(2026, 10, 6, 12, 0, tzinfo=timezone.utc)
 
@@ -133,7 +133,7 @@ def test_http_server_serves_json(tmp_path) -> None:
 
 
 def test_sources_endpoint_reports_configured_sources_and_runs(tmp_path) -> None:
-    from src.source_health import SourceRunOutcome
+    from lucidnews.source_health import SourceRunOutcome
 
     ctx, run_id = make_context(tmp_path)
     ctx.configured_sources = {"rss/Kept": "rss", "rss/New": "rss"}
@@ -244,7 +244,7 @@ def test_period_and_limit_reject_bad_input(tmp_path) -> None:
 
 
 def test_source_domains_use_the_archive_then_the_catalog(tmp_path) -> None:
-    from src.source_catalog import CatalogEntry
+    from lucidnews.source_catalog import CatalogEntry
 
     archive = ItemArchive(tmp_path / "archive.sqlite3")
     ai_items = [make_item(f"ai{n}", "tech-news", 8.0) for n in range(3)]

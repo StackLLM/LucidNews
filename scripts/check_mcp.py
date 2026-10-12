@@ -6,9 +6,9 @@ from __future__ import annotations
 import asyncio
 import json
 
-from src.mcp.pipeline_adapter import resolve_project_path
-from src.mcp.server import ln_get_metrics
-from src.mcp.service import PipelineService
+from lucidnews.mcp.pipeline_adapter import resolve_project_path
+from lucidnews.mcp.server import ln_get_metrics
+from lucidnews.mcp.service import PipelineService
 
 
 async def _main() -> None:

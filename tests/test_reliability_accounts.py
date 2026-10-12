@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.models import (
+from lucidnews.models import (
     ClassificationResult,
     ContentAnalysis,
     ContentItem,
@@ -10,9 +10,9 @@ from src.models import (
     ReliabilityConfig,
     SourceType,
 )
-from src.reliability import ReliabilityLabel, SourceTier
-from src.reliability.accounts import account_of, normalize_account
-from src.reliability.assess import ReliabilityPolicy, assess_item, independent_corroboration
+from lucidnews.reliability import ReliabilityLabel, SourceTier
+from lucidnews.reliability.accounts import account_of, normalize_account
+from lucidnews.reliability.assess import ReliabilityPolicy, assess_item, independent_corroboration
 
 
 def make_item(url: str, claim: str = "reported", **metadata) -> ContentItem:

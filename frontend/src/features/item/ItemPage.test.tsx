@@ -15,10 +15,7 @@ test('opens the full brief from an edition card', async () => {
   expect(fetchMock).toHaveBeenCalledWith(`/api/items/${encodeURIComponent(curl.id)}?lang=fr`, expect.anything())
   expect(new URLSearchParams(window.location.search).get('from')).toBe(fixtures.editionFr.id)
   const breadcrumb = screen.getByRole('navigation', { name: 'Breadcrumb' })
-  expect(within(breadcrumb).getByRole('link', { name: /Mardi 6 octobre 2026/ })).toHaveAttribute(
-    'href',
-    `/editions/${fixtures.editionFr.id}?lang=fr`,
-  )
+  expect(within(breadcrumb).getByRole('link', { name: /Mardi 6 octobre 2026/ })).toHaveAttribute('href', `/editions/${fixtures.editionFr.id}?lang=fr`)
 })
 
 test('shows reliability details and never presents an unverified claim as fact', async () => {
@@ -71,9 +68,7 @@ test('an item the AI could not analyze says so instead of showing a summary', as
   })
   renderAt(`/items/${encodeURIComponent(curl.id)}?lang=fr`)
 
-  expect(
-    await screen.findByText(/Cette news n’a pas été analysée : le quota IA était épuisé\./, {}, { timeout: 5000 }),
-  ).toBeInTheDocument()
+  expect(await screen.findByText(/Cette news n’a pas été analysée par l’IA/, {}, { timeout: 5000 })).toBeInTheDocument()
   expect(screen.queryByText('Score')).toBeNull()
   // The label hint stays in the reliability panel only, not as a second warning under the title.
   expect(screen.getAllByText('Pas confirmé par une source officielle ou reconnue.')).toHaveLength(1)

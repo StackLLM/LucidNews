@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 
-from src.models import GoogleNewsConfig
-from src.scrapers.google_news import GoogleNewsScraper
+from lucidnews.models import GoogleNewsConfig
+from lucidnews.scrapers.google_news import GoogleNewsScraper
 
 
 def _now() -> datetime:

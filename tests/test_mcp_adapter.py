@@ -4,7 +4,7 @@ import json
 import os
 from pathlib import Path
 
-from src.mcp.pipeline_adapter import (
+from lucidnews.mcp.pipeline_adapter import (
     _load_mcp_secrets,
     apply_source_filter,
     get_enabled_sources,
@@ -13,7 +13,7 @@ from src.mcp.pipeline_adapter import (
     resolve_config_path,
     resolve_project_path,
 )
-from src.models import AIProvider, Config, SOURCE_REGISTRY, SourceType
+from lucidnews.models import AIProvider, Config, SOURCE_REGISTRY, SourceType
 
 
 def test_resolve_project_path_accepts_explicit_repo() -> None:

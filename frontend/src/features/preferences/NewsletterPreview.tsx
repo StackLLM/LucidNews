@@ -37,7 +37,7 @@ export function NewsletterPreview({ subscriber }: { subscriber: Subscriber }) {
           type="button"
           aria-expanded={open}
           onClick={() => setOpen((value) => !value)}
-          className="flex items-center gap-1.5 rounded-control bg-ink px-4 py-2.5 text-[14px] font-semibold text-white transition-all duration-150 ease-soft hover:-translate-y-0.5 active:translate-y-0"
+          className="flex items-center gap-1.5 rounded-control bg-ink px-4 py-2.5 text-[14px] font-semibold text-on-fill transition-all duration-150 ease-soft hover:-translate-y-0.5 active:translate-y-0"
         >
           {open ? <EyeOff size={15} aria-hidden /> : <Eye size={15} aria-hidden />}
           {open ? t('preview.hide') : t('preview.show')}
@@ -87,9 +87,7 @@ function PreviewBody({ preview, language }: { preview: Preview; language: Langua
           {preview.unanalyzed_count > 0 && ` · ${t('preview.unanalyzed', { count: preview.unanalyzed_count })}`}
         </dd>
       </dl>
-      {preview.language_fallback && (
-        <p className="text-[13px] text-unverified">{t('preview.fallback', preview.language_fallback)}</p>
-      )}
+      {preview.language_fallback && <p className="text-[13px] text-unverified">{t('preview.fallback', preview.language_fallback)}</p>}
       {!preview.would_send || !preview.html ? (
         <p className="rounded-control bg-canvas p-4 text-[14px] text-muted">{t('preview.notSent')}</p>
       ) : (

@@ -2,7 +2,7 @@
 
 ## Catégories IT
 
-Définies dans `src/taxonomy.py`. Pendant l'analyse, l'IA attribue à chaque item **1 à 3 catégories**, de la plus à la moins pertinente. Les identifiants inconnus sont ignorés, et les alias courants sont convertis (`llm` → `ai`, `security` → `cybersecurity`, `devtools` → `developer-tools`…).
+Définies dans `lucidnews/taxonomy.py`. Pendant l'analyse, l'IA attribue à chaque item **1 à 3 catégories**, de la plus à la moins pertinente. Les identifiants inconnus sont ignorés, et les alias courants sont convertis (`llm` → `ai`, `security` → `cybersecurity`, `devtools` → `developer-tools`…).
 
 | ID | Anglais | Français |
 |---|---|---|
@@ -57,7 +57,7 @@ Format et personnalisation : [profiles.md](profiles.md) (anglais).
 
 Les langues de sortie se règlent dans `ai.languages`, par exemple `["en", "fr"]`. Pour chaque langue, le pipeline :
 
-1. génère les blocs d'enrichissement directement dans cette langue (l'IA reçoit l'instruction définie dans `src/i18n.py`) ;
+1. génère les blocs d'enrichissement directement dans cette langue (l'IA reçoit l'instruction définie dans `lucidnews/i18n.py`) ;
 2. rend le digest avec les libellés fixes de cette langue ;
 3. écrit `data/summaries/lucidnews-<date>-<langue>.md`.
 
@@ -75,7 +75,7 @@ N'importe quel autre code (`de`, `es`…) fonctionne déjà pour le contenu réd
 
 ### Ajouter une langue
 
-1. Ajouter une entrée `Language` dans `LANGUAGES` (`src/i18n.py`), avec l'instruction donnée à l'IA.
+1. Ajouter une entrée `Language` dans `LANGUAGES` (`lucidnews/i18n.py`), avec l'instruction donnée à l'IA.
 2. Ajouter une table de messages (copier `_EN` et traduire). Toute clé absente retombe sur l'anglais.
 3. Si besoin, ajouter un format de date dans `format_timestamp`.
 4. Ajouter éventuellement les noms de profils (`display_names` dans `profiles/*/profile.json`) et les libellés de catégories (`CATEGORY_LABELS`).

@@ -1,5 +1,5 @@
 import { LayoutDashboard, ListChecks, PenLine } from 'lucide-react'
-import { motion } from 'motion/react'
+import { m } from 'motion/react'
 import { useLocation, useNavigate } from 'react-router'
 import { PageHeader, Segmented } from '../../design/PageState'
 import { useLanguage } from '../../lib/i18n'
@@ -19,7 +19,7 @@ export function QualityPage() {
   const tab: Tab = pathname.endsWith('/results') ? 'results' : pathname.endsWith('/annotate') ? 'annotate' : 'overview'
 
   return (
-    <motion.div variants={listStagger} initial={enabled ? 'hidden' : false} animate="visible" className="space-y-8">
+    <m.div variants={listStagger} initial={enabled ? 'hidden' : false} animate="visible" className="space-y-8">
       <PageHeader
         title={t('quality.title')}
         subtitle={tab === 'overview' ? t('overview.subtitle') : t('quality.subtitle')}
@@ -30,16 +30,38 @@ export function QualityPage() {
             value={tab}
             onChange={(next) => navigate({ pathname: PATHS[next], search: `?lang=${language}` })}
             options={[
-              { value: 'overview', label: <><LayoutDashboard size={14} aria-hidden />{t('quality.tabOverview')}</> },
-              { value: 'annotate', label: <><PenLine size={14} aria-hidden />{t('quality.tabAnnotate')}</> },
-              { value: 'results', label: <><ListChecks size={14} aria-hidden />{t('quality.tabResults')}</> },
+              {
+                value: 'overview',
+                label: (
+                  <>
+                    <LayoutDashboard size={14} aria-hidden />
+                    {t('quality.tabOverview')}
+                  </>
+                ),
+              },
+              {
+                value: 'annotate',
+                label: (
+                  <>
+                    <PenLine size={14} aria-hidden />
+                    {t('quality.tabAnnotate')}
+                  </>
+                ),
+              },
+              {
+                value: 'results',
+                label: (
+                  <>
+                    <ListChecks size={14} aria-hidden />
+                    {t('quality.tabResults')}
+                  </>
+                ),
+              },
             ]}
           />
         }
       />
-      <motion.div variants={riseIn}>
-        {tab === 'results' ? <ResultsView /> : tab === 'annotate' ? <AnnotateView /> : <OverviewView />}
-      </motion.div>
-    </motion.div>
+      <m.div variants={riseIn}>{tab === 'results' ? <ResultsView /> : tab === 'annotate' ? <AnnotateView /> : <OverviewView />}</m.div>
+    </m.div>
   )
 }

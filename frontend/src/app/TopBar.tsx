@@ -1,15 +1,23 @@
-import { Activity, Archive, Gauge, Newspaper, Settings2, SlidersHorizontal, Zap, ZapOff, type LucideIcon } from 'lucide-react'
-import { motion } from 'motion/react'
+import { Activity, Archive, Gauge, Moon, Newspaper, Settings2, SlidersHorizontal, Sun, Zap, ZapOff, type LucideIcon } from 'lucide-react'
+import { m } from 'motion/react'
 import { Link, NavLink, useLocation } from 'react-router'
 import { languages, useLanguage, type MessageKey } from '../lib/i18n'
 import { useMotionPreference } from '../lib/motion'
+import { useTheme } from '../lib/theme'
+import { UserMenu } from './UserMenu'
 
 // shortKey: label of the phone and tablet bar, where six entries share the width.
 const navItems: { key: MessageKey; shortKey?: MessageKey; icon: LucideIcon; to: string; matches: (path: string) => boolean }[] = [
   { key: 'nav.edition', icon: Newspaper, to: '/', matches: (path) => path === '/' || path.startsWith('/editions/') || path.startsWith('/items/') },
   { key: 'nav.archive', icon: Archive, to: '/archive', matches: (path) => path.startsWith('/archive') },
   { key: 'nav.sources', icon: Activity, to: '/sources', matches: (path) => path.startsWith('/sources') },
-  { key: 'nav.preferences', shortKey: 'nav.short.preferences', icon: SlidersHorizontal, to: '/preferences', matches: (path) => path.startsWith('/preferences') },
+  {
+    key: 'nav.preferences',
+    shortKey: 'nav.short.preferences',
+    icon: SlidersHorizontal,
+    to: '/preferences',
+    matches: (path) => path.startsWith('/preferences'),
+  },
   { key: 'nav.quality', icon: Gauge, to: '/quality', matches: (path) => path.startsWith('/quality') },
   { key: 'nav.settings', icon: Settings2, to: '/settings', matches: (path) => path.startsWith('/settings') },
 ]
@@ -17,19 +25,20 @@ const navItems: { key: MessageKey; shortKey?: MessageKey; icon: LucideIcon; to: 
 export function TopBar() {
   const { language, setLanguage, t } = useLanguage()
   const motionPref = useMotionPreference()
+  const theme = useTheme()
   const { pathname } = useLocation()
   const search = `?lang=${language}`
 
   return (
     <>
       <header className="sticky top-3 z-30 mx-auto w-full max-w-6xl px-4 sm:top-5 sm:px-6">
-        <div className="glass flex h-16 items-center gap-4 rounded-full pl-5 pr-2.5">
+        <div className="glass flex h-16 items-center gap-2 rounded-full pl-5 xl:gap-4 pr-2.5">
           <Link to={{ pathname: '/', search }} className="flex items-center gap-2.5">
             <LogoMark />
             <span className="text-[17px] font-bold tracking-tight">LucidNews</span>
           </Link>
 
-          <nav className="ml-6 hidden items-center gap-1 lg:flex" aria-label={t('nav.main')}>
+          <nav className="ml-2 hidden xl:ml-6  items-center gap-0.5 lg:flex xl:gap-1" aria-label={t('nav.main')}>
             {navItems.map(({ key, icon: Icon, to, matches }) => {
               const active = matches(pathname)
               return (
@@ -37,14 +46,14 @@ export function TopBar() {
                   key={key}
                   to={{ pathname: to, search }}
                   aria-current={active ? 'page' : undefined}
-                  className={`relative flex items-center gap-2 rounded-full px-3.5 py-2 text-sm transition-colors duration-150 ${
+                  className={`relative flex items-center gap-1.5 rounded-full px-2.5 py-2 text-sm xl:gap-2 xl:px-3.5 transition-colors duration-150 ${
                     active ? 'font-semibold text-accent' : 'font-medium text-muted hover:text-ink'
                   }`}
                 >
                   <Icon size={16} aria-hidden />
                   {t(key)}
                   {active && (
-                    <motion.span
+                    <m.span
                       layoutId="nav-underline"
                       transition={{ type: 'spring', stiffness: 380, damping: 34 }}
                       className="absolute inset-x-3.5 -bottom-[9px] h-0.5 rounded-full bg-accent"
@@ -66,10 +75,10 @@ export function TopBar() {
                   className="relative rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-muted transition-colors duration-150 hover:text-ink aria-pressed:text-ink"
                 >
                   {code === language && (
-                    <motion.span
+                    <m.span
                       layoutId="language-pill"
                       transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-                      className="absolute inset-0 rounded-full bg-white shadow-sm"
+                      className="absolute inset-0 rounded-full bg-surface shadow-sm"
                     />
                   )}
                   <span className="relative">{code}</span>
@@ -82,10 +91,20 @@ export function TopBar() {
               aria-pressed={motionPref.enabled}
               aria-label={t(motionPref.enabled ? 'motion.on' : 'motion.off')}
               title={t(motionPref.enabled ? 'motion.on' : 'motion.off')}
-              className="grid h-10 w-10 place-items-center rounded-full text-muted transition-all duration-150 ease-soft hover:bg-white hover:text-ink active:scale-95"
+              className="grid h-10 w-10 place-items-center rounded-full text-muted transition-all duration-150 ease-soft hover:bg-surface hover:text-ink active:scale-95"
             >
               {motionPref.enabled ? <Zap size={17} aria-hidden /> : <ZapOff size={17} aria-hidden />}
             </button>
+            <button
+              type="button"
+              onClick={theme.toggle}
+              aria-label={t(theme.dark ? 'theme.toLight' : 'theme.toDark')}
+              title={t(theme.dark ? 'theme.toLight' : 'theme.toDark')}
+              className="grid h-10 w-10 place-items-center rounded-full text-muted transition-all duration-150 ease-soft hover:bg-surface hover:text-ink active:scale-95"
+            >
+              {theme.dark ? <Sun size={17} aria-hidden /> : <Moon size={17} aria-hidden />}
+            </button>
+            <UserMenu />
           </div>
         </div>
       </header>
@@ -119,10 +138,10 @@ export function TopBar() {
 
 function LogoMark() {
   return (
-    <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-accent shadow-accent">
+    <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-accent text-on-fill shadow-accent">
       <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden>
-        <circle cx="10" cy="10" r="6" fill="none" stroke="white" strokeWidth="2.2" />
-        <circle cx="10" cy="10" r="2.2" fill="white" />
+        <circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" strokeWidth="2.2" />
+        <circle cx="10" cy="10" r="2.2" fill="currentColor" />
       </svg>
     </span>
   )

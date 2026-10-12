@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { motion } from 'motion/react'
+import { m } from 'motion/react'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { ApiErrorCard, PageHeader, PageSkeleton, Segmented } from '../../design/PageState'
@@ -95,33 +95,31 @@ function SourcesView({ report }: { report: SourceReport }) {
   ]
 
   return (
-    <motion.div variants={listStagger} initial={enabled ? 'hidden' : false} animate="visible" className="space-y-6">
-      <motion.dl variants={riseIn} className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+    <m.div variants={listStagger} initial={enabled ? 'hidden' : false} animate="visible" className="space-y-6">
+      <m.dl variants={riseIn} className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {tiles.map((tile) => (
           <div key={tile.label} className="glass rounded-card px-5 py-4">
             <dt className="text-[13px] font-medium text-muted">{tile.label}</dt>
-            <dd className={`mt-1 text-[32px] leading-none font-bold ${tile.value > 0 && tile.tone ? tile.tone : 'text-ink'}`}>
-              {tile.value}
-            </dd>
+            <dd className={`mt-1 text-[32px] leading-none font-bold ${tile.value > 0 && tile.tone ? tile.tone : 'text-ink'}`}>{tile.value}</dd>
           </div>
         ))}
-      </motion.dl>
+      </m.dl>
 
       {!managed && report.configured_without_history.length > 0 && (
-        <motion.p variants={riseIn} className="rounded-control bg-white/70 px-4 py-3 text-[13.5px] text-muted">
+        <m.p variants={riseIn} className="rounded-control bg-surface/70 px-4 py-3 text-[13.5px] text-muted">
           {t('sources.neverSeen', { list: report.configured_without_history.join(', ') })}
-        </motion.p>
+        </m.p>
       )}
 
-      <motion.div variants={riseIn}>
+      <m.div variants={riseIn}>
         <RunVolumeChart runs={report.runs} />
-      </motion.div>
+      </m.div>
 
-      <motion.div variants={riseIn}>
+      <m.div variants={riseIn}>
         {managed ? (
           <SourceManager config={config.data} health={report.sources} onReload={() => config.refetch()} />
         ) : config.isPending ? (
-          <div className="h-64 animate-shimmer rounded-card bg-white/70 shadow-card" />
+          <div className="h-64 animate-shimmer rounded-card bg-surface/70 shadow-card" />
         ) : (
           <>
             {!(config.error instanceof ApiError && config.error.status === 403) && (
@@ -133,8 +131,8 @@ function SourcesView({ report }: { report: SourceReport }) {
           </>
         )}
         {managed && <p className="mt-4 text-[12.5px] leading-relaxed text-muted">{t('sources.qualityHint', { days: report.quality_days })}</p>}
-      </motion.div>
-    </motion.div>
+      </m.div>
+    </m.div>
   )
 }
 
@@ -197,9 +195,7 @@ function SourceTable({ sources, qualityDays }: { sources: SourceHealth[]; qualit
                     <td className="py-3.5 pr-4 text-right tabular-nums">{(source.items / Math.max(source.runs, 1)).toFixed(1)}</td>
                     <td className="py-3.5 pr-4 text-right tabular-nums">
                       {source.selected}
-                      {source.items > 0 && (
-                        <span className="ml-1 text-faint">({formatPercent(source.selection_rate, language)})</span>
-                      )}
+                      {source.items > 0 && <span className="ml-1 text-faint">({formatPercent(source.selection_rate, language)})</span>}
                     </td>
                     <td className="py-3.5 pr-4 text-right">
                       <QualityScore source={source} />
@@ -227,11 +223,11 @@ function SourceTable({ sources, qualityDays }: { sources: SourceHealth[]; qualit
                   <HealthBadge status={source.status} />
                 </div>
                 <p className="mt-2 text-[13px] text-muted tabular-nums">
-                  {t('sources.col.runs')} {source.runs} · {t('sources.col.failures')} {source.failures} ·{' '}
-                  {t('sources.col.selected')} {source.selected}
+                  {t('sources.col.runs')} {source.runs} · {t('sources.col.failures')} {source.failures} · {t('sources.col.selected')} {source.selected}
                   {source.quality && (
                     <>
-                      {' '}· {t('sources.col.quality')} <QualityScore source={source} />
+                      {' '}
+                      · {t('sources.col.quality')} <QualityScore source={source} />
                     </>
                   )}
                 </p>

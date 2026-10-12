@@ -78,11 +78,7 @@ export function SourcePanel({
 
   const failed = (error: Error) => {
     if (error instanceof ApiError && Object.keys(error.fields).length) {
-      setErrors(
-        Object.fromEntries(
-          Object.entries(error.fields).map(([name, message]) => [name, t('sources.serverError', { message })]),
-        ),
-      )
+      setErrors(Object.fromEntries(Object.entries(error.fields).map(([name, message]) => [name, t('sources.serverError', { message })])))
     } else if (error instanceof ApiError && error.status === 409) {
       setConflict(true)
     } else {
@@ -91,8 +87,7 @@ export function SourcePanel({
   }
 
   const save = useMutation({
-    mutationFn: (values: SourceValues) =>
-      entry ? updateSource(config.version, entry.key, values) : addSource(config.version, kind, values),
+    mutationFn: (values: SourceValues) => (entry ? updateSource(config.version, entry.key, values) : addSource(config.version, kind, values)),
     onSuccess: (next, values) => {
       const name = entry ? label : String(next.sources.find((source) => source.key === next.key)?.label ?? values.name ?? '')
       onSaved(next, entry ? t('sources.saved') : t('sources.added', { name }))
@@ -145,12 +140,8 @@ export function SourcePanel({
         >
           <header className="flex items-start justify-between gap-4 border-b border-line px-6 pt-6 pb-4">
             <div className="min-w-0">
-              <p className="text-[12.5px] font-semibold tracking-wide text-faint uppercase">
-                {entry ? t(kindKey(entry.kind)) : t('sources.panel.add')}
-              </p>
-              <Dialog.Title className="mt-0.5 truncate text-[20px] font-bold">
-                {entry ? label : t(kindKey(kind))}
-              </Dialog.Title>
+              <p className="text-[12.5px] font-semibold tracking-wide text-faint uppercase">{entry ? t(kindKey(entry.kind)) : t('sources.panel.add')}</p>
+              <Dialog.Title className="mt-0.5 truncate text-[20px] font-bold">{entry ? label : t(kindKey(kind))}</Dialog.Title>
             </div>
             <Dialog.Close
               aria-label={t('sources.panel.close')}
@@ -192,8 +183,7 @@ export function SourcePanel({
                   <div className="flex flex-wrap items-center gap-2">
                     <HealthBadge status={health.status} />
                     <span>
-                      {t('sources.col.lastSuccess')} :{' '}
-                      {health.last_success_at ? formatItemTime(health.last_success_at, language) : t('sources.never')}
+                      {t('sources.col.lastSuccess')} : {health.last_success_at ? formatItemTime(health.last_success_at, language) : t('sources.never')}
                     </span>
                   </div>
                   {health.last_error && (
@@ -236,7 +226,7 @@ export function SourcePanel({
 
             <footer className="flex flex-wrap items-center gap-3 border-t border-line px-6 py-4">
               <p role="status" aria-live="polite" className="w-full text-[13px] font-medium text-rumor empty:hidden">
-                {conflict ? t('sources.conflict') : errors._ ?? ''}
+                {conflict ? t('sources.conflict') : (errors._ ?? '')}
               </p>
               {conflict && (
                 <button type="button" onClick={onConflict} className={ghostButton}>
@@ -293,11 +283,7 @@ function SourceField({
   const { t } = useLanguage()
   const meta = fieldMeta[name] ?? { input: 'text' }
   return (
-    <Field
-      label={t(fieldLabelKey(name))}
-      hint={fieldsWithHint.has(name) ? t(fieldHintKey(name)) : undefined}
-      error={error}
-    >
+    <Field label={t(fieldLabelKey(name))} hint={fieldsWithHint.has(name) ? t(fieldHintKey(name)) : undefined} error={error}>
       {(id, describedBy) =>
         meta.input === 'select' ? (
           <select
@@ -361,7 +347,7 @@ export function TestBlock({ running, result, onRun }: { running: boolean; result
           type="button"
           onClick={onRun}
           disabled={running}
-          className="flex items-center gap-1.5 rounded-full bg-accent-soft px-3.5 py-1.5 text-[13px] font-semibold text-accent transition-all duration-150 ease-soft hover:bg-accent hover:text-white disabled:opacity-60"
+          className="flex items-center gap-1.5 rounded-full bg-accent-soft px-3.5 py-1.5 text-[13px] font-semibold text-accent transition-all duration-150 ease-soft hover:bg-accent hover:text-on-fill disabled:opacity-60"
         >
           <FlaskConical size={14} aria-hidden className={running ? 'animate-pulse' : ''} />
           {running ? t('sources.testing') : t('sources.test')}

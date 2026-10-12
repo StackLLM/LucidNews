@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from src import main as main_module
+from lucidnews import main as main_module
 
 
 def test_missing_custom_config_reports_requested_path(monkeypatch, tmp_path):

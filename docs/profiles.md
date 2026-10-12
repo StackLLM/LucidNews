@@ -387,7 +387,7 @@ with:
 - the profile's required and applicable optional section blocks; and
 - cited external sources referenced by those blocks.
 
-Supported output languages are declared in `src/i18n.py` (`en`, `fr`, and `zh`
+Supported output languages are declared in `lucidnews/i18n.py` (`en`, `fr`, and `zh`
 today). Fixed digest labels come from that module, with a per-key English
 fallback, so any other language tag still works for AI-written content.
 Artifacts generated for `zh` are normalized to Simplified Chinese before they

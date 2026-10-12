@@ -118,6 +118,7 @@ def configure_ai() -> Optional[AIConfig]:
     lang_list = [l.strip() for l in languages.split(",") if l.strip()]
 
     return AIConfig(
+        enabled=True,  # the reader just chose a provider: this is the explicit opt-in
         provider=provider_enum,
         model=model,
         base_url=base_url or None,

@@ -11,7 +11,7 @@ uv run lucidnews-mcp
 If you need a Python module fallback:
 
 ```bash
-uv run python -m src.mcp.server
+uv run python -m lucidnews.mcp.server
 ```
 
 ## Two Setup Modes

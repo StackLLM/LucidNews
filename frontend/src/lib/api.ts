@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-// Mirrors src/web_api.py. Parsing at the boundary keeps the UI honest about the data.
+// Mirrors lucidnews/web_api.py. Parsing at the boundary keeps the UI honest about the data.
 
 export const reliabilityLabels = ['confirmed', 'reliable', 'unverified', 'rumor'] as const
 export const sourceTiers = ['official', 'reputable', 'community', 'unknown'] as const
@@ -50,7 +50,7 @@ export const domainCategories = [
   'emerging-tech',
 ] as const
 
-export const aiLimits = ['provider_quota', 'token_budget'] as const
+export const aiLimits = ['provider_quota', 'token_budget', 'disabled'] as const
 
 const runSchema = z.object({
   id: z.string(),
@@ -58,7 +58,7 @@ const runSchema = z.object({
   finished_at: z.string().nullable(),
   fetched_count: z.number(),
   selected_count: z.number(),
-  /** Why the AI stopped during the run: daily quota, or the run's token budget. */
+  /** Why the AI did not analyze (some of) the run: AI turned off, daily quota, or the run's token budget. */
   ai_limit: z.enum(aiLimits).nullable().default(null),
   tokens_used: z.number().default(0),
   ai_skipped_count: z.number().default(0),
@@ -82,10 +82,7 @@ const sourceHealthSchema = z.object({
   last_success_at: z.string().nullable(),
   last_error: z.string().nullable(),
   /** 0..1, from the archive; only breaks ties between items of equal AI score. */
-  quality: z
-    .object({ score: z.number(), items: z.number(), mean_score: z.number(), trusted_share: z.number() })
-    .nullable()
-    .default(null),
+  quality: z.object({ score: z.number(), items: z.number(), mean_score: z.number(), trusted_share: z.number() }).nullable().default(null),
 })
 
 export const sourceReportSchema = z.object({
@@ -99,9 +96,7 @@ export const sourceReportSchema = z.object({
 export const editionSchema = runSchema.extend({
   language: z.string(),
   available_languages: z.array(z.string()),
-  sections: z.array(
-    z.object({ profile: z.string(), name: z.string(), items: z.array(itemSchema) }),
-  ),
+  sections: z.array(z.object({ profile: z.string(), name: z.string(), items: z.array(itemSchema) })),
   /** Items published without analysis because the AI quota ran out. */
   unanalyzed: z.array(itemSchema).default([]),
 })
@@ -136,10 +131,14 @@ export class ApiError extends Error {
     readonly status: number,
     /** Field-level validation messages from the API (422/409). */
     readonly fields: Record<string, string> = {},
+    /** Stable machine-readable reason from the API (auth routes). */
+    readonly code?: string,
   ) {
     super(message)
   }
 }
+
+export const UNAUTHORIZED_EVENT = 'lucidnews:unauthorized'
 
 async function request<T>(path: string, schema: z.ZodType<T>, init: RequestInit = {}): Promise<T> {
   const response = await fetch(path, {
@@ -148,7 +147,9 @@ async function request<T>(path: string, schema: z.ZodType<T>, init: RequestInit 
   })
   if (!response.ok) {
     const body = await response.json().catch(() => ({}))
-    throw new ApiError(body?.error ?? `API responded ${response.status}`, response.status, body?.fields ?? {})
+    // A session that ended: let the shell send the reader back to the sign-in page.
+    if (response.status === 401 && !path.startsWith('/api/auth')) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
+    throw new ApiError(body?.error ?? `API responded ${response.status}`, response.status, body?.fields ?? {}, body?.code)
   }
   return schema.parse(await response.json())
 }
@@ -190,7 +191,7 @@ export function fetchItem(id: string, language: string, signal?: AbortSignal): P
   return getJson(`/api/items/${encodeURIComponent(id)}?lang=${encodeURIComponent(language)}`, itemDetailSchema, signal)
 }
 
-// Subscriber preferences (local-only routes, see src/subscribers_api.py) -------------
+// Subscriber preferences (local-only routes, see lucidnews/subscribers_api.py) -------------
 
 export const frequencies = ['daily', 'weekly'] as const
 export const subscriptionStatuses = ['pending', 'confirmed', 'unsubscribed'] as const
@@ -320,7 +321,7 @@ export function deleteSubscriber(id: string): Promise<{ deleted: string }> {
   })
 }
 
-// Quality evaluation (local-only routes, see src/evaluation/) ---------------------
+// Quality evaluation (local-only routes, see lucidnews/evaluation/) ---------------------
 
 export const annotationSchema = z.object({
   item_id: z.string(),
@@ -419,10 +420,11 @@ export function deleteAnnotation(itemId: string): Promise<{ deleted: string }> {
   })
 }
 
-// Settings and API keys (local-only routes, see src/settings_api.py) ---------------
+// Settings and API keys (local-only routes, see lucidnews/settings_api.py) ---------------
 
 const settingsValuesSchema = z.object({
   ai: z.object({
+    enabled: z.boolean(),
     provider: z.string(),
     model: z.string(),
     api_key_env: z.string(),
@@ -489,20 +491,6 @@ export function restoreBackup(name: string): Promise<Settings> {
 
 export async function fetchSecrets(signal?: AbortSignal): Promise<Secret[]> {
   return (await getJson('/api/secrets', z.object({ secrets: z.array(secretSchema) }), signal)).secrets
-}
-
-/** The value goes to the server once; it is never sent back. */
-export function saveSecret(name: string, value: string) {
-  return request(`/api/secrets/${encodeURIComponent(name)}`, z.object({ name: z.string(), in_file: z.boolean() }), {
-    method: 'PUT',
-    body: JSON.stringify({ value }),
-  })
-}
-
-export function deleteSecret(name: string) {
-  return request(`/api/secrets/${encodeURIComponent(name)}`, z.object({ name: z.string(), in_file: z.boolean() }), {
-    method: 'DELETE',
-  })
 }
 
 // Sources: configuration (lot 17). Health stays in /api/sources.
@@ -826,4 +814,50 @@ export function fetchSearch(params: SearchParams, language: string, signal?: Abo
   for (const key of ['category', 'label', 'source'] as const) if (params[key]) query.set(key, params[key])
   if (params.offset) query.set('offset', String(params.offset))
   return getJson(`/api/search?${query}`, searchSchema, signal)
+}
+
+// Accounts (see lucidnews/auth). With auth.enabled off the API answers {enabled: false}.
+
+export const authUserSchema = z.object({
+  id: z.string(),
+  email: z.string(),
+  name: z.string(),
+  picture: z.string().nullable(),
+  has_password: z.boolean(),
+  has_google: z.boolean(),
+})
+
+export const sessionSchema = z.object({
+  enabled: z.boolean(),
+  authenticated: z.boolean(),
+  user: authUserSchema.nullable(),
+  signup_enabled: z.boolean(),
+  providers: z.object({ google: z.boolean() }),
+})
+
+export type AuthUser = z.infer<typeof authUserSchema>
+export type Session = z.infer<typeof sessionSchema>
+
+const NO_ACCOUNTS: Session = { enabled: false, authenticated: false, user: null, signup_enabled: false, providers: { google: false } }
+
+/** An API without accounts (older, or auth.enabled off) answers 404 or {enabled: false}: the app stays open. */
+export async function fetchSession(signal?: AbortSignal): Promise<Session> {
+  try {
+    return await getJson('/api/auth/session', sessionSchema, signal)
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return NO_ACCOUNTS
+    throw error
+  }
+}
+
+export function signIn(email: string, password: string): Promise<Session> {
+  return request('/api/auth/sign-in', sessionSchema, { method: 'POST', body: JSON.stringify({ email, password }) })
+}
+
+export function signUp(email: string, password: string, name: string): Promise<Session> {
+  return request('/api/auth/sign-up', sessionSchema, { method: 'POST', body: JSON.stringify({ email, password, name }) })
+}
+
+export function signOut(): Promise<Session> {
+  return request('/api/auth/sign-out', sessionSchema, { method: 'POST', body: JSON.stringify({}) })
 }

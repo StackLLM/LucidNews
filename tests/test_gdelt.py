@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 
-from src.models import GDELTConfig
-from src.scrapers.gdelt import GDELTScraper
+from lucidnews.models import GDELTConfig
+from lucidnews.scrapers.gdelt import GDELTScraper
 
 
 SINCE = datetime(2026, 6, 27, 8, 30, 0, tzinfo=timezone.utc)

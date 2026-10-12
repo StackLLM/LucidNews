@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-from src.models import (
+from lucidnews.models import (
     ClassificationResult,
     ContentAnalysis,
     ContentItem,
@@ -18,18 +18,18 @@ from src.models import (
     ProfileSettingsConfig,
     SourceType,
 )
-from src.ai.summarizer import DailySummarizer
-from src.ai.enricher import EnrichmentBatchResult
-from src.mcp.server import ln_get_metrics
-from src.mcp.service import PipelineService
-from src.orchestrator import (
+from lucidnews.ai.summarizer import DailySummarizer
+from lucidnews.ai.enricher import EnrichmentBatchResult
+from lucidnews.mcp.server import ln_get_metrics
+from lucidnews.mcp.service import PipelineService
+from lucidnews.orchestrator import (
     BalancedDigestResult,
     FetchReport,
     PipelineOrchestrator,
     SourceFetchOutcome,
 )
-from src.services.webhook import WebhookDeliveryResult, WebhookDeliveryStatus
-from src.processing import ProfileRegistry
+from lucidnews.services.webhook import WebhookDeliveryResult, WebhookDeliveryStatus
+from lucidnews.processing import ProfileRegistry
 
 
 PROFILES = ProfileRegistry.load(
@@ -166,7 +166,7 @@ def test_fetch_items_uses_public_orchestrator_api(tmp_path: Path, monkeypatch) -
             [],
         ),
     )
-    monkeypatch.setattr("src.mcp.service.make_storage", lambda runtime, config_path: object())
+    monkeypatch.setattr("lucidnews.mcp.service.make_storage", lambda runtime, config_path: object())
 
     class FakeOrchestrator:
         async def fetch_all_sources(self, since):  # type: ignore[no-untyped-def]
@@ -181,7 +181,7 @@ def test_fetch_items_uses_public_orchestrator_api(tmp_path: Path, monkeypatch) -
         return FakeOrchestrator()
 
     monkeypatch.setattr(
-        "src.mcp.service.make_orchestrator",
+        "lucidnews.mcp.service.make_orchestrator",
         build_orchestrator,
     )
 
@@ -213,7 +213,7 @@ def test_fetch_items_includes_fetch_report_in_response_and_metadata(
             [],
         ),
     )
-    monkeypatch.setattr("src.mcp.service.make_storage", lambda runtime, config_path: object())
+    monkeypatch.setattr("lucidnews.mcp.service.make_storage", lambda runtime, config_path: object())
 
     class FakeOrchestrator:
         last_fetch_report = FetchReport(
@@ -230,7 +230,7 @@ def test_fetch_items_includes_fetch_report_in_response_and_metadata(
             return items
 
     monkeypatch.setattr(
-        "src.mcp.service.make_orchestrator",
+        "lucidnews.mcp.service.make_orchestrator",
         lambda runtime, config, storage, console, profiles: FakeOrchestrator(),
     )
 
@@ -260,7 +260,7 @@ def test_filter_items_uses_public_filtering_pipeline_api(tmp_path: Path, monkeyp
             ),
         ),
     )
-    monkeypatch.setattr("src.mcp.service.make_storage", lambda runtime, config_path: object())
+    monkeypatch.setattr("lucidnews.mcp.service.make_storage", lambda runtime, config_path: object())
 
     class FakeOrchestrator:
         async def select_digest_items(self, items, **kwargs):  # type: ignore[no-untyped-def]
@@ -276,7 +276,7 @@ def test_filter_items_uses_public_filtering_pipeline_api(tmp_path: Path, monkeyp
             )
 
     monkeypatch.setattr(
-        "src.mcp.service.make_orchestrator",
+        "lucidnews.mcp.service.make_orchestrator",
         lambda runtime, config, storage, console, profiles: FakeOrchestrator(),
     )
 
@@ -308,7 +308,7 @@ def test_filter_items_applies_balanced_digest(tmp_path: Path, monkeypatch) -> No
             ),
         ),
     )
-    monkeypatch.setattr("src.mcp.service.make_storage", lambda runtime, config_path: object())
+    monkeypatch.setattr("lucidnews.mcp.service.make_storage", lambda runtime, config_path: object())
 
     class FakeOrchestrator:
         async def select_digest_items(self, items, **kwargs):  # type: ignore[no-untyped-def]
@@ -328,7 +328,7 @@ def test_filter_items_applies_balanced_digest(tmp_path: Path, monkeypatch) -> No
             )
 
     monkeypatch.setattr(
-        "src.mcp.service.make_orchestrator",
+        "lucidnews.mcp.service.make_orchestrator",
         lambda runtime, config, storage, console, profiles: FakeOrchestrator(),
     )
 
@@ -392,9 +392,9 @@ def test_filter_items_matches_native_filtering_pipeline(tmp_path: Path, monkeypa
             ),
         ),
     )
-    monkeypatch.setattr("src.mcp.service.make_storage", lambda runtime, config_path: object())
+    monkeypatch.setattr("lucidnews.mcp.service.make_storage", lambda runtime, config_path: object())
     monkeypatch.setattr(
-        "src.mcp.service.make_orchestrator",
+        "lucidnews.mcp.service.make_orchestrator",
         lambda runtime, loaded_config, storage, console, profiles: make_filtering_orchestrator(),
     )
 
@@ -669,7 +669,7 @@ def test_send_webhook_reports_delivery_failure_truthfully(
                 detail="platform rejected payload",
             )
 
-    monkeypatch.setattr("src.mcp.service.WebhookNotifier", FakeNotifier)
+    monkeypatch.setattr("lucidnews.mcp.service.WebhookNotifier", FakeNotifier)
 
     result = asyncio.run(service.send_webhook(date="2026-04-24", summary="digest"))
 

@@ -16,4 +16,4 @@ Ne publiez pas de vulnérabilité dans une issue. Signalez-la en privé aux main
 
 ## Contenu non fiable
 
-Tout contenu collecté (titres, articles, commentaires, résultats de recherche) est traité comme des **données** : les prompts interdisent d'en suivre les instructions, et le rendu Markdown/HTML échappe tout texte et n'autorise que des liens `http(s)`. Les requêtes webhook passent par `src/url_security.py`.
+Tout contenu collecté (titres, articles, commentaires, résultats de recherche) est traité comme des **données** : les prompts interdisent d'en suivre les instructions, et le rendu Markdown/HTML échappe tout texte et n'autorise que des liens `http(s)`. Les requêtes webhook passent par `lucidnews/url_security.py`.

@@ -104,6 +104,14 @@ class ContentAnalyzer:
 
         return analyzed_items
 
+    def skip_batch(self, items: List[ContentItem], limit: AILimit) -> List[ContentItem]:
+        """Leave ``items`` unanalyzed without calling the AI (disabled or out of quota)."""
+        for item in items:
+            self.mark_skipped(item, limit)
+            if item.processing:
+                item.processing.reliability = assess_item(item, self.reliability_policy)
+        return items
+
     def mark_skipped(self, item: ContentItem, limit: AILimit) -> None:
         """Record that the AI quota ran out before this item could be analyzed.
 

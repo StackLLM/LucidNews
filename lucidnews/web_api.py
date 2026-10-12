@@ -31,7 +31,8 @@ Quality evaluation (local only, see ``evaluation``):
 
 Settings and sources (local only, see ``settings_api`` and ``sources_api``):
 
-- ``GET /api/settings``, ``PUT /api/settings``, API keys under ``/api/secrets``
+- ``GET /api/settings``, ``PUT /api/settings``; ``GET /api/secrets`` only says which API key
+  variables are set (keys are never entered or returned through the API)
 - ``GET|POST /api/sources/config``, ``PUT|DELETE /api/sources/config/<key>``,
   ``POST /api/sources/test``
 - ``GET|POST /api/runs`` (history, start a run), ``GET /api/runs/current``,
@@ -58,6 +59,8 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import parse_qs, unquote, urlsplit
 
 from ._cli import add_data_dir_arguments
+from .auth import AuthService, build_auth_service
+from .auth.service import AuthRequest, AuthResult
 from .archive import ItemArchive, RunRecord
 from .archive.search import CANDIDATE_CAP, SearchQueryError, search_terms
 from .coverage import CoverageThresholds, compute_coverage
@@ -74,7 +77,7 @@ from .reliability.assess import ReliabilityPolicy
 from .source_health import assess_health, configured_source_keys, health_to_dict
 from .source_quality import DEFAULT_DAYS, compute_source_quality, item_source_key, quality_to_dict
 from .storage.manager import StorageManager
-from .settings_api import ENV_NAME, SettingsService
+from .settings_api import SettingsService
 from .source_catalog import CatalogEntry, load_catalog, recommendations
 from .sources_api import SourcesService
 from .newsletter.mailer import build_mailer
@@ -127,6 +130,8 @@ class ApiContext:
     # Start a run and schedule it (local only).
     runs: Optional[RunService] = None
     schedule: Optional[ScheduleService] = None
+    # None: accounts are off (auth.enabled) and every route stays open, as before.
+    auth: Optional[AuthService] = None
 
 
 def _profile_id(item: ContentItem) -> str:
@@ -638,14 +643,6 @@ def resolve_write(ctx: ApiContext, method: str, path: str, body: Dict[str, Any])
             return ctx.settings.update(body)
         if path == "/api/settings/restore" and method == "POST":
             return ctx.settings.restore(body)
-        if path.startswith("/api/secrets/"):
-            name = path.removeprefix("/api/secrets/")
-            if not ENV_NAME.match(name):
-                return HTTPStatus.BAD_REQUEST, {"error": "invalid variable name"}
-            if method == "PUT":
-                return ctx.settings.set_secret(name, body)
-            if method == "DELETE":
-                return ctx.settings.delete_secret(name)
         return HTTPStatus.METHOD_NOT_ALLOWED, {"error": "method not allowed"}
     if path.startswith(("/api/runs", "/api/schedule")):
         if ctx.runs is None or ctx.schedule is None:
@@ -740,8 +737,44 @@ def make_handler(ctx: ApiContext) -> type[BaseHTTPRequestHandler]:
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
             self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
             self.end_headers()
             self.wfile.write(data)
+
+        def _auth_route(self, method: str, parts, body: Dict[str, Any]) -> None:
+            """``/api/auth/*``: reachable without a session, and from any host the app is served on."""
+            if ctx.auth is None:
+                if method == "GET" and parts.path.rstrip("/") == "/api/auth/session":
+                    self._send(HTTPStatus.OK, {"enabled": False, "authenticated": False, "user": None, "signup_enabled": False, "providers": {"google": False}})
+                else:
+                    self._send(HTTPStatus.NOT_FOUND, {"error": "not found", "code": "not_found"})
+                return
+            request = AuthRequest(method, parts.path, parse_qs(parts.query), body, self.headers, self.client_address[0])
+            try:
+                result = ctx.auth.handle(request)
+            except Exception as exc:  # never leak a traceback to the client
+                self.log_error("auth request failed: %r", exc)
+                result = AuthResult(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "internal error", "code": "internal"})
+            data = json.dumps(result.body or {}, ensure_ascii=False).encode("utf-8")
+            self.send_response(result.status)
+            for cookie in result.cookies:
+                self.send_header("Set-Cookie", cookie)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Referrer-Policy", "no-referrer")
+            if result.location:
+                self.send_header("Location", result.location)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def _authenticated(self) -> bool:
+            """With accounts on, every other API route needs a live session."""
+            if ctx.auth is None or ctx.auth.current_user(self.headers) is not None:
+                return True
+            self._send(HTTPStatus.UNAUTHORIZED, {"error": "authentication required", "code": "unauthenticated"})
+            return False
 
         def _guarded(self, handler) -> None:
             try:
@@ -753,6 +786,11 @@ def make_handler(ctx: ApiContext) -> type[BaseHTTPRequestHandler]:
 
         def do_GET(self) -> None:  # noqa: N802 (stdlib name)
             parts = urlsplit(self.path)
+            if parts.path.rstrip("/").startswith("/api/auth"):
+                self._auth_route("GET", parts, {})
+                return
+            if not self._authenticated():
+                return
             if parts.path.startswith(LOCAL_PREFIXES) and not is_local_request(
                 self.headers.get("Host"), self.headers.get("Origin")
             ):
@@ -761,7 +799,11 @@ def make_handler(ctx: ApiContext) -> type[BaseHTTPRequestHandler]:
             self._guarded(lambda: resolve(ctx, parts.path, parse_qs(parts.query)))
 
         def _write(self, method: str) -> None:
-            if not is_local_request(self.headers.get("Host"), self.headers.get("Origin")):
+            parts = urlsplit(self.path)
+            is_auth = parts.path.rstrip("/").startswith("/api/auth")
+            if not is_auth and not self._authenticated():
+                return
+            if not is_auth and not is_local_request(self.headers.get("Host"), self.headers.get("Origin")):
                 self._send(HTTPStatus.FORBIDDEN, {"error": "local requests only"})
                 return
             length = int(self.headers.get("Content-Length") or 0)
@@ -782,7 +824,10 @@ def make_handler(ctx: ApiContext) -> type[BaseHTTPRequestHandler]:
             if not isinstance(body, dict):
                 self._send(HTTPStatus.BAD_REQUEST, {"error": "expected a JSON object"})
                 return
-            self._guarded(lambda: resolve_write(ctx, method, urlsplit(self.path).path, body))
+            if is_auth:
+                self._auth_route(method, parts, body)
+                return
+            self._guarded(lambda: resolve_write(ctx, method, parts.path, body))
 
         def do_POST(self) -> None:  # noqa: N802
             self._write("POST")
@@ -857,6 +902,7 @@ def build_context(data_dir: str, config_path: Optional[str], *, local_features: 
         settings = ctx.settings
         ctx.runs = RunService(Path(data_dir), config_path, secret_values=lambda: settings.secret_values())
         ctx.schedule = ScheduleService(Path(data_dir), config_path)
+    ctx.auth = build_auth_service(config.auth, Path(data_dir))
     return ctx
 
 
@@ -865,7 +911,7 @@ def _reload(ctx: ApiContext, data_dir: str, config_path: Optional[str]) -> None:
     fresh = build_context(data_dir, config_path, local_features=True)
     settings = ctx.settings
     # The settings and sources services stay: they hold the lock and the callback.
-    kept = ("settings", "sources", "runs", "schedule")  # they hold locks, a process or callbacks
+    kept = ("settings", "sources", "runs", "schedule", "auth")  # they hold locks, a process, callbacks or sign-in state
     ctx.__dict__.update({key: value for key, value in fresh.__dict__.items() if key not in kept})
     if settings is not None and fresh.settings is not None:
         settings.profiles = fresh.settings.profiles

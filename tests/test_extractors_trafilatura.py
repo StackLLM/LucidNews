@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 
-from src.extractors import TrafilaturaExtractor
-from src.extractors.trafilatura import ARTICLE_HEADERS
-from src.models import TrafilaturaExtractorConfig
+from lucidnews.extractors import TrafilaturaExtractor
+from lucidnews.extractors.trafilatura import ARTICLE_HEADERS
+from lucidnews.models import TrafilaturaExtractorConfig
 
 URL = "https://example.com/article"
 

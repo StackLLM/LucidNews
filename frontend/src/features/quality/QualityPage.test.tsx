@@ -76,5 +76,9 @@ test('shows results with the false-reliable alert first', async () => {
   expect(within(critical).getByText('false reliable')).toBeInTheDocument()
 
   const selection = screen.getByRole('region', { name: 'Selection: you vs the pipeline' })
-  expect(within(selection).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['2', '1', '0', '0'])
+  expect(
+    within(selection)
+      .getAllByRole('cell')
+      .map((cell) => cell.textContent),
+  ).toEqual(['2', '1', '0', '0'])
 })

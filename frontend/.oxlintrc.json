@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "jsx-a11y"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "env": {
+    "browser": true,
+    "es2022": true
+  },
+  "ignorePatterns": ["dist", "node_modules"],
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "react/incompatible-library": "off",
+    "react/no-unstable-nested-components": "off",
+    "jsx-a11y/prefer-tag-over-role": "off",
+    "eslint/no-shadow": "off",
+    "react/set-state-in-effect": "warn",
+    "react/exhaustive-effect-dependencies": "off"
+  }
+}

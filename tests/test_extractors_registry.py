@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from src.extractors import ExtractorRegistry, TrafilaturaExtractor
-from src.models import TrafilaturaExtractorConfig
+from lucidnews.extractors import ExtractorRegistry, TrafilaturaExtractor
+from lucidnews.models import TrafilaturaExtractorConfig
 
 
 def test_default_trafilatura_registered():

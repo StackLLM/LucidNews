@@ -1,4 +1,4 @@
-from src.mcp import server
+from lucidnews.mcp import server
 
 
 def test_log_level_flag_is_forwarded_to_configure_logging(monkeypatch):

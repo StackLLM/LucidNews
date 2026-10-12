@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, CircleCheck, CircleSlash, Plus, Sparkles, TriangleAlert } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, m } from 'motion/react'
 import { useEffect, useId, useState } from 'react'
 import { inputClass, primaryButton } from '../../design/Field'
 import { ApiErrorCard, PageSkeleton } from '../../design/PageState'
@@ -62,11 +62,7 @@ export function DomainsView({ days }: { days: number }) {
   }, [notice])
 
   const refresh = () =>
-    Promise.all(
-      [['source-config'], ['coverage'], ['catalog'], ['settings'], ['sources']].map((queryKey) =>
-        queryClient.invalidateQueries({ queryKey }),
-      ),
-    )
+    Promise.all([['source-config'], ['coverage'], ['catalog'], ['settings'], ['sources']].map((queryKey) => queryClient.invalidateQueries({ queryKey })))
   const failed = (error: Error) => {
     const conflict = error instanceof ApiError && error.status === 409 && !Object.keys(error.fields).length
     const field = error instanceof ApiError ? Object.values(error.fields)[0] : undefined
@@ -111,35 +107,36 @@ export function DomainsView({ days }: { days: number }) {
   const busy = saveDigest.isPending || add.isPending
 
   return (
-    <motion.div variants={listStagger} initial={enabled ? 'hidden' : false} animate="visible" className="space-y-6">
-      <motion.dl variants={riseIn} className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+    <m.div variants={listStagger} initial={enabled ? 'hidden' : false} animate="visible" className="space-y-6">
+      <m.dl variants={riseIn} className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {tiles.map((tile) => (
           <div key={tile.label} className="glass rounded-card px-5 py-4">
             <dt className="text-[13px] font-medium text-muted">{tile.label}</dt>
-            <dd
-              className={`mt-1 text-[32px] leading-none font-bold ${
-                tile.tone && typeof tile.value === 'number' && tile.value > 0 ? tile.tone : 'text-ink'
-              }`}
-            >
+            <dd className={`mt-1 text-[32px] leading-none font-bold ${tile.tone && typeof tile.value === 'number' && tile.value > 0 ? tile.tone : 'text-ink'}`}>
               {tile.value}
             </dd>
           </div>
         ))}
-      </motion.dl>
+      </m.dl>
 
-      <motion.div variants={riseIn}>
+      <m.div variants={riseIn}>
         {version ? (
           <OptionsCard coverage={data} busy={busy} onSave={(digest) => saveDigest.mutate(digest)} />
         ) : (
-          !config.isPending && <p className="rounded-control bg-white/70 px-4 py-3 text-[13.5px] text-muted">{t('domains.localOnly')}</p>
+          !config.isPending && <p className="rounded-control bg-surface/70 px-4 py-3 text-[13.5px] text-muted">{t('domains.localOnly')}</p>
         )}
-      </motion.div>
+      </m.div>
 
-      <motion.p variants={riseIn} role="status" aria-live="polite" className={`text-[13.5px] font-medium empty:hidden ${notice?.error ? 'text-rumor' : 'text-confirmed'}`}>
+      <m.p
+        variants={riseIn}
+        role="status"
+        aria-live="polite"
+        className={`text-[13.5px] font-medium empty:hidden ${notice?.error ? 'text-rumor' : 'text-confirmed'}`}
+      >
         {notice?.text ?? ''}
-      </motion.p>
+      </m.p>
 
-      <motion.ul variants={riseIn} className="grid items-start gap-4 md:grid-cols-2 2xl:grid-cols-3">
+      <m.ul variants={riseIn} className="grid items-start gap-4 md:grid-cols-2 2xl:grid-cols-3">
         {data.categories.map((domain) => (
           <DomainCard
             key={domain.category}
@@ -152,26 +149,18 @@ export function DomainsView({ days }: { days: number }) {
             onAdd={(entry) => add.mutate(entry)}
           />
         ))}
-      </motion.ul>
+      </m.ul>
 
-      <motion.div variants={riseIn} className="space-y-1 text-[12.5px] leading-relaxed text-muted">
+      <m.div variants={riseIn} className="space-y-1 text-[12.5px] leading-relaxed text-muted">
         <p>{t('domains.source')}</p>
         {data.uncategorized > 0 && <p>{t('domains.uncategorized', { count: data.uncategorized })}</p>}
         {data.unanalyzed > 0 && <p>{t('domains.unanalyzed', { count: data.unanalyzed })}</p>}
-      </motion.div>
-    </motion.div>
+      </m.div>
+    </m.div>
   )
 }
 
-function OptionsCard({
-  coverage,
-  busy,
-  onSave,
-}: {
-  coverage: Coverage
-  busy: boolean
-  onSave: (digest: Record<string, unknown>) => void
-}) {
+function OptionsCard({ coverage, busy, onSave }: { coverage: Coverage; busy: boolean; onSave: (digest: Record<string, unknown>) => void }) {
   const { t } = useLanguage()
   const id = useId()
   const [minSources, setMinSources] = useState(String(coverage.min_sources))
@@ -184,8 +173,7 @@ function OptionsCard({
   const sources = Number(minSources)
   const items = Number(minItems)
   const valid =
-    minSources !== '' && minItems !== '' && Number.isInteger(sources) && Number.isInteger(items) &&
-    sources >= 0 && sources <= 50 && items >= 0 && items <= 1000
+    minSources !== '' && minItems !== '' && Number.isInteger(sources) && Number.isInteger(items) && sources >= 0 && sources <= 50 && items >= 0 && items <= 1000
   const dirty = sources !== coverage.min_sources || items !== coverage.min_items
 
   return (
@@ -290,14 +278,7 @@ function DomainCard({
             {state.label}
           </span>
         </div>
-        {editable && (
-          <Switch
-            checked={domain.watched}
-            disabled={busy || lastFollowed}
-            label={t('domains.follow', { name })}
-            onCheckedChange={onFollow}
-          />
-        )}
+        {editable && <Switch checked={domain.watched} disabled={busy || lastFollowed} label={t('domains.follow', { name })} onCheckedChange={onFollow} />}
       </div>
 
       {domain.gap && (
@@ -316,9 +297,7 @@ function DomainCard({
         <p className="mt-3 text-[13.5px] text-muted">{t('domains.none')}</p>
       ) : (
         <div className="mt-3 space-y-1 text-[13px] text-muted">
-          <p className="tabular-nums">
-            {t('domains.stats', { items: domain.items, published: domain.published, sources: domain.active_sources })}
-          </p>
+          <p className="tabular-nums">{t('domains.stats', { items: domain.items, published: domain.published, sources: domain.active_sources })}</p>
           <p>
             {domain.trusted_share !== null && t('domains.trusted', { share: formatPercent(domain.trusted_share, language) })}
             {domain.latest_at && <> · {t('domains.latest', { time: formatItemTime(domain.latest_at, language) })}</>}
@@ -350,7 +329,7 @@ function DomainCard({
               aria-expanded={open}
               aria-controls={listId}
               onClick={() => setOpen((value) => !value)}
-              className="flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1.5 text-[13px] font-semibold text-accent transition-colors duration-150 hover:bg-accent hover:text-white"
+              className="flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1.5 text-[13px] font-semibold text-accent transition-colors duration-150 hover:bg-accent hover:text-on-fill"
             >
               <Sparkles size={14} aria-hidden />
               {translatePlural(language, 'domains.recommended', recommended.length, { count: recommended.length })}
@@ -358,7 +337,7 @@ function DomainCard({
             </button>
             <AnimatePresence initial={false}>
               {open && (
-                <motion.ul
+                <m.ul
                   id={listId}
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
@@ -369,7 +348,7 @@ function DomainCard({
                   {recommended.map((entry) => (
                     <Recommendation key={entry.key} entry={entry} editable={editable} busy={busy} onAdd={() => onAdd(entry)} />
                   ))}
-                </motion.ul>
+                </m.ul>
               )}
             </AnimatePresence>
           </>
@@ -379,17 +358,7 @@ function DomainCard({
   )
 }
 
-function Recommendation({
-  entry,
-  editable,
-  busy,
-  onAdd,
-}: {
-  entry: CatalogEntry
-  editable: boolean
-  busy: boolean
-  onAdd: () => void
-}) {
+function Recommendation({ entry, editable, busy, onAdd }: { entry: CatalogEntry; editable: boolean; busy: boolean; onAdd: () => void }) {
   const { t } = useLanguage()
   const [result, setResult] = useState<SourceTest | null>(null)
   const run = useMutation({
@@ -407,7 +376,7 @@ function Recommendation({
           </p>
           <p className="text-[12px] text-faint">{t(kindKey(entry.kind))}</p>
         </div>
-        <span className="rounded-full bg-white px-2 py-0.5 text-[11.5px] font-semibold whitespace-nowrap text-muted ring-1 ring-ink/10 ring-inset">
+        <span className="rounded-full bg-surface px-2 py-0.5 text-[11.5px] font-semibold whitespace-nowrap text-muted ring-1 ring-ink/10 ring-inset">
           {t('domains.badge')}
         </span>
       </div>

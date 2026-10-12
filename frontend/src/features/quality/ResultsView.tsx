@@ -55,17 +55,17 @@ function Results({ report }: { report: QualityReport }) {
         ))}
         <div
           className={`col-span-2 rounded-card px-5 py-4 lg:col-span-1 ${
-            report.reliability.false_reliable ? 'bg-rumor text-white shadow-[0_18px_40px_-18px_rgb(180_35_60/0.6)]' : 'glass'
+            report.reliability.false_reliable ? 'bg-rumor text-on-fill shadow-[0_18px_40px_-18px_rgb(180_35_60/0.6)]' : 'glass'
           }`}
         >
-          <dt className={`flex items-center gap-1.5 text-[13px] font-medium ${report.reliability.false_reliable ? 'text-white/85' : 'text-muted'}`}>
+          <dt className={`flex items-center gap-1.5 text-[13px] font-medium ${report.reliability.false_reliable ? 'text-on-fill/85' : 'text-muted'}`}>
             <ShieldAlert size={14} aria-hidden />
             {t('quality.falseReliable')}
           </dt>
           <dd className={`mt-1 text-[30px] leading-none font-bold ${report.reliability.false_reliable ? '' : 'text-confirmed'}`}>
             {report.reliability.false_reliable}
           </dd>
-          <dd className={`mt-2 text-[12px] leading-snug ${report.reliability.false_reliable ? 'text-white/80' : 'text-muted'}`}>
+          <dd className={`mt-2 text-[12px] leading-snug ${report.reliability.false_reliable ? 'text-on-fill/80' : 'text-muted'}`}>
             {t('quality.falseReliableHint')}
           </dd>
         </div>
@@ -94,7 +94,7 @@ function Results({ report }: { report: QualityReport }) {
           <table className="mt-4 w-full text-center text-[14px]">
             <thead>
               <tr className="text-[12px] text-faint">
-                <th />
+                <td aria-hidden="true" />
                 <th className="pb-2 font-semibold">{t('quality.aiKeeps')}</th>
                 <th className="pb-2 font-semibold">{t('quality.aiDrops')}</th>
               </tr>
@@ -122,7 +122,7 @@ function Results({ report }: { report: QualityReport }) {
             <table className="w-full text-center text-[13px]">
               <thead>
                 <tr className="text-[11.5px] text-faint">
-                  <th />
+                  <td aria-hidden="true" />
                   {[...claimStatuses, 'none'].map((status) => (
                     <th key={status} className="px-1 pb-2 font-semibold">
                       {status === 'none' ? t('quality.none') : t(`claimShort.${status}` as MessageKey)}
@@ -133,16 +133,9 @@ function Results({ report }: { report: QualityReport }) {
               <tbody>
                 {claimStatuses.map((human) => (
                   <tr key={human}>
-                    <th className="pr-2 text-left text-[12.5px] font-semibold whitespace-nowrap text-muted">
-                      {t(`claim.${human}` as MessageKey)}
-                    </th>
+                    <th className="pr-2 text-left text-[12.5px] font-semibold whitespace-nowrap text-muted">{t(`claim.${human}` as MessageKey)}</th>
                     {[...claimStatuses, 'none'].map((ai) => (
-                      <MatrixCell
-                        key={ai}
-                        value={report.claim.confusion[human]?.[ai] ?? 0}
-                        total={report.compared}
-                        good={ai === human}
-                      />
+                      <MatrixCell key={ai} value={report.claim.confusion[human]?.[ai] ?? 0} total={report.compared} good={ai === human} />
                     ))}
                   </tr>
                 ))}
@@ -165,9 +158,7 @@ function Results({ report }: { report: QualityReport }) {
             ))}
           </ul>
         )}
-        <p className="mt-5 text-[12.5px] text-muted">
-          {t('quality.cli', { command: 'uv run lucidnews-eval' })}
-        </p>
+        <p className="mt-5 text-[12.5px] text-muted">{t('quality.cli', { command: 'uv run lucidnews-eval' })}</p>
       </section>
     </div>
   )
@@ -176,7 +167,8 @@ function Results({ report }: { report: QualityReport }) {
 function MatrixCell({ value, total, good = false }: { value: number; total: number; good?: boolean }) {
   // Cell tint grows with the share of items; agreement cells in green, errors in red.
   const share = total ? value / total : 0
-  const tint = value === 0 ? 'transparent' : `color-mix(in oklab, var(--color-${good ? 'confirmed' : 'rumor'}) ${Math.round(8 + share * 40)}%, white)`
+  const tint =
+    value === 0 ? 'transparent' : `color-mix(in oklab, var(--color-${good ? 'confirmed' : 'rumor'}) ${Math.round(8 + share * 40)}%, var(--color-surface))`
   return (
     <td className="p-1">
       <span
@@ -203,7 +195,7 @@ function ComparisonRow({ item }: { item: Comparison }) {
             <span
               key={issue}
               className={`rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${
-                issue === 'false_reliable' ? 'bg-rumor text-white' : 'bg-white text-ink/70 ring-1 ring-ink/10'
+                issue === 'false_reliable' ? 'bg-rumor text-on-fill' : 'bg-surface text-ink/70 ring-1 ring-ink/10'
               }`}
             >
               {t(`issue.${issue}` as MessageKey)}
@@ -223,8 +215,7 @@ function ComparisonRow({ item }: { item: Comparison }) {
           <dt className="inline font-semibold text-ink/70">{t('quality.ai')} </dt>
           <dd className="inline">
             {item.ai.selected ? t('quality.yes') : t('quality.no')} · {label(item.ai.importance, 'importance')}
-            {item.ai.score !== null ? ` (${item.ai.score.toFixed(1)})` : ''} · {label(item.ai.claim_status, 'claim')} →{' '}
-            {label(item.ai.reliability, 'label')}
+            {item.ai.score !== null ? ` (${item.ai.score.toFixed(1)})` : ''} · {label(item.ai.claim_status, 'claim')} → {label(item.ai.reliability, 'label')}
           </dd>
         </div>
       </dl>

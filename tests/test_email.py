@@ -2,8 +2,8 @@ from email.mime.multipart import MIMEMultipart
 
 import pytest
 
-from src.models import EmailConfig
-from src.services.email import EmailManager
+from lucidnews.models import EmailConfig
+from lucidnews.services.email import EmailManager
 
 
 class FakeSMTP:
@@ -65,7 +65,7 @@ def _email_config(**overrides):
 
 def test_send_daily_summary_uses_smtp_username_when_configured(monkeypatch):
     monkeypatch.setenv("EMAIL_PASSWORD", "secret")
-    monkeypatch.setattr("src.services.email.smtplib.SMTP_SSL", FakeSMTP)
+    monkeypatch.setattr("lucidnews.services.email.smtplib.SMTP_SSL", FakeSMTP)
     FakeSMTP.instances = []
 
     config = _email_config(smtp_username="resend")
@@ -83,7 +83,7 @@ def test_send_daily_summary_uses_smtp_username_when_configured(monkeypatch):
 
 def test_send_daily_summary_falls_back_to_email_address_for_smtp_login(monkeypatch):
     monkeypatch.setenv("EMAIL_PASSWORD", "secret")
-    monkeypatch.setattr("src.services.email.smtplib.SMTP_SSL", FakeSMTP)
+    monkeypatch.setattr("lucidnews.services.email.smtplib.SMTP_SSL", FakeSMTP)
     FakeSMTP.instances = []
 
     config = _email_config()
@@ -96,7 +96,7 @@ def test_send_daily_summary_falls_back_to_email_address_for_smtp_login(monkeypat
 
 def test_open_smtp_uses_starttls_outside_implicit_tls_port(monkeypatch):
     monkeypatch.setenv("EMAIL_PASSWORD", "secret")
-    monkeypatch.setattr("src.services.email.smtplib.SMTP", FakeSMTP)
+    monkeypatch.setattr("lucidnews.services.email.smtplib.SMTP", FakeSMTP)
     FakeSMTP.instances = []
 
     server = EmailManager(_email_config(smtp_port=587))._open_smtp()
@@ -113,7 +113,7 @@ def test_open_smtp_closes_connection_when_starttls_fails(monkeypatch):
             raise RuntimeError("TLS unavailable")
 
     monkeypatch.setenv("EMAIL_PASSWORD", "secret")
-    monkeypatch.setattr("src.services.email.smtplib.SMTP", FailingStartTLS)
+    monkeypatch.setattr("lucidnews.services.email.smtplib.SMTP", FailingStartTLS)
     FakeSMTP.instances = []
 
     with pytest.raises(RuntimeError, match="TLS unavailable"):
@@ -124,7 +124,7 @@ def test_open_smtp_closes_connection_when_starttls_fails(monkeypatch):
 
 def test_send_daily_summary_escapes_raw_html(monkeypatch):
     monkeypatch.setenv("EMAIL_PASSWORD", "secret")
-    monkeypatch.setattr("src.services.email.smtplib.SMTP_SSL", FakeSMTP)
+    monkeypatch.setattr("lucidnews.services.email.smtplib.SMTP_SSL", FakeSMTP)
     FakeSMTP.instances = []
 
     manager = EmailManager(_email_config())
@@ -142,7 +142,7 @@ def test_send_daily_summary_escapes_raw_html(monkeypatch):
 
 def test_send_daily_summary_cleans_app_generated_markdown_html(monkeypatch):
     monkeypatch.setenv("EMAIL_PASSWORD", "secret")
-    monkeypatch.setattr("src.services.email.smtplib.SMTP_SSL", FakeSMTP)
+    monkeypatch.setattr("lucidnews.services.email.smtplib.SMTP_SSL", FakeSMTP)
     FakeSMTP.instances = []
 
     manager = EmailManager(_email_config())
@@ -181,7 +181,7 @@ def test_send_daily_summary_cleans_app_generated_markdown_html(monkeypatch):
 
 def test_send_daily_summary_does_not_link_unsafe_details_href(monkeypatch):
     monkeypatch.setenv("EMAIL_PASSWORD", "secret")
-    monkeypatch.setattr("src.services.email.smtplib.SMTP_SSL", FakeSMTP)
+    monkeypatch.setattr("lucidnews.services.email.smtplib.SMTP_SSL", FakeSMTP)
     FakeSMTP.instances = []
 
     manager = EmailManager(_email_config())
@@ -208,7 +208,7 @@ def test_send_daily_summary_does_not_link_unsafe_details_href(monkeypatch):
 
 def test_check_subscriptions_skips_imap_when_disabled(monkeypatch):
     monkeypatch.setenv("EMAIL_PASSWORD", "secret")
-    monkeypatch.setattr("src.services.email.imaplib.IMAP4_SSL", FakeIMAP)
+    monkeypatch.setattr("lucidnews.services.email.imaplib.IMAP4_SSL", FakeIMAP)
     FakeIMAP.instances = []
 
     config = _email_config(imap_enabled=False)

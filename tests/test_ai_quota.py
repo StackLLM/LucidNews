@@ -10,15 +10,15 @@ from types import SimpleNamespace
 import pytest
 from rich.console import Console
 
-import src.orchestrator as orchestrator_module
-from src.ai import budget
-from src.ai.analyzer import ContentAnalyzer
-from src.ai.budget import AILimit, QuotaExhausted, is_quota_exhausted_error
-from src.ai.client import QuotaGuardClient
-from src.ai.summarizer import DailySummarizer
-from src.ai.tokens import record_usage
-from src.archive import ItemArchive
-from src.models import (
+import lucidnews.orchestrator as orchestrator_module
+from lucidnews.ai import budget
+from lucidnews.ai.analyzer import ContentAnalyzer
+from lucidnews.ai.budget import AILimit, QuotaExhausted, is_quota_exhausted_error
+from lucidnews.ai.client import QuotaGuardClient
+from lucidnews.ai.summarizer import DailySummarizer
+from lucidnews.ai.tokens import record_usage
+from lucidnews.archive import ItemArchive
+from lucidnews.models import (
     ClassificationResult,
     ContentAnalysis,
     ContentArtifact,
@@ -27,14 +27,14 @@ from src.models import (
     ProcessingResult,
     SourceType,
 )
-from src.newsletter import plan_deliveries
-from src.newsletter.models import DigestPreferences, Subscriber
-from src.newsletter.selection import matches_unanalyzed
-from src.orchestrator import PipelineOrchestrator
-from src.processing import ProfileRegistry
-from src.reliability import ReliabilityLabel, SourceTier
-from src.reliability.assess import ReliabilityPolicy, assess_item
-from src.web_api import ApiContext, edition_payload, resolve
+from lucidnews.newsletter import plan_deliveries
+from lucidnews.newsletter.models import DigestPreferences, Subscriber
+from lucidnews.newsletter.selection import matches_unanalyzed
+from lucidnews.orchestrator import PipelineOrchestrator
+from lucidnews.processing import ProfileRegistry
+from lucidnews.reliability import ReliabilityLabel, SourceTier
+from lucidnews.reliability.assess import ReliabilityPolicy, assess_item
+from lucidnews.web_api import ApiContext, edition_payload, resolve
 
 PROFILES = ProfileRegistry.load(Path(__file__).resolve().parents[1] / "profiles", "tech-news")
 NOW = datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc)
@@ -282,7 +282,7 @@ def test_enrichment_is_reused_when_every_language_is_there(monkeypatch) -> None:
             pass
 
         async def enrich_batch(self, items):  # type: ignore[no-untyped-def]
-            from src.ai.enricher import EnrichmentBatchResult
+            from lucidnews.ai.enricher import EnrichmentBatchResult
 
             batches.append([item.id for item in items])
             return EnrichmentBatchResult(succeeded_ids=[item.id for item in items])
@@ -341,7 +341,7 @@ def test_digest_lists_unanalyzed_items_apart_with_a_warning() -> None:
         DailySummarizer().generate_summary([], "2026-10-09", 40, language="fr", unanalyzed=[item])
     )
 
-    assert "quota IA est épuisé" in summary
+    assert "analyse IA désactivée, ou quota épuisé" in summary
     assert "## ⚠️ Sans analyse IA" in summary
     assert "ni résumé, ni score, ni vérification" in summary
     assert r"Leak: \*new\* model \[soon\]" in summary  # original headline, escaped
@@ -407,3 +407,67 @@ def test_an_unanalyzed_item_has_its_own_page(tmp_path) -> None:
     assert status == 200
     assert payload["ai_skipped"] is True and payload["claim"] is None
     assert [edition["id"] for edition in payload["editions"]] == [run_id]
+
+
+# AI turned off (ai.enabled) ----------------------------------------------------
+
+
+def test_with_the_ai_turned_off_no_client_is_created_and_items_are_listed_unanalyzed(monkeypatch) -> None:
+    def forbidden(config):  # type: ignore[no-untyped-def]
+        raise AssertionError("no AI client may be created while the AI is off")
+
+    monkeypatch.setattr(orchestrator_module, "create_ai_client", forbidden)
+    orchestrator = make_orchestrator()
+    orchestrator.profiles = PROFILES
+    orchestrator.config.ai.enabled = False
+    assert orchestrator._ai_enabled() is False
+    budget.start_run(None)
+    budget.mark_exhausted(AILimit.DISABLED)
+    items = [make_item("a", "https://lwn.net/a"), make_item("b", "https://example.com/b")]
+
+    analyzed = asyncio.run(orchestrator.analyze_items(items))
+
+    assert all(item.processing.ai_skipped is AILimit.DISABLED for item in analyzed)
+    assert all(item.processing.analysis is None and item.processing.reliability is not None for item in analyzed)
+    assert [item.id for item in orchestrator.select_unanalyzed_items(analyzed)] == ["a", "b"]
+    # Nothing was enriched either: only analyzed items reach that stage.
+    assert asyncio.run(orchestrator.enrich_items([])).succeeded_count == 0
+
+
+def test_the_ai_is_off_by_default_in_a_fresh_configuration() -> None:
+    from lucidnews.models import AIConfig
+
+    config = AIConfig(provider="gemini", model="m", api_key_env="K")
+    assert config.enabled is False
+
+
+def test_with_the_ai_off_nothing_else_calls_the_ai_either(monkeypatch) -> None:
+    def forbidden(config):  # type: ignore[no-untyped-def]
+        raise AssertionError("no AI client may be created while the AI is off")
+
+    monkeypatch.setattr(orchestrator_module, "create_ai_client", forbidden)
+    orchestrator = make_orchestrator()
+    orchestrator.config.sources = SimpleNamespace(twitter=None)
+    budget.start_run(None)
+    budget.mark_exhausted(AILimit.DISABLED)
+    # Items analyzed in an earlier run (reused from the archive) still reach these stages.
+    analyzed = [enriched(make_item("a"), ["en"]), enriched(make_item("b", "https://example.com/b"), ["en"])]
+
+    assert asyncio.run(orchestrator.merge_topic_duplicates(analyzed)) == analyzed
+    assert asyncio.run(orchestrator.enrich_items(analyzed)).succeeded_count == 0
+
+
+def test_an_enabled_ai_without_a_key_does_not_stop_the_run(monkeypatch) -> None:
+    def no_key(config):  # type: ignore[no-untyped-def]
+        raise ValueError("Missing API key environment variable configured by ai.api_key_env.")
+
+    monkeypatch.setattr(orchestrator_module, "create_ai_client", no_key)
+    orchestrator = make_orchestrator()
+    orchestrator.profiles = PROFILES
+    budget.start_run(None)
+    items = [make_item("a")]
+
+    analyzed = asyncio.run(orchestrator.analyze_items(items))
+
+    assert analyzed[0].processing.ai_skipped is AILimit.DISABLED
+    assert budget.exhausted() is AILimit.DISABLED

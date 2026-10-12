@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, ChevronDown, Crown, Save, Trash2, Undo2 } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, m } from 'motion/react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { useForm, type Path } from 'react-hook-form'
 import { useNavigate } from 'react-router'
@@ -10,15 +10,7 @@ import { Chip } from '../../design/Chip'
 import { ConfirmDialog } from '../../design/ConfirmDialog'
 import { Segmented } from '../../design/PageState'
 import { Switch } from '../../design/Switch'
-import {
-  ApiError,
-  deleteSubscriber,
-  preferencesSchema,
-  updatePreferences,
-  type PreferenceOptions,
-  type Preferences,
-  type Subscriber,
-} from '../../lib/api'
+import { ApiError, deleteSubscriber, preferencesSchema, updatePreferences, type PreferenceOptions, type Preferences, type Subscriber } from '../../lib/api'
 import { formatEditionDate, sourceName } from '../../lib/format'
 import { categoryLabel, useLanguage, type MessageKey } from '../../lib/i18n'
 import { expand } from '../../lib/motion'
@@ -28,8 +20,7 @@ const formSchema = preferencesSchema.extend({
 })
 
 // 2024-01-01 was a Monday: day 0 of the API's week (0 = Monday).
-const weekdayName = (day: number, language: string) =>
-  new Date(Date.UTC(2024, 0, 1 + day)).toLocaleDateString(language, { weekday: 'long', timeZone: 'UTC' })
+const weekdayName = (day: number, language: string) => new Date(Date.UTC(2024, 0, 1 + day)).toLocaleDateString(language, { weekday: 'long', timeZone: 'UTC' })
 
 type ImportanceChoice = 'all' | 'medium' | 'high' | 'critical'
 
@@ -59,9 +50,7 @@ export function PreferencesForm({ subscriber, options }: { subscriber: Subscribe
   const save = useMutation({
     mutationFn: (preferences: Preferences) => updatePreferences(subscriber.id, preferences),
     onSuccess: (updated) => {
-      queryClient.setQueryData<Subscriber[]>(['subscribers'], (list) =>
-        list?.map((entry) => (entry.id === updated.id ? updated : entry)),
-      )
+      queryClient.setQueryData<Subscriber[]>(['subscribers'], (list) => list?.map((entry) => (entry.id === updated.id ? updated : entry)))
       form.reset(updated.preferences)
       setSaved(true)
     },
@@ -108,9 +97,7 @@ export function PreferencesForm({ subscriber, options }: { subscriber: Subscribe
           <h2 id="subscriber-email" className="truncate text-[17px] font-bold">
             {subscriber.email}
           </h2>
-          <p className="text-[13px] text-muted">
-            {t('prefs.since', { date: formatEditionDate(subscriber.created_at, language) })}
-          </p>
+          <p className="text-[13px] text-muted">{t('prefs.since', { date: formatEditionDate(subscriber.created_at, language) })}</p>
         </div>
         <span className="flex items-center gap-1.5 rounded-full bg-canvas px-3 py-1 text-[12.5px] font-semibold text-ink/70">
           {subscriber.plan === 'premium' && <Crown size={13} className="text-unverified" aria-hidden />}
@@ -177,7 +164,7 @@ export function PreferencesForm({ subscriber, options }: { subscriber: Subscribe
               </button>
               <AnimatePresence initial={false}>
                 {showNamed && (
-                  <motion.div
+                  <m.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
@@ -186,13 +173,17 @@ export function PreferencesForm({ subscriber, options }: { subscriber: Subscribe
                   >
                     <div className="flex flex-wrap gap-2 pt-3">
                       {namedSources.map((option) => (
-                        <Chip key={`${option.type}/${option.value}`} selected={values.sources.includes(option.value)} onToggle={() => toggle('sources', option.value)}>
+                        <Chip
+                          key={`${option.type}/${option.value}`}
+                          selected={values.sources.includes(option.value)}
+                          onToggle={() => toggle('sources', option.value)}
+                        >
                           {option.value}
                           <span className="text-[11px] opacity-60">{sourceName(option.type)}</span>
                         </Chip>
                       ))}
                     </div>
-                  </motion.div>
+                  </m.div>
                 )}
               </AnimatePresence>
             </>
@@ -265,7 +256,7 @@ export function PreferencesForm({ subscriber, options }: { subscriber: Subscribe
             placeholder={t('prefs.maxItemsPlaceholder')}
             aria-invalid={!!errors.max_items}
             {...form.register('max_items', { setValueAs: (value) => (value === '' || value === null ? null : Number(value)) })}
-            className="w-40 rounded-control border border-ink/10 bg-white px-3.5 py-2.5 text-[14px] outline-none transition-shadow duration-150 placeholder:text-faint focus:border-accent/50 focus:ring-3 focus:ring-accent/15 aria-invalid:border-rumor/50"
+            className="w-40 rounded-control border border-ink/10 bg-surface px-3.5 py-2.5 text-[14px] outline-none transition-shadow duration-150 placeholder:text-faint focus:border-accent/50 focus:ring-3 focus:ring-accent/15 aria-invalid:border-rumor/50"
           />
           <FieldError message={errorText(errors.max_items?.message)} />
         </Field>
@@ -277,7 +268,7 @@ export function PreferencesForm({ subscriber, options }: { subscriber: Subscribe
       <div className="sticky bottom-24 z-10 px-4 pb-4 md:bottom-4">
         <AnimatePresence>
           {(isDirty || saved) && (
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 12 }}
@@ -299,7 +290,7 @@ export function PreferencesForm({ subscriber, options }: { subscriber: Subscribe
                   <button
                     type="button"
                     onClick={() => form.reset()}
-                    className="flex items-center gap-1.5 rounded-control px-3.5 py-2.5 text-[14px] font-semibold text-ink/70 transition-colors duration-150 hover:bg-white"
+                    className="flex items-center gap-1.5 rounded-control px-3.5 py-2.5 text-[14px] font-semibold text-ink/70 transition-colors duration-150 hover:bg-surface"
                   >
                     <Undo2 size={15} aria-hidden />
                     {t('prefs.cancel')}
@@ -307,14 +298,14 @@ export function PreferencesForm({ subscriber, options }: { subscriber: Subscribe
                   <button
                     type="submit"
                     disabled={save.isPending}
-                    className="flex items-center gap-1.5 rounded-control bg-accent px-5 py-2.5 text-[14px] font-semibold text-white shadow-accent transition-all duration-150 ease-soft hover:-translate-y-0.5 hover:bg-accent-deep active:translate-y-0 disabled:opacity-60"
+                    className="flex items-center gap-1.5 rounded-control bg-accent px-5 py-2.5 text-[14px] font-semibold text-on-fill shadow-accent transition-all duration-150 ease-soft hover:-translate-y-0.5 hover:bg-accent-deep active:translate-y-0 disabled:opacity-60"
                   >
                     <Save size={15} aria-hidden />
                     {t('prefs.save')}
                   </button>
                 </span>
               )}
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
       </div>
@@ -322,19 +313,7 @@ export function PreferencesForm({ subscriber, options }: { subscriber: Subscribe
   )
 }
 
-function Field({
-  title,
-  hint,
-  count,
-  htmlFor,
-  children,
-}: {
-  title: string
-  hint?: string
-  count?: number
-  htmlFor?: string
-  children: ReactNode
-}) {
+function Field({ title, hint, count, htmlFor, children }: { title: string; hint?: string; count?: number; htmlFor?: string; children: ReactNode }) {
   const Title = htmlFor ? 'label' : 'p'
   return (
     <div className="p-5 sm:p-7">

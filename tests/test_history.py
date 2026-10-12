@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.ai.summarizer import DailySummarizer
-from src.models import (
+from lucidnews.ai.summarizer import DailySummarizer
+from lucidnews.models import (
     ClassificationResult,
     ContentAnalysis,
     ContentArtifact,
@@ -14,8 +14,8 @@ from src.models import (
     ProcessingResult,
     SourceType,
 )
-from src.processing.history import HistorySearchTool
-from src.processing.tools import ToolRegistry
+from lucidnews.processing.history import HistorySearchTool
+from lucidnews.processing.tools import ToolRegistry
 
 
 BEFORE = date(2026, 4, 2)
@@ -157,7 +157,7 @@ def test_bounds_returned_summary_and_handles_missing_archive(tmp_path):
 
 
 def test_loads_archive_once_for_concurrent_queries(tmp_path, monkeypatch):
-    import src.processing.history as history
+    import lucidnews.processing.history as history
 
     (tmp_path / "lucidnews-2026-04-01.md").write_text(story("Atlas", "Atlas preview."), encoding="utf-8")
     read_entries = history._read_entries

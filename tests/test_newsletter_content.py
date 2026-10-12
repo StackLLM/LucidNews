@@ -10,9 +10,9 @@ from types import SimpleNamespace
 import pytest
 from rich.console import Console
 
-from src.ai.summarizer import DailySummarizer
-from src.archive import ItemArchive
-from src.models import (
+from lucidnews.ai.summarizer import DailySummarizer
+from lucidnews.archive import ItemArchive
+from lucidnews.models import (
     ArtifactSource,
     ClassificationResult,
     Config,
@@ -24,15 +24,15 @@ from src.models import (
     ProcessingResult,
     SourceType,
 )
-from src.newsletter import DetailLevel, DigestPreferences, Frequency, Subscriber, plan_deliveries
-from src.newsletter.mailer import SendSummary
-from src.newsletter.preview import PreviewService
-from src.newsletter.weekly import WeeklyState, iso_week, window
-from src.orchestrator import PipelineOrchestrator
-from src.reliability import ReliabilityAssessment
-from src.storage.manager import StorageManager
-from src.web_api import ApiContext, resolve
-from src.subscribers_api import SubscriberService, subscriber_id
+from lucidnews.newsletter import DetailLevel, DigestPreferences, Frequency, Subscriber, plan_deliveries
+from lucidnews.newsletter.mailer import SendSummary
+from lucidnews.newsletter.preview import PreviewService
+from lucidnews.newsletter.weekly import WeeklyState, iso_week, window
+from lucidnews.orchestrator import PipelineOrchestrator
+from lucidnews.reliability import ReliabilityAssessment
+from lucidnews.storage.manager import StorageManager
+from lucidnews.web_api import ApiContext, resolve
+from lucidnews.subscribers_api import SubscriberService, subscriber_id
 
 NOW = datetime.now(timezone.utc)
 ROOT = Path(__file__).resolve().parent.parent
@@ -294,7 +294,7 @@ def test_preview_without_edition_says_so(tmp_path) -> None:
 
 
 def test_email_keeps_the_quote_and_the_table_of_contents_as_html() -> None:
-    from src.newsletter.render import render_email
+    from lucidnews.newsletter.render import render_email
 
     md = "# Title\n\n> Intro line\n\n---\n\n**Group**\n1. [A](https://example.com/a) 9/10\n2. [B](https://example.com/b) 8/10\n"
 

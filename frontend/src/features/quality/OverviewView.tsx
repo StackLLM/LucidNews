@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { ArrowRight } from 'lucide-react'
-import { motion } from 'motion/react'
+import { m } from 'motion/react'
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, XAxis, YAxis } from 'recharts'
@@ -75,27 +75,27 @@ function Overview({ data }: { data: QualityOverview }) {
   ]
 
   return (
-    <motion.div variants={listStagger} initial={enabled ? 'hidden' : false} animate="visible" className="space-y-6">
-      <motion.dl variants={riseIn} className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+    <m.div variants={listStagger} initial={enabled ? 'hidden' : false} animate="visible" className="space-y-6">
+      <m.dl variants={riseIn} className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {tiles.map((tile) => (
           <div key={tile.label} className="glass rounded-card px-5 py-4">
             <dt className="text-[13px] font-medium text-muted">{tile.label}</dt>
-            <dd className={`mt-1 text-[28px] leading-none font-bold sm:text-[32px] ${tile.value === noData ? 'text-[18px]! text-faint' : tile.tone ?? 'text-ink'}`}>
+            <dd
+              className={`mt-1 text-[28px] leading-none font-bold sm:text-[32px] ${tile.value === noData ? 'text-[18px]! text-faint' : (tile.tone ?? 'text-ink')}`}
+            >
               {tile.value}
             </dd>
           </div>
         ))}
-      </motion.dl>
+      </m.dl>
 
-      <motion.div variants={riseIn} className="grid gap-6 lg:grid-cols-2">
+      <m.div variants={riseIn} className="grid gap-6 lg:grid-cols-2">
         <Card title={t('overview.coverage')} source={[t('overview.source.items')]} days={data.days}>
           {data.coverage.gaps.length === 0 ? (
             <p className="text-[14px] text-confirmed">{t('overview.coverage.none')}</p>
           ) : (
             <>
-              <p className="text-[14px]">
-                {t('overview.coverage.value', { gaps: data.coverage.gaps.length, watched: data.coverage.watched })}
-              </p>
+              <p className="text-[14px]">{t('overview.coverage.value', { gaps: data.coverage.gaps.length, watched: data.coverage.watched })}</p>
               <ul className="mt-3 flex flex-wrap gap-1.5">
                 {data.coverage.gaps.map((category) => (
                   <li key={category} className="rounded-full bg-rumor/10 px-2.5 py-1 text-[12.5px] font-semibold text-rumor">
@@ -157,7 +157,11 @@ function Overview({ data }: { data: QualityOverview }) {
                 <li key={`${error.source}-${error.at}`} className="text-[13px]">
                   <span className="font-semibold">{keyLabel(error.source)}</span>
                   <span className="ml-1.5 text-faint">{formatItemTime(error.at, language)}</span>
-                  {error.error && <span className="block truncate font-mono text-[12px] text-muted" title={error.error}>{error.error}</span>}
+                  {error.error && (
+                    <span className="block truncate font-mono text-[12px] text-muted" title={error.error}>
+                      {error.error}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -194,9 +198,7 @@ function Overview({ data }: { data: QualityOverview }) {
               {labelled > 0 && (
                 <div className="flex h-3 overflow-hidden rounded-full bg-canvas" aria-hidden>
                   {reliabilityLabels.map((label) =>
-                    labels[label] ? (
-                      <span key={label} className={LABEL_COLORS[label]} style={{ width: `${(labels[label] / labelled) * 100}%` }} />
-                    ) : null,
+                    labels[label] ? <span key={label} className={LABEL_COLORS[label]} style={{ width: `${(labels[label] / labelled) * 100}%` }} /> : null,
                   )}
                 </div>
               )}
@@ -215,8 +217,8 @@ function Overview({ data }: { data: QualityOverview }) {
             </>
           )}
         </Card>
-      </motion.div>
-    </motion.div>
+      </m.div>
+    </m.div>
   )
 }
 
@@ -267,7 +269,9 @@ function SelectionFunnel({ data }: { data: QualityOverview }) {
         ))}
       </dl>
       {selection.runs_without_data > 0 && (
-        <p className="mt-2 text-[12.5px] text-unverified">{translatePlural(language, 'overview.selection.missing', selection.runs_without_data, { count: selection.runs_without_data })}</p>
+        <p className="mt-2 text-[12.5px] text-unverified">
+          {translatePlural(language, 'overview.selection.missing', selection.runs_without_data, { count: selection.runs_without_data })}
+        </p>
       )}
     </>
   )
@@ -310,17 +314,7 @@ function Metric({ label, value }: { label: string; value: string }) {
   )
 }
 
-function Card({
-  title,
-  source,
-  days,
-  children,
-}: {
-  title: string
-  source: string[]
-  days: number
-  children: ReactNode
-}) {
+function Card({ title, source, days, children }: { title: string; source: string[]; days: number; children: ReactNode }) {
   const { t } = useLanguage()
   return (
     <section className="flex flex-col rounded-card bg-surface p-5 shadow-card sm:p-6">
@@ -343,4 +337,3 @@ function MoreLink({ to, children }: { to: string; children: ReactNode }) {
 function formatNumber(value: number, language: string): string {
   return value.toLocaleString(language, { maximumFractionDigits: 1 })
 }
-

@@ -10,15 +10,15 @@ from types import SimpleNamespace
 
 from rich.console import Console
 
-import src.orchestrator as orchestrator_module
-from src.archive import ItemArchive
-from src.models import ClassificationResult, ContentAnalysis, ContentItem, ProcessingResult, SourceType
-from src.orchestrator import PipelineOrchestrator
-from src.reassess_cli import main as reassess_main
-from src.reassess_cli import reassess
-from src.reliability import ClaimAssessment, ClaimStatus, ReliabilityLabel
-from src.reliability.assess import ReliabilityPolicy, assess_item
-from src.source_quality import compute_source_quality
+import lucidnews.orchestrator as orchestrator_module
+from lucidnews.archive import ItemArchive
+from lucidnews.models import ClassificationResult, ContentAnalysis, ContentItem, ProcessingResult, SourceType
+from lucidnews.orchestrator import PipelineOrchestrator
+from lucidnews.reassess_cli import main as reassess_main
+from lucidnews.reassess_cli import reassess
+from lucidnews.reliability import ClaimAssessment, ClaimStatus, ReliabilityLabel
+from lucidnews.reliability.assess import ReliabilityPolicy, assess_item
+from lucidnews.source_quality import compute_source_quality
 
 ROOT = Path(__file__).resolve().parents[1]
 NOW = datetime.now(timezone.utc)

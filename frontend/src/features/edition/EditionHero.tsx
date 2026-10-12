@@ -1,5 +1,5 @@
 import { CalendarDays, Hourglass } from 'lucide-react'
-import { motion } from 'motion/react'
+import { m } from 'motion/react'
 import { CountUp } from '../../design/CountUp'
 import type { Edition } from '../../lib/api'
 import { capitalize, formatEditionDate } from '../../lib/format'
@@ -25,24 +25,22 @@ export function EditionHero({
   const stats = [
     // When the AI stopped early, not every collected item was analyzed. Not shown for a
     // period: the same item is collected by several editions, so the sum would overcount.
-    ...(title === undefined
-      ? [{ value: edition.fetched_count, label: t(edition.ai_limit ? 'edition.collected' : 'edition.analyzed') }]
-      : []),
+    ...(title === undefined ? [{ value: edition.fetched_count, label: t(edition.ai_limit ? 'edition.collected' : 'edition.analyzed') }] : []),
     { value: edition.selected_count - unanalyzed, label: t('edition.selected') },
     { value: edition.sections.length, label: t('edition.sections') },
     ...(unanalyzed > 0 ? [{ value: unanalyzed, label: t('edition.unanalyzed') }] : []),
   ]
 
   return (
-    <motion.section
+    <m.section
       variants={riseIn}
-      className="relative isolate overflow-hidden rounded-card bg-gradient-to-br from-accent to-accent-deep px-6 py-8 text-white shadow-[0_30px_70px_-30px_rgb(76_63_216/0.6)] sm:px-10 sm:py-10"
+      className="relative isolate overflow-hidden rounded-card bg-gradient-to-br from-accent to-accent-deep px-6 py-8 text-on-fill shadow-[0_30px_70px_-30px_rgb(76_63_216/0.6)] sm:px-10 sm:py-10"
     >
-      <span aria-hidden className="absolute -right-24 -top-28 -z-10 h-80 w-80 rounded-full bg-white/[0.07]" />
-      <span aria-hidden className="absolute -bottom-36 right-40 -z-10 h-72 w-72 rounded-full bg-white/[0.05]" />
-      <span aria-hidden className="absolute -left-20 bottom-[-9rem] -z-10 h-64 w-64 rounded-full bg-white/[0.04]" />
+      <span aria-hidden className="absolute -right-24 -top-28 -z-10 h-80 w-80 rounded-full bg-on-fill/[0.07]" />
+      <span aria-hidden className="absolute -bottom-36 right-40 -z-10 h-72 w-72 rounded-full bg-on-fill/[0.05]" />
+      <span aria-hidden className="absolute -left-20 bottom-[-9rem] -z-10 h-64 w-64 rounded-full bg-on-fill/[0.04]" />
 
-      <p className="flex items-center gap-2 text-sm font-semibold text-white/75">
+      <p className="flex items-center gap-2 text-sm font-semibold text-on-fill/75">
         <CalendarDays size={16} aria-hidden />
         {kicker ?? t(archived ? 'edition.archived' : 'edition.kicker')}
       </p>
@@ -51,7 +49,7 @@ export function EditionHero({
       </h1>
 
       {edition.ai_limit && (
-        <p className="mt-5 flex max-w-2xl items-start gap-2.5 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-[14px] leading-relaxed backdrop-blur-sm">
+        <p className="mt-5 flex max-w-2xl items-start gap-2.5 rounded-2xl border border-on-fill/20 bg-on-fill/10 px-4 py-3 text-[14px] leading-relaxed backdrop-blur-sm">
           <Hourglass size={16} className="mt-0.5 shrink-0" aria-hidden />
           <span>
             {t(`quota.${edition.ai_limit}`)}
@@ -62,20 +60,17 @@ export function EditionHero({
 
       <dl className="mt-8 flex flex-wrap gap-3">
         {stats.map(({ value, label }) => (
-          <div
-            key={label}
-            className="flex items-baseline gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 py-2.5 backdrop-blur-sm"
-          >
+          <div key={label} className="flex items-baseline gap-2 rounded-2xl border border-on-fill/15 bg-on-fill/10 px-4 py-2.5 backdrop-blur-sm">
             <dt className="sr-only">{label}</dt>
             <dd className="text-2xl font-bold">
               <CountUp value={value} />
             </dd>
-            <span aria-hidden className="text-sm text-white/75">
+            <span aria-hidden className="text-sm text-on-fill/75">
               {label}
             </span>
           </div>
         ))}
       </dl>
-    </motion.section>
+    </m.section>
   )
 }

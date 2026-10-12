@@ -2,30 +2,19 @@
 
 import asyncio
 from collections import defaultdict
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Sequence
-from urllib.parse import unquote_plus, urlsplit
+from typing import Dict, List, Optional, Sequence
 import httpx
 import logging
 from rich.console import Console
 
 from .console_icons import get_icons
 from .models import Config, ContentItem
-from .storage.manager import StorageManager, safe_output_path
+from .storage.manager import StorageManager
 from .services.email import EmailManager
 from .services.webhook import WebhookNotifier
-from .scrapers.github import GitHubScraper
-from .scrapers.hackernews import HackerNewsScraper
-from .scrapers.rss import RSSScraper
-from .scrapers.reddit import RedditScraper
-from .scrapers.telegram import TelegramScraper
 from .scrapers.twitter import TwitterScraper
-from .scrapers.twitter_playwright import TwitterPlaywrightScraper
-from .scrapers.ossinsight import OSSInsightScraper
-from .scrapers.gdelt import GDELTScraper
-from .scrapers.google_news import GoogleNewsScraper
 from .ai import budget
 from .ai.client import create_ai_client
 from .ai.analyzer import ContentAnalyzer
@@ -34,13 +23,9 @@ from .ai.enricher import ContentEnricher, EnrichmentBatchResult
 from .ai.tokens import get_usage_snapshot
 from .processing import ProfileRegistry
 from .processing.tools import ToolRegistry
-from .reliability.assess import ReliabilityPolicy, assess_item, source_tier_for
+from .reliability.assess import ReliabilityPolicy, assess_item
 from .reliability.models import SourceTier
-from .i18n import messages
-from .newsletter import DeliveryPlan, Frequency, plan_deliveries
-from .newsletter.build import render_selection
-from .newsletter.mailer import SendSummary, build_mailer
-from .newsletter.weekly import WeeklyState, window as weekly_window
+from .newsletter.mailer import build_mailer
 from .archive import ItemArchive, content_hash
 from .source_health import (
     SCRAPER_SOURCE_TYPES,
@@ -48,152 +33,31 @@ from .source_health import (
     assess_health,
     build_source_outcomes,
     configured_source_keys,
-    source_key,
 )
-from .source_quality import compute_source_quality, item_source_key
+from .pipeline.collect import CollectionMixin, FetchReport, SourceFetchOutcome  # noqa: F401 (re-exported)
+from .pipeline.deliver import DeliveryMixin
+from .pipeline.select import BalancedDigestResult, FilteringPipelineResult, SelectionMixin  # noqa: F401 (re-exported)
 
 
 logger = logging.getLogger(__name__)
 
+
+
 # Identify the collector honestly; some feeds reject the default httpx agent.
-COLLECTOR_USER_AGENT = "Mozilla/5.0 (compatible; LucidNews/1.0; RSS reader)"
-
-_TRACKING_QUERY_PARAMETERS = {
-    "_ga",
-    "dclid",
-    "fbclid",
-    "gclid",
-    "igshid",
-    "li_fat_id",
-    "mc_cid",
-    "mc_eid",
-    "msclkid",
-    "ttclid",
-    "twclid",
-    "vero_id",
-}
 
 
-def _deduplication_url_key(url: str) -> tuple[str, str, str, str, Optional[int], str, str]:
-    """Return a conservative URL identity key for cross-source deduplication."""
-    parsed = urlsplit(url)
-    scheme = parsed.scheme.lower()
-    host = (parsed.hostname or "").lower()
-    port = parsed.port
-    if (scheme, port) in {("http", 80), ("https", 443)}:
-        port = None
-
-    path = parsed.path.rstrip("/") or "/"
-    query_parts = []
-    for part in parsed.query.split("&") if parsed.query else []:
-        name = unquote_plus(part.partition("=")[0]).lower()
-        if name.startswith("utm_") or name in _TRACKING_QUERY_PARAMETERS:
-            continue
-        query_parts.append(part)
-
-    return (
-        scheme,
-        parsed.username or "",
-        parsed.password or "",
-        host,
-        port,
-        path,
-        "&".join(query_parts),
-    )
 
 
-@dataclass
-class BalancedDigestResult:
-    """Items and selection statistics from balanced digest filtering."""
-
-    items: List[ContentItem]
-    enabled: bool = False
-    group_counts: Dict[str, int] = field(default_factory=dict)
-    group_limits: Dict[str, Optional[int]] = field(default_factory=dict)
-    duplicate_categories: List[str] = field(default_factory=list)
 
 
-@dataclass
-class FilteringPipelineResult:
-    """Items and statistics from score, topic, and digest filtering."""
-
-    items: List[ContentItem]
-    threshold_count: int
-    topic_dedup_count: int
-    topic_dedup_removed: int
-    balanced_digest: BalancedDigestResult
-    eligible_count: Optional[int] = None
 
 
-@dataclass
-class SourceFetchOutcome:
-    """Result of fetching one configured source."""
-
-    source_name: str
-    status: Literal["success", "empty", "failure"]
-    items: List[ContentItem] = field(default_factory=list)
-    error: Optional[str] = None
-    # Sub-sources (e.g. one RSS feed) that failed while the scraper as a whole succeeded.
-    source_errors: Dict[str, str] = field(default_factory=dict)
-
-    def to_dict(self) -> Dict[str, object]:
-        result: Dict[str, object] = {
-            "source": self.source_name,
-            "status": self.status,
-            "item_count": len(self.items),
-        }
-        if self.error is not None:
-            result["error"] = self.error
-        if self.source_errors:
-            result["source_errors"] = dict(self.source_errors)
-        return result
 
 
-@dataclass
-class FetchReport:
-    """Aggregate diagnostics for one fetch across configured sources."""
-
-    outcomes: List[SourceFetchOutcome] = field(default_factory=list)
-
-    @property
-    def status(self) -> Literal["not_attempted", "success", "partial_failure", "failure"]:
-        if not self.outcomes:
-            return "not_attempted"
-        if self.failed_count == len(self.outcomes):
-            return "failure"
-        if self.failed_count:
-            return "partial_failure"
-        return "success"
-
-    @property
-    def failed_count(self) -> int:
-        return sum(outcome.status == "failure" for outcome in self.outcomes)
-
-    @property
-    def all_failed(self) -> bool:
-        return bool(self.outcomes) and self.failed_count == len(self.outcomes)
-
-    def failure_message(self) -> str:
-        failures = "; ".join(
-            f"{outcome.source_name}: {outcome.error or 'unknown error'}"
-            for outcome in self.outcomes
-            if outcome.status == "failure"
-        )
-        return f"All {len(self.outcomes)} attempted sources failed ({failures})"
-
-    def to_dict(self) -> Dict[str, object]:
-        return {
-            "status": self.status,
-            "attempted": len(self.outcomes),
-            "successful": len(self.outcomes) - self.failed_count,
-            "empty": sum(outcome.status == "empty" for outcome in self.outcomes),
-            "failed": self.failed_count,
-            "item_count": sum(len(outcome.items) for outcome in self.outcomes),
-            "sources": [outcome.to_dict() for outcome in self.outcomes],
-        }
 
 
-class PipelineOrchestrator:
+
+class PipelineOrchestrator(CollectionMixin, SelectionMixin, DeliveryMixin):
     """Orchestrates the complete workflow for content aggregation and analysis."""
 
     icons = get_icons()
@@ -255,6 +119,9 @@ class PipelineOrchestrator:
         self.archive: Optional[ItemArchive] = None
         self.run_id: Optional[str] = None
 
+    def _ai_enabled(self) -> bool:
+        return bool(getattr(getattr(self.config, "ai", None), "enabled", True))
+
     def _open_archive(self) -> Optional[ItemArchive]:
         settings = getattr(self.config, "archive", None)
         if settings is None or not settings.enabled:
@@ -305,6 +172,8 @@ class PipelineOrchestrator:
 
         try:
             budget.start_run(getattr(getattr(self.config, "ai", None), "max_tokens_per_run", None))
+            if not self._ai_enabled():
+                budget.mark_exhausted(budget.AILimit.DISABLED, "ai.enabled is off")
             # 1. Determine time window
             since = self._determine_time_window(force_hours)
             self.archive = self._open_archive()
@@ -346,9 +215,10 @@ class PipelineOrchestrator:
             # 4. Analyze with AI
             analyzed_items = await self.analyze_items(merged_items)
             self._archive("record_items", analyzed_items)
-            self.console.print(
-                f"{self.icons['ai']} Analyzed {len(analyzed_items)} items with AI\n"
-            )
+            if budget.exhausted() is not budget.AILimit.DISABLED:
+                self.console.print(
+                    f"{self.icons['ai']} Analyzed {len(analyzed_items)} items with AI\n"
+                )
 
             # Archive signals for selection: source quality and earlier reports.
             self._load_archive_signals(analyzed_items)
@@ -456,115 +326,8 @@ class PipelineOrchestrator:
 
             raise
 
-    async def send_newsletters(
-        self,
-        items: List[ContentItem],
-        date: str,
-        total_fetched: int,
-        unanalyzed: Optional[List[ContentItem]] = None,
-    ) -> DeliveryPlan:
-        """Render and email one digest per distinct subscriber preference set."""
-        plan = plan_deliveries(
-            self.storage.subscribers.load(),
-            items,
-            self.config.ai.languages,
-            unanalyzed=unanalyzed or (),
-        )
-        await self._deliver(plan, date, total_fetched)
-        return plan
 
-    async def send_weekly_newsletters(self, today: Optional[datetime] = None) -> Optional[DeliveryPlan]:
-        """Send the week's best archived items to weekly subscribers, once per ISO week.
 
-        Due on ``email.weekly_day`` (first run of that day). Without an archive or items
-        nothing is sent and the week stays due.
-        """
-        email = self.config.email
-        if getattr(self, "mailer", None) is None or not (email and email.enabled):
-            return None
-        day = (today or datetime.now(timezone.utc)).date()
-        state = WeeklyState(self.storage.data_dir / "weekly_sent.json")
-        if not state.is_due(day, email.weekly_day) or getattr(self, "archive", None) is None:
-            return None
-        since, until, week_start = weekly_window(day)
-        try:
-            items = self.archive.items_between(since, until, selected_only=True)
-        except Exception as exc:
-            logger.warning("Weekly digest skipped, archive unreadable: %s", exc)
-            return None
-        plan = plan_deliveries(
-            self.storage.subscribers.load(),
-            [item for item in items if not (item.processing and item.processing.ai_skipped)],
-            self.config.ai.languages,
-            frequency=Frequency.WEEKLY,
-            max_items_cap=email.weekly_max_items,
-        )
-        totals = await self._deliver(plan, day.isoformat(), len(items), week_start=week_start)
-        # A week where every send failed stays due: the next run of the day tries again.
-        if totals.sent > 0 or totals.failed == 0:
-            state.mark_sent(day)
-        return plan
-
-    async def _deliver(
-        self, plan: DeliveryPlan, day: str, total_fetched: int, week_start: Optional[str] = None
-    ) -> SendSummary:
-        """Render each delivery of ``plan`` (the code path of the web preview) and send it."""
-        email = self.config.email
-        totals = SendSummary()
-        if plan.not_confirmed:
-            self.console.print(
-                f"{self.icons['email']} {len(plan.not_confirmed)} subscriber(s) not confirmed or unsubscribed: nothing sent."
-            )
-        if plan.skipped_weekly and week_start is None:
-            self.console.print(
-                f"{self.icons['email']} {len(plan.skipped_weekly)} weekly subscriber(s) "
-                f"receive their digest on day {email.weekly_day} of the week (0 = Monday)."
-            )
-        for email_addr, (wanted, used) in plan.language_fallbacks.items():
-            self.console.print(
-                f"[yellow]{self.icons['warning']} No '{wanted}' content this run; "
-                f"sending '{used}' to {email_addr}.[/yellow]"
-            )
-
-        summarizer = DailySummarizer(
-            profile_names=self.profiles.names,
-            profile_order=self.config.digest.profile_order,
-        )
-        for delivery in plan.deliveries:
-            language = delivery.preferences.language
-            if week_start is not None and not delivery.items:
-                continue  # nothing this week for these preferences: no empty e-mail
-            newsletter = await render_selection(
-                delivery.preferences,
-                delivery.items,
-                delivery.unanalyzed,
-                summarizer=summarizer,
-                day=day,
-                total_fetched=total_fetched,
-                sender_name=email.sender_name,
-                unsubscribe_keyword=email.unsubscribe_keyword,
-                week_start=week_start,
-                unsubscribe_link=self.mailer.links_enabled,
-            )
-            self.console.print(
-                f"{self.icons['email']} Sending {language.upper()} "
-                f"{'weekly' if week_start else 'daily'} digest "
-                f"({newsletter.item_count + newsletter.unanalyzed_count} items) "
-                f"to {len(delivery.recipients)} subscriber(s)..."
-            )
-            summary = self.mailer.send_digest(
-                newsletter,
-                delivery.recipients,
-                "weekly" if week_start else "daily",
-                week_start or getattr(self, "run_id", None) or day,
-            )
-            totals.sent += summary.sent
-            totals.failed += summary.failed
-            self.console.print(
-                f"   {self.icons['detail']} {summary.sent} sent, {summary.failed} failed"
-                + (f", {summary.skipped} skipped (not confirmed)" if summary.skipped else "")
-            )
-        return totals
 
     def _finish_archive(
         self,
@@ -712,213 +475,9 @@ class PipelineOrchestrator:
             since = datetime.now(timezone.utc) - timedelta(hours=hours)
         return since
 
-    async def fetch_all_sources(self, since: datetime) -> List[ContentItem]:
-        """Fetch content from all configured sources.
 
-        This is a stable stage entry point for integrations such as MCP.
 
-        Args:
-            since: Fetch items published after this time
 
-        Returns:
-            List[ContentItem]: All fetched items
-        """
-        self.last_fetch_report = None
-        async with httpx.AsyncClient(
-            timeout=30.0, headers={"User-Agent": COLLECTOR_USER_AGENT}
-        ) as client:
-            tasks = []
-
-            # GitHub sources
-            if self.config.sources.github:
-                github_scraper = GitHubScraper(self.config.sources.github, client)
-                tasks.append(self._fetch_with_progress("GitHub", github_scraper, since))
-
-            # Hacker News
-            if self.config.sources.hackernews.enabled:
-                hn_scraper = HackerNewsScraper(self.config.sources.hackernews, client)
-                tasks.append(self._fetch_with_progress("Hacker News", hn_scraper, since))
-
-            # RSS feeds
-            if self.config.sources.rss:
-                from .extractors import ExtractorRegistry
-                rss_scraper = RSSScraper(
-                    self.config.sources.rss,
-                    client,
-                    ExtractorRegistry(self.config.extractors),
-                )
-                tasks.append(self._fetch_with_progress("RSS Feeds", rss_scraper, since))
-
-            # Reddit
-            if self.config.sources.reddit.enabled:
-                reddit_scraper = RedditScraper(self.config.sources.reddit, client)
-                tasks.append(self._fetch_with_progress("Reddit", reddit_scraper, since))
-
-            # Telegram
-            if self.config.sources.telegram.enabled:
-                telegram_scraper = TelegramScraper(self.config.sources.telegram, client)
-                tasks.append(self._fetch_with_progress("Telegram", telegram_scraper, since))
-
-            # Twitter (Apify or Playwright mode)
-            if self.config.sources.twitter and self.config.sources.twitter.enabled:
-                tw_cfg = self.config.sources.twitter
-                if tw_cfg.mode == "playwright":
-                    twitter_scraper = TwitterPlaywrightScraper(tw_cfg)
-                else:
-                    twitter_scraper = TwitterScraper(tw_cfg, client)
-                tasks.append(self._fetch_with_progress("Twitter", twitter_scraper, since))
-
-            # OSS Insight trending repos
-            if self.config.sources.ossinsight and self.config.sources.ossinsight.enabled:
-                oss_scraper = OSSInsightScraper(self.config.sources.ossinsight, client)
-                tasks.append(self._fetch_with_progress("OSS Insight", oss_scraper, since))
-
-            # GDELT 2.0 DOC API (key-less global news)
-            if self.config.sources.gdelt and self.config.sources.gdelt.enabled:
-                gdelt_scraper = GDELTScraper(self.config.sources.gdelt, client)
-                tasks.append(self._fetch_with_progress("GDELT", gdelt_scraper, since))
-
-            # Google News RSS (key-less news search)
-            if self.config.sources.google_news and self.config.sources.google_news.enabled:
-                gn_scraper = GoogleNewsScraper(self.config.sources.google_news, client)
-                tasks.append(self._fetch_with_progress("Google News", gn_scraper, since))
-
-            # Fetch all concurrently
-            outcomes = await asyncio.gather(*tasks)
-            self.last_fetch_report = FetchReport(outcomes=list(outcomes))
-
-            # Flatten successful and empty outcomes; failures remain in the report.
-            all_items: List[ContentItem] = []
-            for outcome in outcomes:
-                all_items.extend(outcome.items)
-
-            return all_items
-
-    async def _fetch_with_progress(
-        self, name: str, scraper, since: datetime
-    ) -> SourceFetchOutcome:
-        """Fetch from a scraper with progress indication.
-
-        Args:
-            name: Source name for display
-            scraper: Scraper instance
-            since: Fetch items after this time
-
-        Returns:
-            SourceFetchOutcome: Named fetch result and diagnostics
-        """
-        self.console.print(f"{self.icons['fetch']} Fetching from {name}...")
-        try:
-            items = await scraper.fetch(since)
-        except Exception as exc:
-            error = f"{type(exc).__name__}: {exc}"
-            self.console.print(f"[red]   Failed to fetch {name}: {error}[/red]")
-            return SourceFetchOutcome(
-                source_name=name,
-                status="failure",
-                error=error,
-            )
-
-        self.console.print(f"   Found {len(items)} items from {name}")
-        for item in items:
-            item.metadata.setdefault("source_key", source_key(item))
-        source_errors = dict(getattr(scraper, "source_errors", {}) or {})
-        for key, error in sorted(source_errors.items()):
-            self.console.print(f"[yellow]   {self.icons['warning']} {key}: {error}[/yellow]")
-
-        # Show per-sub-source breakdown when there are multiple sub-sources
-        sub_counts: Dict[str, int] = defaultdict(int)
-        for item in items:
-            sub_counts[self._sub_source_label(item)] += 1
-        if len(sub_counts) > 1:
-            for sub, count in sorted(sub_counts.items()):
-                self.console.print(f"      {self.icons['detail']} {sub}: {count}")
-
-        return SourceFetchOutcome(
-            source_name=name,
-            status="success" if items else "empty",
-            items=items,
-            source_errors=source_errors,
-        )
-
-    @staticmethod
-    def _sub_source_label(item: ContentItem) -> str:
-        """Return a human-readable sub-source label for an item."""
-        meta = item.metadata
-        if meta.get("subreddit"):
-            return f"r/{meta['subreddit']}"
-        if meta.get("feed_name"):
-            return meta["feed_name"]
-        if meta.get("channel"):
-            return f"@{meta['channel']}"
-        if meta.get("period") and meta.get("repo"):
-            return f"ossinsight:{meta.get('primary_language', 'all')}"
-        if meta.get("repo"):
-            return meta["repo"]
-        if meta.get("watchlist"):
-            return meta["watchlist"]
-        if meta.get("source_name"):
-            return meta["source_name"]
-        if meta.get("gn_query"):
-            return f"google_news:{meta['gn_query']}"
-        if meta.get("domain"):
-            return meta["domain"]
-        return item.author or "unknown"
-
-    def merge_cross_source_duplicates(self, items: List[ContentItem]) -> List[ContentItem]:
-        """Merge items that point to the same URL from different sources.
-
-        This is a stable stage helper for integrations such as MCP.
-
-        Keeps the item with the richest content and combines metadata.
-
-        Args:
-            items: Items to deduplicate
-
-        Returns:
-            List[ContentItem]: Deduplicated items
-        """
-        # Group by normalized URL
-        url_groups: Dict[tuple[object, ...], List[ContentItem]] = {}
-        for item in items:
-            if isinstance(item.profile, list):
-                requested_profile: object = tuple(
-                    profile_id.strip() for profile_id in item.profile
-                )
-            else:
-                requested_profile = (item.profile or "auto").strip() or "auto"
-            key = (*_deduplication_url_key(str(item.url)), requested_profile)
-            url_groups.setdefault(key, []).append(item)
-
-        merged = []
-        for group in url_groups.values():
-            group_copies = [item.model_copy(deep=True) for item in group]
-            if len(group) == 1:
-                merged.append(group_copies[0])
-                continue
-
-            # Pick the item with the richest content as primary
-            primary = max(group_copies, key=lambda x: len(x.content or ""))
-
-            # Merge metadata and source info from other items
-            all_sources = []
-            for item in group_copies:
-                if item.source_type.value not in all_sources:
-                    all_sources.append(item.source_type.value)
-                # Merge metadata (engagement, discussion, etc.)
-                for mk, mv in item.metadata.items():
-                    if mk not in primary.metadata or not primary.metadata[mk]:
-                        primary.metadata[mk] = mv
-
-                # Append content (e.g., comments from another source)
-                if item is not primary and item.content:
-                    if primary.content and item.content not in primary.content:
-                        primary.content = (primary.content or "") + f"\n\n--- From {item.source_type.value} ---\n" + item.content
-
-            primary.metadata["merged_sources"] = all_sources
-            merged.append(primary)
-
-        return merged
 
     async def merge_topic_duplicates(
         self,
@@ -945,6 +504,8 @@ class PipelineOrchestrator:
         """
         if not items or (len(items) <= 1 and not references):
             return items
+        if budget.exhausted() is budget.AILimit.DISABLED:
+            return items  # no AI call at all while the AI is off
 
         from .ai.prompting.deduplication import (
             TOPIC_DEDUP_REFERENCES,
@@ -1031,270 +592,10 @@ class PipelineOrchestrator:
 
         return [item for i, item in enumerate(items) if i not in drop_indices]
 
-    async def filter_items(
-        self,
-        items: List[ContentItem],
-        *,
-        threshold: Optional[float] = None,
-        topic_dedup: bool = True,
-        apply_balance: bool = True,
-        log: bool = True,
-    ) -> FilteringPipelineResult:
-        """Apply score thresholding, optional topic dedup, and digest balancing."""
-        threshold_items = []
-        for item in items:
-            if self.passes_profile_filter(item, threshold):
-                threshold_items.append(item)
-        threshold_items.sort(
-            key=self._rank_key,
-            reverse=True,
-        )
 
-        if log:
-            self.console.print(
-                f"{self.icons['filter']} Selected {len(threshold_items)} items "
-                "with profile filters\n"
-            )
 
-        deduped_items = threshold_items
-        references = self._corroboration_references(threshold_items, items)
-        if topic_dedup and deduped_items:
-            profile_groups: Dict[str, List[ContentItem]] = defaultdict(list)
-            for item in deduped_items:
-                profile_id = (
-                    item.processing.classification.profile
-                    if item.processing
-                    else self.profiles.default_profile
-                )
-                profile_groups[profile_id].append(item)
-            deduped_items = []
-            for profile_id, profile_items in profile_groups.items():
-                settings = self.config.processing.profile_settings.get(profile_id)
-                if settings is None or settings.topic_dedup:
-                    # References only when there are some: overrides of this stage
-                    # (tests, integrations) may not accept them.
-                    extra = {"references": references[profile_id]} if references.get(profile_id) else {}
-                    deduped_items.extend(
-                        await self.merge_topic_duplicates(profile_items, log=log, **extra)
-                    )
-                else:
-                    deduped_items.extend(profile_items)
-            deduped_items.sort(
-                key=self._rank_key,
-                reverse=True,
-            )
-        topic_dedup_removed = len(threshold_items) - len(deduped_items)
-        self._apply_corroboration(deduped_items)
 
-        if log and topic_dedup_removed:
-            self.console.print(
-                f"{self.icons['cleanup']} Removed {topic_dedup_removed} topic duplicates "
-                f"→ {len(deduped_items)} unique items\n"
-            )
 
-        balanced_digest = (
-            self.apply_balanced_digest(deduped_items, log=log)
-            if apply_balance
-            else BalancedDigestResult(items=deduped_items)
-        )
-        return FilteringPipelineResult(
-            items=balanced_digest.items,
-            threshold_count=len(threshold_items),
-            topic_dedup_count=len(deduped_items),
-            topic_dedup_removed=topic_dedup_removed,
-            balanced_digest=balanced_digest,
-        )
-
-    async def select_digest_items(
-        self,
-        items: List[ContentItem],
-        *,
-        threshold: Optional[float] = None,
-        topic_dedup: bool = True,
-        log: bool = True,
-    ) -> FilteringPipelineResult:
-        """Select final digest items using the same stages for every entry point."""
-        initial = await self.filter_items(
-            items,
-            threshold=threshold,
-            topic_dedup=topic_dedup,
-            apply_balance=False,
-            log=log,
-        )
-        candidates = initial.items
-        await self._expand_twitter_discussion(candidates)
-
-        # Targeted re-analysis can lower a score, so reapply profile filters.
-        eligible = [
-            item
-            for item in candidates
-            if self.passes_profile_filter(item, threshold)
-        ]
-        eligible.sort(
-            key=self._rank_key,
-            reverse=True,
-        )
-        balanced = self.apply_balanced_digest(eligible, log=log)
-        return FilteringPipelineResult(
-            items=balanced.items,
-            threshold_count=initial.threshold_count,
-            topic_dedup_count=initial.topic_dedup_count,
-            topic_dedup_removed=initial.topic_dedup_removed,
-            balanced_digest=balanced,
-            eligible_count=len(eligible),
-        )
-
-    def passes_profile_filter(
-        self,
-        item: ContentItem,
-        threshold: Optional[float] = None,
-    ) -> bool:
-        if not item.processing or not item.processing.analysis:
-            return False
-        score = item.processing.analysis.score
-        if score is None:
-            # The AI could not score this item; never publish it unreviewed.
-            return False
-        digest = getattr(self.config, "digest", None)
-        if getattr(digest, "only_watched_categories", False):
-            # Only the domains the reader follows (the AI's categories decide).
-            if not set(digest.watched_categories) & set(item.processing.analysis.categories):
-                return False
-        reliability_config = getattr(self.config, "reliability", None)
-        reliability = item.processing.reliability
-        if (
-            reliability_config is not None
-            and reliability is not None
-            and reliability.label in reliability_config.exclude_labels
-        ):
-            return False
-        profile_id = item.processing.classification.profile
-        settings = self.config.processing.profile_settings.get(profile_id)
-        effective_threshold = threshold
-        if effective_threshold is None and settings is not None:
-            effective_threshold = settings.threshold
-        if effective_threshold is None:
-            return True
-        return score >= effective_threshold
-
-    def _apply_corroboration(self, items: List[ContentItem]) -> None:
-        """Re-assess reliability of items that absorbed reports from other publishers."""
-        policy = getattr(self, "reliability_policy", None) or ReliabilityPolicy()
-        for item in items:
-            if item.processing and item.metadata.get("corroborating_urls"):
-                item.processing.reliability = assess_item(item, policy)
-
-    def apply_balanced_digest(
-        self,
-        items: List[ContentItem],
-        *,
-        log: bool = True,
-    ) -> BalancedDigestResult:
-        """Apply configured category quotas and the final item cap.
-
-        Categories are read from ``item.metadata["category"]``. If a category
-        appears in more than one configured group, the first group in config
-        order wins.
-        """
-        digest = self.config.digest
-        groups = digest.category_groups
-        max_items = digest.max_items
-
-        if not groups and max_items is None:
-            return BalancedDigestResult(items=items)
-
-        sorted_items = sorted(
-            items,
-            key=self._rank_key,
-            reverse=True,
-        )
-
-        category_to_group: Dict[str, str] = {}
-        duplicate_categories: List[str] = []
-        for group_key, group in groups.items():
-            for category in group.categories:
-                if category in category_to_group:
-                    if category_to_group[category] != group_key:
-                        duplicate_categories.append(category)
-                    continue
-                category_to_group[category] = group_key
-
-        if log:
-            for category in sorted(set(duplicate_categories)):
-                first_group = category_to_group[category]
-                self.console.print(
-                    f"[yellow]Warning: category '{category}' is configured in multiple "
-                    f"groups; using '{first_group}'.[/yellow]"
-                )
-
-        selected: List[tuple[ContentItem, str]] = []
-        group_counts: Dict[str, int] = defaultdict(int)
-        default_group = digest.default_group
-
-        for item in sorted_items:
-            category = item.metadata.get("category")
-            group_key = (
-                category_to_group.get(category, default_group)
-                if isinstance(category, str)
-                else default_group
-            )
-
-            if group_key in groups:
-                limit = groups[group_key].limit
-            else:
-                limit = digest.default_group_limit
-
-            if limit is not None and group_counts[group_key] >= limit:
-                continue
-
-            selected.append((item, group_key))
-            group_counts[group_key] += 1
-
-        if max_items is not None:
-            selected = selected[:max_items]
-
-        final_counts: Dict[str, int] = defaultdict(int)
-        for _, group_key in selected:
-            final_counts[group_key] += 1
-
-        group_limits: Dict[str, Optional[int]] = {
-            group_key: group.limit for group_key, group in groups.items()
-        }
-        group_limits.setdefault(default_group, digest.default_group_limit)
-
-        if log:
-            self.console.print(
-                f"{self.icons['balance']} Balanced digest selected "
-                f"{len(selected)}/{len(items)} items"
-            )
-            for group_key, group in groups.items():
-                label = group.name or group_key
-                self.console.print(
-                    f"      {self.icons['detail']} {label}: "
-                    f"{final_counts.get(group_key, 0)}/{group.limit}"
-                )
-            if (
-                final_counts.get(default_group, 0)
-                or digest.default_group_limit is not None
-            ):
-                limit_label = (
-                    str(digest.default_group_limit)
-                    if digest.default_group_limit is not None
-                    else "unlimited"
-                )
-                self.console.print(
-                    f"      {self.icons['detail']} {default_group}: "
-                    f"{final_counts.get(default_group, 0)}/{limit_label}"
-                )
-            self.console.print("")
-
-        return BalancedDigestResult(
-            items=[item for item, _ in selected],
-            enabled=True,
-            group_counts=dict(final_counts),
-            group_limits=group_limits,
-            duplicate_categories=sorted(set(duplicate_categories)),
-        )
 
     async def _expand_twitter_discussion(self, items: List[ContentItem]) -> None:
         """Second-stage: fetch reply text for important Twitter items and re-analyze.
@@ -1305,6 +606,8 @@ class PipelineOrchestrator:
         tw_cfg = self.config.sources.twitter
         if not tw_cfg or not tw_cfg.enabled or not tw_cfg.fetch_reply_text:
             return
+        if budget.exhausted() is budget.AILimit.DISABLED:
+            return  # the replies are only fetched to be analyzed again
 
         from .models import SourceType
 
@@ -1383,6 +686,9 @@ class PipelineOrchestrator:
             if not items:
                 self.console.print("")
                 return EnrichmentBatchResult(succeeded_ids=list(reused))
+        if budget.exhausted() is budget.AILimit.DISABLED:
+            self.console.print("")
+            return EnrichmentBatchResult(succeeded_ids=list(reused))
         ai_client = create_ai_client(self.config.ai)
         enricher = ContentEnricher(
             ai_client,
@@ -1425,13 +731,31 @@ class PipelineOrchestrator:
         Returns:
             List[ContentItem]: Analyzed items
         """
-        self.console.print(f"{self.icons['ai']} Analyzing content with AI...")
+        disabled = budget.exhausted() is budget.AILimit.DISABLED
+        self.console.print(
+            f"{self.icons['ai']} "
+            + ("AI analysis is turned off: items are listed without analysis..." if disabled else "Analyzing content with AI...")
+        )
 
         to_analyze = self._reuse_archived_analyses(items)
         if not to_analyze:
             return items
 
-        ai_client = create_ai_client(self.config.ai)
+        ai_client = None
+        if not disabled:
+            try:
+                ai_client = create_ai_client(self.config.ai)
+            except ValueError as exc:
+                # AI turned on but unusable (no key found): the run still lists the news.
+                self.console.print(f"[yellow]{self.icons['warning']} AI analysis skipped: {exc}[/yellow]")
+                budget.mark_exhausted(budget.AILimit.DISABLED, "no usable AI client")
+                disabled = True
+        if disabled:
+            # No client is used: nothing leaves the machine.
+            ContentAnalyzer(None, self.profiles, console=self.console, reliability_policy=self.reliability_policy).skip_batch(
+                to_analyze, budget.AILimit.DISABLED
+            )
+            return items
         analyzer = ContentAnalyzer(
             ai_client,
             self.profiles,
@@ -1481,140 +805,11 @@ class PipelineOrchestrator:
             if item.processing and languages <= set(item.processing.artifacts)
         ]
 
-    def _rank_key(self, item: ContentItem) -> tuple[float, float]:
-        """Digest order: AI score first; source quality only breaks ties."""
-        analysis = item.processing.analysis if item.processing else None
-        score = analysis.score if analysis and analysis.score is not None else -1
-        quality = getattr(self, "source_quality", {}).get(item_source_key(item), 0.5)
-        return score, quality
 
-    def _load_archive_signals(self, run_items: List[ContentItem]) -> None:
-        """Load source quality and earlier reports from the archive (best effort)."""
-        self.source_quality = {}
-        self.archived_references = []
-        archive = getattr(self, "archive", None)
-        if archive is None:
-            return
-        now = datetime.now(timezone.utc)
-        days = self.config.digest.source_quality_days
-        lookback = self.config.reliability.corroboration_lookback_hours
-        try:
-            if days:
-                history = archive.items_between(now - timedelta(days=days))
-                self.source_quality = {
-                    key: quality.score
-                    for key, quality in compute_source_quality(
-                        history, self.reliability_policy
-                    ).items()
-                }
-            if lookback and self.config.reliability.corroboration_max_references:
-                current = {item.id for item in run_items}
-                self.archived_references = [
-                    item
-                    for item in archive.items_between(now - timedelta(hours=lookback))
-                    if item.id not in current
-                ]
-        except Exception as exc:
-            logger.warning("Could not load archive signals: %s", exc)
 
-    def _corroboration_references(
-        self, candidates: List[ContentItem], analyzed: List[ContentItem]
-    ) -> Dict[str, List[ContentItem]]:
-        """Per profile, other official/reputable reports that may corroborate candidates.
-
-        Analyzed items of this run left out of the candidates (below the threshold)
-        and archived items from the lookback window, most recent first.
-        """
-        reliability_config = getattr(self.config, "reliability", None)
-        limit = getattr(reliability_config, "corroboration_max_references", 0)
-        if not limit:
-            return {}
-        policy = getattr(self, "reliability_policy", None) or ReliabilityPolicy()
-        candidate_ids = {item.id for item in candidates}
-        seen: set[str] = set()
-        by_profile: Dict[str, List[ContentItem]] = defaultdict(list)
-        pool = [*analyzed, *getattr(self, "archived_references", [])]
-        pool.sort(key=lambda item: item.published_at, reverse=True)
-        for item in pool:
-            if item.id in candidate_ids or item.id in seen:
-                continue
-            analysis = item.processing.analysis if item.processing else None
-            if analysis is None or analysis.score is None:
-                continue
-            tier = source_tier_for(item, policy)[0]
-            if tier not in (SourceTier.OFFICIAL, SourceTier.REPUTABLE):
-                continue
-            profile_refs = by_profile[item.processing.classification.profile]
-            if len(profile_refs) < limit:
-                seen.add(item.id)
-                profile_refs.append(item)
-        return dict(by_profile)
 
     # SourceTier is declared from most to least trusted.
     _TIER_ORDER = {tier: rank for rank, tier in enumerate(SourceTier)}
 
-    def select_unanalyzed_items(self, items: List[ContentItem]) -> List[ContentItem]:
-        """Items left unanalyzed because the AI quota ran out, to publish apart.
 
-        Only when the quota ran out during this run (any other analysis failure keeps
-        an item out of the digest). Best-known publishers first, then most recent;
-        reliability exclusions still apply (these items are always "unverified").
-        """
-        if budget.exhausted() is None:
-            return []
-        limit = getattr(getattr(self.config, "digest", None), "unanalyzed_max_items", 15)
-        reliability_config = getattr(self.config, "reliability", None)
-        excluded = set(reliability_config.exclude_labels if reliability_config else [])
-        skipped = [
-            item
-            for item in items
-            if item.processing
-            and item.processing.ai_skipped
-            and item.processing.reliability is not None
-            and item.processing.reliability.label not in excluded
-        ]
-        skipped.sort(
-            key=lambda item: (
-                self._TIER_ORDER[item.processing.reliability.source_tier],
-                -item.published_at.timestamp(),
-            )
-        )
-        selected = skipped[:limit] if limit else []
-        if selected:
-            self.console.print(
-                f"{self.icons['warning']} Publishing {len(selected)} item(s) without AI "
-                "analysis in a separate section\n"
-            )
-        return selected
 
-    @staticmethod
-    def _is_unscored(item: ContentItem) -> bool:
-        analysis = item.processing.analysis if item.processing else None
-        return analysis is None or analysis.score is None
-
-    async def _generate_summary(
-        self,
-        items: List[ContentItem],
-        date: str,
-        total_fetched: int,
-        language: str = "en",
-    ) -> str:
-        """Generate daily summary.
-
-        Args:
-            items: Important items to include (already enriched with background/related)
-            date: Date string
-            total_fetched: Total items fetched
-            language: Output language ("en" or "zh")
-
-        Returns:
-            str: Markdown summary
-        """
-        self.console.print(f"{self.icons['summary']} Generating daily summary...")
-
-        summarizer = DailySummarizer(
-            profile_names=self.profiles.names,
-            profile_order=self.config.digest.profile_order,
-        )
-
-        return await summarizer.generate_summary(items, date, total_fetched, language=language)

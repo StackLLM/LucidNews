@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { motion } from 'motion/react'
+import { m } from 'motion/react'
 import { useMemo, type ReactNode } from 'react'
 import { useParams, useSearchParams } from 'react-router'
 import { ApiErrorCard } from '../../design/PageState'
@@ -97,22 +97,21 @@ export function EditionPage() {
 
   const filter =
     editionId === 'latest' && editions.data && editions.data.length > 0 ? (
-      <PeriodFilter
-        runs={editions.data}
-        choice={choice}
-        onChange={setChoice}
-        domain={domain}
-        domainOptions={domainOptions}
-        onDomainChange={setDomain}
-      />
+      <PeriodFilter runs={editions.data} choice={choice} onChange={setChoice} domain={domain} domainOptions={domainOptions} onDomainChange={setDomain} />
     ) : null
 
   // The filter stays mounted while the news load, so the open calendar and focus survive.
   let content
   if (active.isError) content = <ApiErrorCard error={active.error} onRetry={() => active.refetch()} />
   else if (!data) content = <EditionSkeleton />
-  else if (choice) content = <PeriodView key={`${choice.kind}-${choice.value}`} period={data as Period} kind={choice.kind} value={choice.value} domain={domain} />
-  else content = <DomainNote edition={data} domain={domain}><EditionView key={data.id} edition={applyDomain(data, domain)} archived={editionId !== 'latest'} /></DomainNote>
+  else if (choice)
+    content = <PeriodView key={`${choice.kind}-${choice.value}`} period={data as Period} kind={choice.kind} value={choice.value} domain={domain} />
+  else
+    content = (
+      <DomainNote edition={data} domain={domain}>
+        <EditionView key={data.id} edition={applyDomain(data, domain)} archived={editionId !== 'latest'} />
+      </DomainNote>
+    )
 
   return (
     <div className="space-y-6">
@@ -162,7 +161,7 @@ type PeriodInfo = { title: string; kicker: string; summary: string }
 function EditionView({ edition, archived, period }: { edition: Edition; archived: boolean; period?: PeriodInfo }) {
   const { enabled } = useMotionPreference()
   return (
-    <motion.div
+    <m.div
       variants={listStagger}
       // Animations off: render the final state directly (children inherit it).
       initial={enabled ? 'hidden' : false}
@@ -171,20 +170,16 @@ function EditionView({ edition, archived, period }: { edition: Edition; archived
     >
       <div className="min-w-0 space-y-6">
         <EditionHero edition={edition} archived={archived} title={period?.title} kicker={period?.kicker} />
-        {period && (
-          <p className="px-1 text-[14px] text-muted">
-            {period.summary}
-          </p>
-        )}
+        {period && <p className="px-1 text-[14px] text-muted">{period.summary}</p>}
         {edition.sections.map((section) => (
-          <motion.section
+          <m.section
             key={section.profile}
             variants={listStagger}
             id={`section-${section.profile}`}
             aria-labelledby={`heading-${section.profile}`}
             className="scroll-mt-28 space-y-4"
           >
-            <motion.h2
+            <m.h2
               variants={riseIn}
               id={`heading-${section.profile}`}
               className="flex items-center gap-3 px-1 pt-4 text-[13px] font-bold uppercase tracking-[0.1em] text-muted"
@@ -192,16 +187,16 @@ function EditionView({ edition, archived, period }: { edition: Edition; archived
               {section.name}
               <span className="h-px flex-1 bg-ink/10" />
               <span className="tabular-nums text-faint">{section.items.length}</span>
-            </motion.h2>
+            </m.h2>
             {section.items.map((item) => (
               <ItemCard key={item.id} item={item} editionId={period ? undefined : edition.id} />
             ))}
-          </motion.section>
+          </m.section>
         ))}
         {edition.unanalyzed.length > 0 && <UnanalyzedSection items={edition.unanalyzed} editionId={period ? undefined : edition.id} />}
       </div>
       <EditionSidebar edition={edition} />
-    </motion.div>
+    </m.div>
   )
 }
 
@@ -213,10 +208,10 @@ function EditionSkeleton() {
       <div className="space-y-6">
         <div className="h-52 animate-shimmer rounded-card bg-accent/15" />
         {[0, 1, 2].map((index) => (
-          <div key={index} className="h-60 animate-shimmer rounded-card bg-white/80 shadow-card" />
+          <div key={index} className="h-60 animate-shimmer rounded-card bg-surface/80 shadow-card" />
         ))}
       </div>
-      <div className="hidden h-96 animate-shimmer rounded-card bg-white/50 xl:block" />
+      <div className="hidden h-96 animate-shimmer rounded-card bg-surface/50 xl:block" />
     </div>
   )
 }

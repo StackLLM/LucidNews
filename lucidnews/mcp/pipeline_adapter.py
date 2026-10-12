@@ -117,13 +117,13 @@ def load_runtime(project_path: Path) -> LucidNewsRuntime:
         sys.path.insert(0, project_path_str)
 
     try:
-        models = importlib.import_module("src.models")
-        storage = importlib.import_module("src.storage.manager")
-        orchestrator = importlib.import_module("src.orchestrator")
-        ai_client = importlib.import_module("src.ai.client")
-        analyzer = importlib.import_module("src.ai.analyzer")
-        enricher = importlib.import_module("src.ai.enricher")
-        summarizer = importlib.import_module("src.ai.summarizer")
+        models = importlib.import_module("lucidnews.models")
+        storage = importlib.import_module("lucidnews.storage.manager")
+        orchestrator = importlib.import_module("lucidnews.orchestrator")
+        ai_client = importlib.import_module("lucidnews.ai.client")
+        analyzer = importlib.import_module("lucidnews.ai.analyzer")
+        enricher = importlib.import_module("lucidnews.ai.enricher")
+        summarizer = importlib.import_module("lucidnews.ai.summarizer")
     except Exception as exc:  # pragma: no cover - import failure edge case
         raise LucidNewsMcpError(
             code="LN_IMPORT_FAILED",
@@ -251,7 +251,7 @@ def get_source_counts(items: list[Any]) -> dict[str, int]:
 
 
 def _is_project_repo(path: Path) -> bool:
-    return (path / "src" / "main.py").exists() and (path / "pyproject.toml").exists()
+    return (path / "lucidnews" / "main.py").exists() and (path / "pyproject.toml").exists()
 
 
 def _load_mcp_secrets(project_path: Path, override: bool = False) -> None:

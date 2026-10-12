@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock
 
 import httpx
 
-from src.models import RedditConfig, RedditSubredditConfig, RedditUserConfig
-from src.scrapers.reddit import REDDIT_HEADERS, RedditScraper
+from lucidnews.models import RedditConfig, RedditSubredditConfig, RedditUserConfig
+from lucidnews.scrapers.reddit import REDDIT_HEADERS, RedditScraper
 
 
 def _make_config(fetch_comments: int = 1, profile: str | None = None) -> RedditConfig:

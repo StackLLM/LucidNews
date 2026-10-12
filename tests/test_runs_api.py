@@ -16,10 +16,10 @@ from pathlib import Path
 
 import pytest
 
-from src.archive import ItemArchive
-from src.run_lock import LOCK_NAME, current_holder, run_lock
-from src.runs_api import ALREADY_RUNNING, RunService, ScheduleService, clean_log, detect_step, next_run
-from src.web_api import build_context, resolve, resolve_write
+from lucidnews.archive import ItemArchive
+from lucidnews.run_lock import LOCK_NAME, current_holder, run_lock
+from lucidnews.runs_api import ALREADY_RUNNING, RunService, ScheduleService, clean_log, detect_step, next_run
+from lucidnews.web_api import build_context, resolve, resolve_write
 
 ROOT = Path(__file__).resolve().parents[1]
 SECRET = "AIzaSy-test-secret-value"
@@ -51,7 +51,7 @@ def test_the_pipeline_refuses_to_start_while_another_run_holds_the_lock(tmp_path
     shutil.copy(ROOT / "data" / "config.example.json", tmp_path / "config.json")
     with run_lock(tmp_path, origin="schedule"):
         result = subprocess.run(
-            [sys.executable, "-m", "src.main", "--data-dir", str(tmp_path)],
+            [sys.executable, "-m", "lucidnews.main", "--data-dir", str(tmp_path)],
             cwd=ROOT, capture_output=True, text=True, timeout=60,
             env={**os.environ, "COLUMNS": "200"},
         )
@@ -63,11 +63,11 @@ def test_the_pipeline_refuses_to_start_while_another_run_holds_the_lock(tmp_path
 
 
 def fake_pipeline(tmp_path: Path, *, code: int = 0, pause: float = 0.6, lock: bool = True) -> list[str]:
-    """A stand-in for ``python -m src.main``: same banner and step lines, same lock."""
+    """A stand-in for ``python -m lucidnews.main``: same banner and step lines, same lock."""
     script = f"""
 import sys, time
 from pathlib import Path
-from src.run_lock import run_lock
+from lucidnews.run_lock import run_lock
 print("  LucidNews", flush=True)
 with run_lock(Path({str(tmp_path)!r})) if {lock} else open("/dev/null") as held:
     print("Fetching content since: 2026-10-10", flush=True)
@@ -152,7 +152,7 @@ def test_the_default_command_is_the_terminal_command(tmp_path) -> None:
     runs = RunService(tmp_path, str(tmp_path / "config.json"))
 
     assert runs.pipeline_command() == [
-        sys.executable, "-m", "src.main", "--data-dir", str(tmp_path.resolve()),
+        sys.executable, "-m", "lucidnews.main", "--data-dir", str(tmp_path.resolve()),
         "--config", str((tmp_path / "config.json").resolve()),
     ]
 
@@ -196,7 +196,7 @@ def test_a_daily_schedule_writes_and_loads_a_launchd_agent(tmp_path, monkeypatch
     assert status == 200, body
     assert body["enabled"] and body["loaded"] and (body["hour"], body["minute"], body["weekdays"]) == (7, 30, [])
     plist = plistlib.loads(agent.plist_path.read_bytes())
-    assert plist["ProgramArguments"] == ["/venv/bin/python", "-m", "src.main", "--data-dir", str((tmp_path / "data").resolve())]
+    assert plist["ProgramArguments"] == ["/venv/bin/python", "-m", "lucidnews.main", "--data-dir", str((tmp_path / "data").resolve())]
     assert plist["WorkingDirectory"] == str(ROOT)
     assert plist["StartCalendarInterval"] == [{"Hour": 7, "Minute": 30}]
     assert plist["EnvironmentVariables"]["LUCIDNEWS_RUN_ORIGIN"] == "schedule"

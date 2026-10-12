@@ -1,5 +1,5 @@
 import { ArrowUpRight, BadgeCheck, Check, ChevronRight, Link2, MessageSquare, Quote } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, m } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { reliabilityStyles } from '../../design/ReliabilityBadge'
@@ -39,11 +39,9 @@ export function ReliabilityPanel({ item, reliability }: { item: ItemDetail; reli
 
         <div>
           <dt className="text-[12px] font-semibold uppercase tracking-[0.08em] text-faint">{t('detail.claim')}</dt>
-          <dd className="mt-1 font-semibold">
-            {item.claim ? t(`claim.${item.claim.status}` as MessageKey) : t('detail.notAssessed')}
-          </dd>
+          <dd className="mt-1 font-semibold">{item.claim ? t(`claim.${item.claim.status}` as MessageKey) : t('detail.notAssessed')}</dd>
           {item.claim?.evidence && (
-            <dd className="mt-2 rounded-control bg-white/70 p-3 text-[13px] leading-relaxed text-ink/75">
+            <dd className="mt-2 rounded-control bg-surface/70 p-3 text-[13px] leading-relaxed text-ink/75">
               <span className="mb-1 flex items-center gap-1.5 text-[11.5px] font-semibold text-faint">
                 <Quote size={12} aria-hidden />
                 {t('detail.evidence')}
@@ -58,7 +56,7 @@ export function ReliabilityPanel({ item, reliability }: { item: ItemDetail; reli
           {reliability.corroborated_by.length > 0 ? (
             <dd className="mt-1.5 flex flex-wrap gap-1.5">
               {reliability.corroborated_by.map((domain) => (
-                <span key={domain} className="rounded-full bg-white/80 px-2.5 py-1 text-[12.5px] font-medium">
+                <span key={domain} className="rounded-full bg-surface/80 px-2.5 py-1 text-[12.5px] font-medium">
                   {domain}
                 </span>
               ))}
@@ -98,7 +96,7 @@ export function ItemActions({ item }: { item: ItemDetail }) {
         href={item.url}
         target="_blank"
         rel="noreferrer noopener"
-        className="group flex w-full items-center justify-center gap-2 rounded-[16px] bg-accent px-5 py-4 text-[15px] font-semibold text-white shadow-accent transition-all duration-150 ease-soft hover:-translate-y-0.5 hover:bg-accent-deep active:translate-y-0 active:scale-[0.99]"
+        className="group flex w-full items-center justify-center gap-2 rounded-[16px] bg-accent px-5 py-4 text-[15px] font-semibold text-on-fill shadow-accent transition-all duration-150 ease-soft hover:-translate-y-0.5 hover:bg-accent-deep active:translate-y-0 active:scale-[0.99]"
       >
         {t('detail.openSource')}
         <ArrowUpRight size={17} aria-hidden className="transition-transform duration-150 ease-soft group-hover:-translate-y-px group-hover:translate-x-px" />
@@ -109,7 +107,7 @@ export function ItemActions({ item }: { item: ItemDetail }) {
             href={item.discussion_url}
             target="_blank"
             rel="noreferrer noopener"
-            className="glass flex items-center justify-center gap-2 rounded-[16px] px-3 py-3.5 text-[14px] font-semibold text-accent transition-all duration-150 ease-soft hover:-translate-y-0.5 hover:bg-white"
+            className="glass flex items-center justify-center gap-2 rounded-[16px] px-3 py-3.5 text-[14px] font-semibold text-accent transition-all duration-150 ease-soft hover:-translate-y-0.5 hover:bg-surface"
           >
             <MessageSquare size={16} aria-hidden />
             {t('detail.discussion')}
@@ -117,13 +115,15 @@ export function ItemActions({ item }: { item: ItemDetail }) {
         ) : (
           <span />
         )}
+        {/* The label is inside the animated span below. */}
+        {/* oxlint-disable-next-line jsx-a11y/control-has-associated-label */}
         <button
           type="button"
           onClick={copy}
-          className="glass flex items-center justify-center gap-2 rounded-[16px] px-3 py-3.5 text-[14px] font-semibold text-accent transition-all duration-150 ease-soft hover:-translate-y-0.5 hover:bg-white active:scale-[0.98]"
+          className="glass flex items-center justify-center gap-2 rounded-[16px] px-3 py-3.5 text-[14px] font-semibold text-accent transition-all duration-150 ease-soft hover:-translate-y-0.5 hover:bg-surface active:scale-[0.98]"
         >
           <AnimatePresence mode="wait" initial={false}>
-            <motion.span
+            <m.span
               key={copied ? 'done' : 'copy'}
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
@@ -133,7 +133,7 @@ export function ItemActions({ item }: { item: ItemDetail }) {
             >
               {copied ? <Check size={16} aria-hidden /> : <Link2 size={16} aria-hidden />}
               {copied ? t('detail.copied') : t('detail.copy')}
-            </motion.span>
+            </m.span>
           </AnimatePresence>
         </button>
       </div>
@@ -160,7 +160,7 @@ export function ItemEditions({ editions }: { editions: Run[] }) {
             <li key={edition.id}>
               <Link
                 to={{ pathname: `/editions/${edition.id}`, search: `?lang=${language}` }}
-                className="group flex items-center justify-between rounded-control px-3 py-2.5 text-[14px] transition-colors duration-150 hover:bg-white"
+                className="group flex items-center justify-between rounded-control px-3 py-2.5 text-[14px] transition-colors duration-150 hover:bg-surface"
               >
                 <span>
                   <span className="font-medium">{capitalize(formatEditionDate(edition.started_at, language))}</span>

@@ -1,7 +1,7 @@
 """Source trust and claim verification.
 
-Only the data types are exported here; import ``src.reliability.assess`` for the
-assessment logic (it depends on ``src.models``, which itself embeds these types).
+Only the data types are exported here; import ``lucidnews.reliability.assess`` for the
+assessment logic (it depends on ``lucidnews.models``, which itself embeds these types).
 """
 
 from .models import (

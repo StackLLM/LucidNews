@@ -6,8 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.ai.enricher import ContentEnricher
-from src.models import (
+from lucidnews.ai.enricher import ContentEnricher
+from lucidnews.models import (
     ClassificationResult,
     ContentAnalysis,
     ContentArtifact,
@@ -16,8 +16,8 @@ from src.models import (
     ProcessingResult,
     SourceType,
 )
-from src.processing import ProfileRegistry
-from src.processing.tools import ToolRegistry, ToolResult
+from lucidnews.processing import ProfileRegistry
+from lucidnews.processing.tools import ToolRegistry, ToolResult
 
 
 PROFILES = ProfileRegistry.load(

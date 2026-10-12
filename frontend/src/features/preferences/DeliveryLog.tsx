@@ -24,7 +24,11 @@ export function DeliveryLog({ subscriberId }: { subscriberId?: string }) {
       </header>
       <div className="border-t border-line px-5 py-3 sm:px-7">
         {log.isPending && <p className="py-3 text-[14px] text-muted">{t('preview.loading')}</p>}
-        {log.isError && <p role="alert" className="py-3 text-[14px] text-rumor">{t('log.error')}</p>}
+        {log.isError && (
+          <p role="alert" className="py-3 text-[14px] text-rumor">
+            {t('log.error')}
+          </p>
+        )}
         {log.data && log.data.length === 0 && <p className="py-3 text-[14px] text-muted">{t('log.empty')}</p>}
         {log.data && log.data.length > 0 && (
           <ul className="divide-y divide-line/70">

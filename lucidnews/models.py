@@ -219,6 +219,9 @@ AI_PROVIDER_DEFAULTS = {
 class AIConfig(BaseModel):
     """AI client configuration."""
 
+    # Opt-in. Off: nothing is sent to an AI provider, no key is needed, and the run lists the
+    # collected items without analysis (same as when the quota runs out).
+    enabled: bool = False
     provider: AIProvider
     provider_chain: Optional[str] = None
     model: str
@@ -723,6 +726,32 @@ class ReliabilityConfig(BaseModel):
         return {normalize_account(account): tier for account, tier in value.items()}
 
 
+class AuthConfig(BaseModel):
+    """Accounts for the web app (see ``lucidnews/auth``). Off by default: the app stays open."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = False
+    allow_signup: bool = True
+    session_days: int = Field(default=30, ge=1, le=365)
+    # Address the browser uses to reach the app, e.g. http://localhost:5173 or https://news.example.com.
+    # Needed behind a reverse proxy and for Google (redirect URI); a Host header is only trusted for localhost.
+    public_url: Optional[str] = None
+    # NAMES of the environment variables holding the Google OAuth client; never the values.
+    google_client_id_env: str = "GOOGLE_CLIENT_ID"
+    google_client_secret_env: str = "GOOGLE_CLIENT_SECRET"
+
+    @field_validator("public_url")
+    @classmethod
+    def validate_public_url(cls, value: Optional[str]) -> Optional[str]:
+        if value is None or not value.strip():
+            return None
+        parts = urlsplit(value.strip())
+        if parts.scheme not in ("http", "https") or not parts.netloc or parts.path not in ("", "/") or parts.query or parts.fragment:
+            raise ValueError("public_url must be an origin such as https://news.example.com")
+        return f"{parts.scheme}://{parts.netloc}"
+
+
 class Config(BaseModel):
     """Main configuration model."""
 
@@ -739,3 +768,4 @@ class Config(BaseModel):
     extractors: Dict[str, ExtractorConfig] = Field(default_factory=dict)
     email: Optional[EmailConfig] = None
     webhook: Optional[WebhookConfig] = None
+    auth: AuthConfig = Field(default_factory=AuthConfig)

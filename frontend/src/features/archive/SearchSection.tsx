@@ -3,7 +3,16 @@ import { ArrowLeft, ArrowRight, Search, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { ReliabilityBadge } from '../../design/ReliabilityBadge'
-import { ApiError, domainCategories, fetchSearch, reliabilityLabels, SEARCH_MAX_QUERY, SEARCH_PAGE_SIZE, type SearchHit, type SearchResult } from '../../lib/api'
+import {
+  ApiError,
+  domainCategories,
+  fetchSearch,
+  reliabilityLabels,
+  SEARCH_MAX_QUERY,
+  SEARCH_PAGE_SIZE,
+  type SearchHit,
+  type SearchResult,
+} from '../../lib/api'
 import { formatEditionDate, formatItemTime, formatScore, itemPath, sourceName } from '../../lib/format'
 import { highlight } from '../../lib/highlight'
 import { categoryLabel, labelKey, translatePlural, useLanguage, type Language } from '../../lib/i18n'
@@ -75,12 +84,12 @@ export function SearchBar({ state }: { state: SearchState }) {
             aria-invalid={!!problem}
             aria-describedby={problem ? 'archive-search-problem' : 'archive-search-hint'}
             onChange={(event) => setText(event.target.value)}
-            className="w-full rounded-control border border-ink/10 bg-white py-3 pr-4 pl-10 text-[15px] outline-none transition-shadow duration-150 placeholder:text-faint focus:border-accent/50 focus:ring-3 focus:ring-accent/15 aria-invalid:border-rumor/50"
+            className="w-full rounded-control border border-ink/10 bg-surface py-3 pr-4 pl-10 text-[15px] outline-none transition-shadow duration-150 placeholder:text-faint focus:border-accent/50 focus:ring-3 focus:ring-accent/15 aria-invalid:border-rumor/50"
           />
         </div>
         <button
           type="submit"
-          className="flex items-center gap-1.5 rounded-control bg-accent px-5 py-3 text-[14px] font-semibold text-white shadow-accent transition-all duration-150 ease-soft hover:-translate-y-0.5 hover:bg-accent-deep active:translate-y-0"
+          className="flex items-center gap-1.5 rounded-control bg-accent px-5 py-3 text-[14px] font-semibold text-on-fill shadow-accent transition-all duration-150 ease-soft hover:-translate-y-0.5 hover:bg-accent-deep active:translate-y-0"
         >
           {t('search.submit')}
         </button>
@@ -88,7 +97,7 @@ export function SearchBar({ state }: { state: SearchState }) {
           <button
             type="button"
             onClick={clear}
-            className="flex items-center gap-1.5 rounded-control px-3 py-3 text-[14px] font-semibold text-ink/70 transition-colors duration-150 hover:bg-white"
+            className="flex items-center gap-1.5 rounded-control px-3 py-3 text-[14px] font-semibold text-ink/70 transition-colors duration-150 hover:bg-surface"
           >
             <X size={15} aria-hidden />
             {t('search.clear')}
@@ -117,7 +126,12 @@ export function SearchResults({ state }: { state: SearchState }) {
     placeholderData: keepPreviousData,
   })
 
-  if (query.isPending) return <p role="status" className="px-1 text-muted">{t('state.loading')}</p>
+  if (query.isPending)
+    return (
+      <p role="status" className="px-1 text-muted">
+        {t('state.loading')}
+      </p>
+    )
   if (query.isError) {
     const status = query.error instanceof ApiError ? query.error.status : 0
     return (
@@ -154,7 +168,8 @@ export function SearchResults({ state }: { state: SearchState }) {
 
 function Filters({ state, data }: { state: SearchState; data: SearchResult }) {
   const { language, t } = useLanguage()
-  const field = 'rounded-control border border-ink/10 bg-white px-3.5 py-2 text-[14px] font-semibold outline-none transition-shadow duration-150 hover:border-accent/40 focus-visible:ring-3 focus-visible:ring-accent/20'
+  const field =
+    'rounded-control border border-ink/10 bg-surface px-3.5 py-2 text-[14px] font-semibold outline-none transition-shadow duration-150 hover:border-accent/40 focus-visible:ring-3 focus-visible:ring-accent/20'
   const sources = data.facets.sources.some((entry) => entry.source === state.source)
     ? data.facets.sources
     : state.source
@@ -190,7 +205,11 @@ function Filters({ state, data }: { state: SearchState; data: SearchResult }) {
       </label>
       <label className="flex min-w-0 items-center gap-2 text-[13.5px] font-semibold">
         {t('search.filter.source')}
-        <select value={state.source ?? ''} onChange={(event) => state.update({ source: event.target.value || undefined })} className={`${field} min-w-0 max-w-[16rem]`}>
+        <select
+          value={state.source ?? ''}
+          onChange={(event) => state.update({ source: event.target.value || undefined })}
+          className={`${field} min-w-0 max-w-[16rem]`}
+        >
           <option value="">{t('search.filter.allSources')}</option>
           {sources.map((entry) => (
             <option key={entry.source} value={entry.source}>
@@ -245,12 +264,22 @@ function Pager({ data, onPage }: { data: SearchResult; onPage: (offset: number) 
   const button = 'flex items-center gap-1.5 rounded-control px-4 py-2.5 text-[14px] font-semibold transition-colors duration-150 disabled:opacity-40'
   return (
     <nav aria-label={t('search.title')} className="flex items-center justify-between gap-3 pt-2">
-      <button type="button" disabled={data.offset === 0} onClick={() => onPage(Math.max(0, data.offset - SEARCH_PAGE_SIZE))} className={`${button} bg-white shadow-card hover:bg-accent-soft`}>
+      <button
+        type="button"
+        disabled={data.offset === 0}
+        onClick={() => onPage(Math.max(0, data.offset - SEARCH_PAGE_SIZE))}
+        className={`${button} bg-surface shadow-card hover:bg-accent-soft`}
+      >
         <ArrowLeft size={15} aria-hidden />
         {t('search.prev')}
       </button>
       <span className="text-[13.5px] text-muted tabular-nums">{t('search.page', { from, to, total: data.total })}</span>
-      <button type="button" disabled={to >= data.total} onClick={() => onPage(data.offset + SEARCH_PAGE_SIZE)} className={`${button} bg-white shadow-card hover:bg-accent-soft`}>
+      <button
+        type="button"
+        disabled={to >= data.total}
+        onClick={() => onPage(data.offset + SEARCH_PAGE_SIZE)}
+        className={`${button} bg-surface shadow-card hover:bg-accent-soft`}
+      >
         {t('search.next')}
         <ArrowRight size={15} aria-hidden />
       </button>

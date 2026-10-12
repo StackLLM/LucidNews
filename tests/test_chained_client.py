@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.ai.client import ChainedAIClient, _create_chained_client
-from src.models import AIConfig, AIProvider, AI_PROVIDER_DEFAULTS
+from lucidnews.ai.client import ChainedAIClient, _create_chained_client
+from lucidnews.models import AIConfig, AIProvider, AI_PROVIDER_DEFAULTS
 
 
 class _DummyClient:

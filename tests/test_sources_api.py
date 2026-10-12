@@ -10,15 +10,15 @@ from pathlib import Path
 
 import pytest
 
-from src import sources_api
-from src.archive import ItemArchive
-from src.models import Config, ContentItem, SourceType
-from src.processing import ProfileRegistry
-from src.settings_api import SettingsService
-from src.source_health import configured_source_keys
-from src.sources_api import SourcesService
-from src.url_security import UnsafeURLError, validate_http_url
-from src.web_api import build_context, make_handler, resolve
+from lucidnews import sources_api
+from lucidnews.archive import ItemArchive
+from lucidnews.models import Config, ContentItem, SourceType
+from lucidnews.processing import ProfileRegistry
+from lucidnews.settings_api import SettingsService
+from lucidnews.source_health import configured_source_keys
+from lucidnews.sources_api import SourcesService
+from lucidnews.url_security import UnsafeURLError, validate_http_url
+from lucidnews.web_api import build_context, make_handler, resolve
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILES = ProfileRegistry.load(ROOT / "profiles", "tech-news")
@@ -305,7 +305,7 @@ class FakeScraper:
         if self.warn:
             import logging
 
-            logging.getLogger("src.scrapers.reddit").warning(self.warn)
+            logging.getLogger("lucidnews.scrapers.reddit").warning(self.warn)
         if self.request_url:
             await self.client.get(self.request_url)
         return [item for item in self.items if item.published_at >= since]

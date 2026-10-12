@@ -7,8 +7,32 @@ type Call = { method: string; path: string; body: unknown }
 const idle = { running: false, origin: null, started_at: null, step: null, steps: [], exit_code: null, already_running: false, log: '' }
 const running = { ...idle, running: true, origin: 'web', started_at: '2026-10-11T07:00:00+00:00', step: 'analyze', log: 'Fetched 12 items from all sources' }
 const history = [
-  { id: '20261011T070000Z-aaaaaaaa', started_at: '2026-10-11T07:00:00+00:00', finished_at: '2026-10-11T07:04:00+00:00', fetched_count: 46, selected_count: 13, ai_limit: null, tokens_used: 0, ai_skipped_count: 0, status: 'success', error: null, unscored_count: 0 },
-  { id: '20261010T070000Z-bbbbbbbb', started_at: '2026-10-10T07:00:00+00:00', finished_at: '2026-10-10T07:00:05+00:00', fetched_count: 0, selected_count: 0, ai_limit: null, tokens_used: 0, ai_skipped_count: 0, status: 'failed', error: 'All 3 attempted sources failed', unscored_count: 0 },
+  {
+    id: '20261011T070000Z-aaaaaaaa',
+    started_at: '2026-10-11T07:00:00+00:00',
+    finished_at: '2026-10-11T07:04:00+00:00',
+    fetched_count: 46,
+    selected_count: 13,
+    ai_limit: null,
+    tokens_used: 0,
+    ai_skipped_count: 0,
+    status: 'success',
+    error: null,
+    unscored_count: 0,
+  },
+  {
+    id: '20261010T070000Z-bbbbbbbb',
+    started_at: '2026-10-10T07:00:00+00:00',
+    finished_at: '2026-10-10T07:00:05+00:00',
+    fetched_count: 0,
+    selected_count: 0,
+    ai_limit: null,
+    tokens_used: 0,
+    ai_skipped_count: 0,
+    status: 'failed',
+    error: 'All 3 attempted sources failed',
+    unscored_count: 0,
+  },
 ]
 
 function mockRunsApi({

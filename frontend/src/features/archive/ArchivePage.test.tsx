@@ -23,13 +23,11 @@ test('filters the list with the calendar', async () => {
   await screen.findByRole('heading', { level: 1, name: 'Archive' }, { timeout: 5000 })
 
   const calendar = screen.getByRole('region', { name: 'Pick a day' })
-  const days = within(calendar).getAllByRole('button').filter((button) => !button.hasAttribute('disabled'))
+  const days = within(calendar)
+    .getAllByRole('button')
+    .filter((button) => !button.hasAttribute('disabled'))
   // Only days with an edition are selectable (plus the month navigation).
-  expect(days.map((button) => button.getAttribute('aria-label'))).toEqual([
-    'Go to the Previous Month',
-    'Go to the Next Month',
-    'Tuesday, 6 October 2026',
-  ])
+  expect(days.map((button) => button.getAttribute('aria-label'))).toEqual(['Go to the Previous Month', 'Go to the Next Month', 'Tuesday, 6 October 2026'])
   fireEvent.click(days[2])
 
   expect(screen.getByRole('heading', { level: 2, name: /6 October 2026/ })).toBeInTheDocument()

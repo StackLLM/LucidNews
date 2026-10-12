@@ -27,7 +27,7 @@ class BaseScraper(ABC):
         self.config = config
         self.client = http_client
         # Per-sub-source errors ({source key: message}) for sources a scraper
-        # skips instead of failing the whole fetch; see src/source_health.py.
+        # skips instead of failing the whole fetch; see lucidnews/source_health.py.
         self.source_errors: dict[str, str] = {}
 
     @abstractmethod

@@ -646,7 +646,7 @@ class SourcesService:
 
         items: List[Any] = []
         error: Optional[str] = None
-        logger = logging.getLogger("src.scrapers")
+        logger = logging.getLogger("lucidnews.scrapers")
         logger.addHandler(warnings)
         try:
             async with httpx.AsyncClient(

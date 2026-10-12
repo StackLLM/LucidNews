@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.models import (
+from lucidnews.models import (
     ClassificationResult,
     ContentAnalysis,
     ContentItem,
@@ -11,8 +11,8 @@ from src.models import (
     RSSSourceConfig,
     SourceType,
 )
-from src.reliability import ClaimStatus, ReliabilityLabel, SourceTier
-from src.reliability.assess import ReliabilityPolicy, assess_item, combine, normalize_domain
+from lucidnews.reliability import ClaimStatus, ReliabilityLabel, SourceTier
+from lucidnews.reliability.assess import ReliabilityPolicy, assess_item, combine, normalize_domain
 
 
 def make_item(url: str, claim: dict | None = None, **metadata) -> ContentItem:
@@ -109,7 +109,7 @@ def test_normalize_domain() -> None:
     assert normalize_domain("example.com.") == "example.com"
 
 
-from src.reliability.assess import independent_corroboration, site_of
+from lucidnews.reliability.assess import independent_corroboration, site_of
 
 
 def test_site_of_groups_subdomains_and_country_suffixes() -> None:

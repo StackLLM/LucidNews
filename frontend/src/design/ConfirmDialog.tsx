@@ -24,16 +24,14 @@ export function ConfirmDialog({
         <AlertDialog.Overlay className="fixed inset-0 z-[60] bg-ink/25 backdrop-blur-sm data-[state=open]:animate-[fade-in_200ms_ease-out]" />
         <AlertDialog.Content className="glass fixed top-1/2 left-1/2 z-[70] w-[min(92vw,420px)] -translate-x-1/2 -translate-y-1/2 rounded-card p-7 data-[state=open]:animate-[pop-in_220ms_var(--ease-soft)]">
           <AlertDialog.Title className="text-[18px] font-bold">{title}</AlertDialog.Title>
-          <AlertDialog.Description className="mt-2 text-[14px] leading-relaxed text-muted">
-            {description}
-          </AlertDialog.Description>
+          <AlertDialog.Description className="mt-2 text-[14px] leading-relaxed text-muted">{description}</AlertDialog.Description>
           <div className="mt-6 flex justify-end gap-3">
-            <AlertDialog.Cancel className="rounded-control px-4 py-2.5 text-[14px] font-semibold text-ink/70 transition-colors duration-150 hover:bg-white">
+            <AlertDialog.Cancel className="rounded-control px-4 py-2.5 text-[14px] font-semibold text-ink/70 transition-colors duration-150 hover:bg-surface">
               {cancel}
             </AlertDialog.Cancel>
             <AlertDialog.Action
               onClick={onConfirm}
-              className="rounded-control bg-rumor px-4 py-2.5 text-[14px] font-semibold text-white transition-all duration-150 ease-soft hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0"
+              className="rounded-control bg-rumor px-4 py-2.5 text-[14px] font-semibold text-on-fill transition-all duration-150 ease-soft hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0"
             >
               {confirm}
             </AlertDialog.Action>

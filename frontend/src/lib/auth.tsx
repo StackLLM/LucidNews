@@ -1,0 +1,66 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from 'react'
+import { fetchSession, signOut, UNAUTHORIZED_EVENT, type Session } from './api'
+
+const SESSION_KEY = ['auth-session']
+
+type AuthState = {
+  /** The first answer has not arrived yet. */
+  loading: boolean
+  /** The session endpoint could not be reached (not the same as "signed out"). */
+  failed: boolean
+  session: Session | undefined
+  /** Accounts are on and nobody is signed in: private routes must not render. */
+  locked: boolean
+  accept: (session: Session) => void
+  logOut: () => Promise<void>
+  retry: () => void
+}
+
+const AuthContext = createContext<AuthState | null>(null)
+
+/** Asks the server who the reader is, once, and again whenever a request comes back 401. */
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient()
+  const query = useQuery({ queryKey: SESSION_KEY, queryFn: ({ signal }) => fetchSession(signal), staleTime: 5 * 60_000 })
+
+  useEffect(() => {
+    const onUnauthorized = () => void queryClient.invalidateQueries({ queryKey: SESSION_KEY })
+    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
+  }, [queryClient])
+
+  const accept = useCallback((session: Session) => queryClient.setQueryData(SESSION_KEY, session), [queryClient])
+  const logOut = useCallback(async () => {
+    const session = await signOut()
+    // Whatever was loaded for the previous reader must not outlive the session.
+    queryClient.clear()
+    queryClient.setQueryData(SESSION_KEY, session)
+  }, [queryClient])
+
+  const value = useMemo<AuthState>(
+    () => ({
+      loading: query.isPending,
+      failed: query.isError,
+      session: query.data,
+      locked: Boolean(query.data?.enabled && !query.data.authenticated),
+      accept,
+      logOut,
+      retry: () => void query.refetch(),
+    }),
+    [query, accept, logOut],
+  )
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+export function useAuth(): AuthState {
+  const context = useContext(AuthContext)
+  if (!context) throw new Error('useAuth must be used inside AuthProvider')
+  return context
+}
+
+/** A path of this app only (what the server also enforces for the Google return). */
+export function safeNext(value: string | null): string {
+  if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return '/'
+  return value.startsWith('/sign-in') ? '/' : value
+}

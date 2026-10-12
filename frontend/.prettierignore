@@ -1,0 +1,5 @@
+dist
+node_modules
+src/test/fixtures
+src/lib/i18n.ts
+package-lock.json

@@ -62,15 +62,7 @@ function matches(filter: Filter, state: State) {
   return !['off', 'paused', 'readonly'].includes(state)
 }
 
-export function SourceManager({
-  config,
-  health,
-  onReload,
-}: {
-  config: SourceConfig
-  health: SourceHealth[]
-  onReload: () => void
-}) {
+export function SourceManager({ config, health, onReload }: { config: SourceConfig; health: SourceHealth[]; onReload: () => void }) {
   const { language, t } = useLanguage()
   const queryClient = useQueryClient()
   const [filter, setFilter] = useState<Filter>('all')
@@ -147,7 +139,7 @@ export function SourceManager({
         <button
           type="button"
           onClick={() => setPanel({ mode: 'add' })}
-          className="flex items-center gap-1.5 rounded-control bg-accent px-4 py-2.5 text-[14px] font-semibold text-white shadow-accent transition-all duration-150 ease-soft hover:-translate-y-px hover:bg-accent-deep"
+          className="flex items-center gap-1.5 rounded-control bg-accent px-4 py-2.5 text-[14px] font-semibold text-on-fill shadow-accent transition-all duration-150 ease-soft hover:-translate-y-px hover:bg-accent-deep"
         >
           <Plus size={16} aria-hidden />
           {t('sources.add')}
@@ -189,12 +181,24 @@ export function SourceManager({
                   {section.title}
                   {!section.switches && <span className="ml-2 font-medium text-faint tabular-nums">{total}</span>}
                 </h3>
-                {section.switchEntry && <GroupSwitch entry={section.switchEntry} busy={toggle.isPending} onToggle={(enabled) => toggle.mutate({ key: section.switchEntry!.key, enabled })} onManage={() => setPanel({ mode: 'edit', entry: section.switchEntry! })} />}
+                {section.switchEntry && (
+                  <GroupSwitch
+                    entry={section.switchEntry}
+                    busy={toggle.isPending}
+                    onToggle={(enabled) => toggle.mutate({ key: section.switchEntry!.key, enabled })}
+                    onManage={() => setPanel({ mode: 'edit', entry: section.switchEntry! })}
+                  />
+                )}
               </div>
               {section.switches?.map((entry) => (
                 <div key={entry.key} className="flex flex-wrap items-center gap-3 border-b border-line/70 py-3">
                   <span className="font-semibold">{entry.label}</span>
-                  <GroupSwitch entry={entry} busy={toggle.isPending} onToggle={(enabled) => toggle.mutate({ key: entry.key, enabled })} onManage={() => setPanel({ mode: 'edit', entry })} />
+                  <GroupSwitch
+                    entry={entry}
+                    busy={toggle.isPending}
+                    onToggle={(enabled) => toggle.mutate({ key: entry.key, enabled })}
+                    onManage={() => setPanel({ mode: 'edit', entry })}
+                  />
                 </div>
               ))}
               {shown.length === 0 && !hasSwitches ? (
@@ -259,24 +263,18 @@ function SourceRow({
 }) {
   const { language, t } = useLanguage()
   const group = entry.kind.startsWith('reddit') ? 'Reddit' : 'Telegram'
-  const detail =
-    entry.readonly
-      ? entry.summary
-        ? t('sources.x.summary', { mode: entry.summary.mode, users: entry.summary.users, keywords: entry.summary.keywords })
-        : t('sources.x.none')
-      : null
+  const detail = entry.readonly
+    ? entry.summary
+      ? t('sources.x.summary', { mode: entry.summary.mode, users: entry.summary.users, keywords: entry.summary.keywords })
+      : t('sources.x.none')
+    : null
 
   return (
     <li className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 py-3.5 md:grid-cols-[3rem_minmax(0,1.5fr)_10.5rem_minmax(0,2fr)_6rem]">
       {entry.readonly ? (
         <span className="w-12" aria-hidden />
       ) : (
-        <Switch
-          checked={entry.enabled}
-          disabled={busy}
-          label={t('sources.toggle', { name: entry.label })}
-          onCheckedChange={onToggle}
-        />
+        <Switch checked={entry.enabled} disabled={busy} label={t('sources.toggle', { name: entry.label })} onCheckedChange={onToggle} />
       )}
 
       <div className="min-w-0">
@@ -314,17 +312,16 @@ function SourceRow({
         {health && state !== 'off' && state !== 'paused' && (
           <>
             <p className="mt-1 tabular-nums md:mt-0">
-              {t('sources.col.runs')} {health.runs} · {t('sources.col.failures')} {health.failures} ·{' '}
-              {t('sources.col.selected')} {health.selected}
+              {t('sources.col.runs')} {health.runs} · {t('sources.col.failures')} {health.failures} · {t('sources.col.selected')} {health.selected}
               {health.quality && (
                 <>
-                  {' '}· {t('sources.col.quality')} <QualityScore source={health} />
+                  {' '}
+                  · {t('sources.col.quality')} <QualityScore source={health} />
                 </>
               )}
             </p>
             <p className="text-[12.5px]">
-              {t('sources.col.lastSuccess')} :{' '}
-              {health.last_success_at ? formatItemTime(health.last_success_at, language) : t('sources.never')}
+              {t('sources.col.lastSuccess')} : {health.last_success_at ? formatItemTime(health.last_success_at, language) : t('sources.never')}
             </p>
             <p className="text-[12.5px]">
               <SourceDetail source={health} />
@@ -333,9 +330,7 @@ function SourceRow({
         )}
       </div>
 
-      <div className="hidden justify-end md:flex">
-        {!entry.readonly && <ManageButton label={entry.label} onClick={onManage} />}
-      </div>
+      <div className="hidden justify-end md:flex">{!entry.readonly && <ManageButton label={entry.label} onClick={onManage} />}</div>
     </li>
   )
 }
@@ -344,7 +339,11 @@ function SourceRow({
 function DomainLine({ domain }: { domain?: SourceDomain }) {
   const { language, t } = useLanguage()
   if (!domain || domain.category === null) {
-    return <p className="mt-1 text-[12px] text-faint">{t('sources.domain')} : {t('sources.domain.unknownShort')}</p>
+    return (
+      <p className="mt-1 text-[12px] text-faint">
+        {t('sources.domain')} : {t('sources.domain.unknownShort')}
+      </p>
+    )
   }
   const total = domain.categories.reduce((sum, entry) => sum + entry.items, 0)
   const others = domain.categories.slice(1).map((entry) => categoryLabel(language, entry.category))

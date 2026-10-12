@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from src.models import AIConfig, AIProvider, Config
-from src.setup import wizard
+from lucidnews.models import AIConfig, AIProvider, Config
+from lucidnews.setup import wizard
 
 
 class _StopWizard(Exception):
@@ -51,6 +51,7 @@ def test_configure_ai_allows_ollama_without_api_key(monkeypatch):
     config = wizard.configure_ai()
 
     assert config == AIConfig(
+        enabled=True,
         provider=AIProvider.OLLAMA,
         model="llama3.2",
         base_url="http://nas.local:11434",

@@ -39,8 +39,24 @@ export function RunVolumeChart({ runs }: { runs: Run[] }) {
           value={view}
           onChange={setView}
           options={[
-            { value: 'chart', label: <><ChartColumn size={14} aria-hidden />{t('sources.showChart')}</> },
-            { value: 'table', label: <><Table2 size={14} aria-hidden />{t('sources.showTable')}</> },
+            {
+              value: 'chart',
+              label: (
+                <>
+                  <ChartColumn size={14} aria-hidden />
+                  {t('sources.showChart')}
+                </>
+              ),
+            },
+            {
+              value: 'table',
+              label: (
+                <>
+                  <Table2 size={14} aria-hidden />
+                  {t('sources.showTable')}
+                </>
+              ),
+            },
           ]}
         />
       </div>
@@ -65,12 +81,7 @@ export function RunVolumeChart({ runs }: { runs: Run[] }) {
                   interval="preserveStartEnd"
                   minTickGap={16}
                 />
-                <YAxis
-                  allowDecimals={false}
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fill: 'var(--color-faint)', fontSize: 11 }}
-                />
+                <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fill: 'var(--color-faint)', fontSize: 11 }} />
                 <Tooltip cursor={{ fill: 'rgb(15 21 48 / 0.04)' }} content={(props) => <VolumeTooltip {...props} />} />
                 <Bar dataKey="collected" name={t('sources.collected')} fill={COLLECTED} radius={[4, 4, 0, 0]} maxBarSize={24} isAnimationActive={enabled} />
                 <Bar dataKey="selected" name={t('sources.selected')} fill={SELECTED} radius={[4, 4, 0, 0]} maxBarSize={24} isAnimationActive={enabled} />

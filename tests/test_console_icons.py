@@ -1,8 +1,8 @@
 import pytest
 from pydantic import ValidationError
 
-from src.console_icons import ICON_SETS, get_icons
-from src.models import Config
+from lucidnews.console_icons import ICON_SETS, get_icons
+from lucidnews.models import Config
 
 
 MINIMAL_CONFIG = {

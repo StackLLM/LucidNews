@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 
-from src.models import RSSSourceConfig
-from src.scrapers.rss import RSSScraper
+from lucidnews.models import RSSSourceConfig
+from lucidnews.scrapers.rss import RSSScraper
 
 _FEED = """<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0"><channel><title>Test</title>

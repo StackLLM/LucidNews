@@ -42,7 +42,12 @@ const previewPayload = {
   edition: 'run-1',
 }
 
-function fakeApi(initial: Stored[] = [], preview: Record<string, unknown> = previewPayload, confirmation: Record<string, unknown> = { sent: true, error: null }, deliveries: unknown[] = []) {
+function fakeApi(
+  initial: Stored[] = [],
+  preview: Record<string, unknown> = previewPayload,
+  confirmation: Record<string, unknown> = { sent: true, error: null },
+  deliveries: unknown[] = [],
+) {
   const subscribers = [...initial]
   const calls: { method: string; path: string; body?: unknown }[] = []
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
@@ -191,7 +196,9 @@ test('the level of detail is saved with the preferences', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
   expect(await screen.findByText('Preferences saved')).toBeInTheDocument()
-  expect((api.calls.find((call) => call.method === 'PUT')?.body as { preferences: { detail_level: string } }).preferences.detail_level).toBe('brief')
+  const saved = api.calls.find((call) => call.method === 'PUT')
+  expect(saved).toBeDefined()
+  expect((saved as { body: { preferences: { detail_level: string } } }).body.preferences.detail_level).toBe('brief')
 })
 
 test('the weekly choice says which day the digest is sent', async () => {
@@ -283,8 +290,28 @@ test('a confirmed reader has no button, and says since when', async () => {
 
 test('the delivery log lists each send with its result and error', async () => {
   fakeApi([ada], previewPayload, { sent: true, error: null }, [
-    { id: 2, subscriber_id: ada.id, email: ada.email, kind: 'weekly', subject: 'LucidNews — semaine du 2026-10-05', reference: '2026-10-05', status: 'failed', error: 'Resend 422: invalid address', created_at: '2026-10-12T07:00:00+00:00' },
-    { id: 1, subscriber_id: ada.id, email: ada.email, kind: 'daily', subject: 'LucidNews — 2026-10-11', reference: 'run-1', status: 'sent', error: null, created_at: '2026-10-11T07:00:00+00:00' },
+    {
+      id: 2,
+      subscriber_id: ada.id,
+      email: ada.email,
+      kind: 'weekly',
+      subject: 'LucidNews — semaine du 2026-10-05',
+      reference: '2026-10-05',
+      status: 'failed',
+      error: 'Resend 422: invalid address',
+      created_at: '2026-10-12T07:00:00+00:00',
+    },
+    {
+      id: 1,
+      subscriber_id: ada.id,
+      email: ada.email,
+      kind: 'daily',
+      subject: 'LucidNews — 2026-10-11',
+      reference: 'run-1',
+      status: 'sent',
+      error: null,
+      created_at: '2026-10-11T07:00:00+00:00',
+    },
   ])
   renderAt(`/preferences/${ada.id}?lang=fr`)
   const log = await screen.findByRole('region', { name: 'Journal des envois' }, { timeout: 5000 })

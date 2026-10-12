@@ -9,16 +9,13 @@ test('renders the edition with sections, figures and reliability labels', async 
   expect(fetchMock).toHaveBeenCalledWith('/api/editions/latest?lang=fr', expect.anything())
 
   const index = screen.getByRole('navigation', { name: 'Dans cette édition' })
-  expect(within(index).getAllByRole('link').map((link) => link.textContent)).toEqual([
-    'Actualités tech6',
-    'Blogs techniques3',
-    'Radar créateurs IA4',
-  ])
+  expect(
+    within(index)
+      .getAllByRole('link')
+      .map((link) => link.textContent),
+  ).toEqual(['Actualités tech6', 'Blogs techniques3', 'Radar créateurs IA4'])
   expect(screen.getAllByRole('article')).toHaveLength(13)
-  expect(screen.getByRole('link', { name: 'Sortie officielle de Polars 2.0' })).toHaveAttribute(
-    'href',
-    'https://pola.rs/posts/release-polars-2/',
-  )
+  expect(screen.getByRole('link', { name: 'Sortie officielle de Polars 2.0' })).toHaveAttribute('href', 'https://pola.rs/posts/release-polars-2/')
   // Unconfirmed items carry an explicit warning, never a bare fact.
   expect(screen.getAllByText('Pas confirmé par une source officielle ou reconnue.').length).toBeGreaterThanOrEqual(2)
 })
@@ -66,9 +63,7 @@ test('lists items the AI could not analyze apart, only when the quota ran out', 
   })
   renderAt('/?lang=fr')
 
-  expect(await screen.findByText(/Le quota IA a été épuisé pendant ce run\./)).toHaveTextContent(
-    '1 news est listée sans analyse, en fin d’édition.',
-  )
+  expect(await screen.findByText(/Le quota IA a été épuisé pendant ce run\./)).toHaveTextContent('1 news est listée sans analyse, en fin d’édition.')
   const section = screen.getByRole('region', { name: /Sans analyse IA/ })
   expect(within(section).getByRole('link', { name: 'Titre brut non analysé' })).toBeInTheDocument()
   expect(within(section).getByText(/ni résumé, ni score, ni vérification/)).toBeInTheDocument()
@@ -97,9 +92,7 @@ function mockPeriodApi(period: Record<string, unknown> = {}) {
   spy.mockImplementation(async (input, init) => {
     const url = new URL(String(input), 'http://localhost')
     if (url.pathname === '/api/editions/period') {
-      return new Response(
-        JSON.stringify({ ...fixtures.editionFr, id: 'period', edition_count: 8, analyzed_total: 13, ...period }),
-      )
+      return new Response(JSON.stringify({ ...fixtures.editionFr, id: 'period', edition_count: 8, analyzed_total: 13, ...period }))
     }
     return inner(input, init)
   })
@@ -192,7 +185,11 @@ test('filters the news by domain, next to the date filter', async () => {
   await waitFor(() => expect(screen.getAllByRole('article')).toHaveLength(5))
   expect(window.location.search).toContain('domain=ai')
   const index = screen.getByRole('navigation', { name: 'Dans cette édition' })
-  expect(within(index).getAllByRole('link').every((link) => /\d+$/.test(link.textContent ?? ''))).toBe(true)
+  expect(
+    within(index)
+      .getAllByRole('link')
+      .every((link) => /\d+$/.test(link.textContent ?? '')),
+  ).toBe(true)
 
   fireEvent.change(select, { target: { value: '' } })
   await waitFor(() => expect(screen.getAllByRole('article')).toHaveLength(13))

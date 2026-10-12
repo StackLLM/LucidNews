@@ -2,6 +2,7 @@
   "version": "356a99d08547374d",
   "values": {
     "ai": {
+      "enabled": true,
       "provider": "gemini",
       "model": "gemini-2.5-flash",
       "api_key_env": "GOOGLE_API_KEY",
@@ -100,11 +101,11 @@
       },
       {
         "code": "fr",
-        "name": "Français"
+        "name": "Fran\u00e7ais"
       },
       {
         "code": "zh",
-        "name": "简体中文"
+        "name": "\u7b80\u4f53\u4e2d\u6587"
       }
     ],
     "labels": [
@@ -118,8 +119,8 @@
         "id": "ai-creator",
         "names": {
           "default": "AI Creator Radar",
-          "fr": "Radar créateurs IA",
-          "zh": "AI创作者雷达"
+          "fr": "Radar cr\u00e9ateurs IA",
+          "zh": "AI\u521b\u4f5c\u8005\u96f7\u8fbe"
         }
       },
       {
@@ -127,15 +128,15 @@
         "names": {
           "default": "Technology Blog",
           "fr": "Blogs techniques",
-          "zh": "科技博客"
+          "zh": "\u79d1\u6280\u535a\u5ba2"
         }
       },
       {
         "id": "tech-news",
         "names": {
           "default": "Technology News",
-          "fr": "Actualités tech",
-          "zh": "科技新闻"
+          "fr": "Actualit\u00e9s tech",
+          "zh": "\u79d1\u6280\u65b0\u95fb"
         }
       }
     ]

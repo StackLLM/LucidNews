@@ -2,8 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { fixtures, mockApi, renderAt } from '../../test/render'
 
 const curl = fixtures.itemFr
-const itemCalls = (fetchMock: ReturnType<typeof mockApi>) =>
-  fetchMock.mock.calls.filter(([input]) => String(input).startsWith('/api/items/'))
+const itemCalls = (fetchMock: ReturnType<typeof mockApi>) => fetchMock.mock.calls.filter(([input]) => String(input).startsWith('/api/items/'))
 
 async function curlCard() {
   renderAt('/?lang=fr')

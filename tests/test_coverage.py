@@ -10,9 +10,9 @@ import pytest
 from pydantic import ValidationError
 from rich.console import Console
 
-from src.archive import ItemArchive
-from src.coverage import CoverageThresholds, compute_coverage
-from src.models import (
+from lucidnews.archive import ItemArchive
+from lucidnews.coverage import CoverageThresholds, compute_coverage
+from lucidnews.models import (
     ClassificationResult,
     Config,
     ContentAnalysis,
@@ -23,13 +23,13 @@ from src.models import (
     ProfileSettingsConfig,
     SourceType,
 )
-from src.orchestrator import PipelineOrchestrator
-from src.processing import ProfileRegistry
-from src.reliability import ReliabilityAssessment, ReliabilityLabel, SourceTier
-from src.settings_api import SettingsService
-from src.source_catalog import load_catalog, recommendations
-from src.taxonomy import Category
-from src.web_api import build_context, resolve
+from lucidnews.orchestrator import PipelineOrchestrator
+from lucidnews.processing import ProfileRegistry
+from lucidnews.reliability import ReliabilityAssessment, ReliabilityLabel, SourceTier
+from lucidnews.settings_api import SettingsService
+from lucidnews.source_catalog import load_catalog, recommendations
+from lucidnews.taxonomy import Category
+from lucidnews.web_api import build_context, resolve
 
 ROOT = Path(__file__).resolve().parents[1]
 NOW = datetime.now(timezone.utc)

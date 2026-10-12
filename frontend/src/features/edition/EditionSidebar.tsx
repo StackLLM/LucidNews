@@ -1,4 +1,4 @@
-import { motion } from 'motion/react'
+import { m } from 'motion/react'
 import { reliabilityStyles } from '../../design/ReliabilityBadge'
 import { reliabilityLabels, type Edition } from '../../lib/api'
 import { labelHintKey, labelKey, useLanguage } from '../../lib/i18n'
@@ -9,12 +9,10 @@ export function EditionSidebar({ edition }: { edition: Edition }) {
   const { t } = useLanguage()
   const { enabled } = useMotionPreference()
   const items = edition.sections.flatMap((section) => section.items)
-  const counts = Object.fromEntries(
-    reliabilityLabels.map((label) => [label, items.filter((item) => item.reliability?.label === label).length]),
-  )
+  const counts = Object.fromEntries(reliabilityLabels.map((label) => [label, items.filter((item) => item.reliability?.label === label).length]))
 
   return (
-    <motion.aside variants={riseIn} className="space-y-5 self-start xl:sticky xl:top-28">
+    <m.aside variants={riseIn} className="space-y-5 self-start xl:sticky xl:top-28">
       <nav aria-labelledby="edition-index" className="glass rounded-card p-6">
         <h2 id="edition-index" className="text-[15px] font-bold">
           {t('edition.inThisEdition')}
@@ -24,10 +22,10 @@ export function EditionSidebar({ edition }: { edition: Edition }) {
             <li key={section.profile}>
               <a
                 href={`#section-${section.profile}`}
-                className="group flex items-center justify-between rounded-control px-3 py-2.5 text-[14px] font-medium text-ink/80 transition-colors duration-150 hover:bg-white hover:text-ink"
+                className="group flex items-center justify-between rounded-control px-3 py-2.5 text-[14px] font-medium text-ink/80 transition-colors duration-150 hover:bg-surface hover:text-ink"
               >
                 {section.name}
-                <span className="grid h-6 min-w-6 place-items-center rounded-full bg-accent-soft px-1.5 text-[12px] font-bold text-accent tabular-nums transition-colors duration-150 group-hover:bg-accent group-hover:text-white">
+                <span className="grid h-6 min-w-6 place-items-center rounded-full bg-accent-soft px-1.5 text-[12px] font-bold text-accent tabular-nums transition-colors duration-150 group-hover:bg-accent group-hover:text-on-fill">
                   {section.items.length}
                 </span>
               </a>
@@ -37,7 +35,7 @@ export function EditionSidebar({ edition }: { edition: Edition }) {
             <li>
               <a
                 href="#section-unanalyzed"
-                className="group flex items-center justify-between rounded-control px-3 py-2.5 text-[14px] font-medium text-muted transition-colors duration-150 hover:bg-white hover:text-ink"
+                className="group flex items-center justify-between rounded-control px-3 py-2.5 text-[14px] font-medium text-muted transition-colors duration-150 hover:bg-surface hover:text-ink"
               >
                 {t('unanalyzed.title')}
                 <span className="grid h-6 min-w-6 place-items-center rounded-full bg-ink/5 px-1.5 text-[12px] font-bold text-ink/60 tabular-nums">
@@ -58,7 +56,7 @@ export function EditionSidebar({ edition }: { edition: Edition }) {
         <div className="mt-5 flex h-2 overflow-hidden rounded-full bg-ink/5" aria-hidden>
           {reliabilityLabels.map((label) =>
             counts[label] ? (
-              <motion.span
+              <m.span
                 key={label}
                 initial={enabled ? { width: 0 } : false}
                 animate={{ width: `${(counts[label] / Math.max(items.length, 1)) * 100}%` }}
@@ -89,6 +87,6 @@ export function EditionSidebar({ edition }: { edition: Edition }) {
           })}
         </ul>
       </section>
-    </motion.aside>
+    </m.aside>
   )
 }

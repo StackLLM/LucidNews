@@ -10,8 +10,8 @@ import httpx
 import pytest
 from anthropic import AsyncAnthropic
 
-from src.ai.client import AnthropicClient, OpenAIClient, create_ai_client
-from src.models import AIConfig, AIProvider, AI_PROVIDER_DEFAULTS
+from lucidnews.ai.client import AnthropicClient, OpenAIClient, create_ai_client
+from lucidnews.models import AIConfig, AIProvider, AI_PROVIDER_DEFAULTS
 
 
 def _make_config(**overrides) -> AIConfig:
@@ -372,7 +372,7 @@ class TestFactoryFunction:
                     base_url=base_url,
                     http_client=http_client,
                 )
-                with patch("src.ai.client.AsyncAnthropic", return_value=sdk_client):
+                with patch("lucidnews.ai.client.AsyncAnthropic", return_value=sdk_client):
                     client = create_ai_client(_make_config(base_url=base_url)).inner
                     assert isinstance(client, AnthropicClient)
                     return await client.complete(system="test", user="hello")

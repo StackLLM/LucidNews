@@ -30,16 +30,16 @@ Premium, calme, fin, professionnel. Impressionnant sans être chargé.
 
 ## Écrans prévus
 
-| Écran | Rôle | Données existantes côté moteur |
-|---|---|---|
-| Édition du jour ✅ | Lire le digest : sections, score, fiabilité. Filtre de date : dernière édition, ou toutes les éditions d'un jour, d'un mois ou d'une année (adresse `?day=`, `?month=`, `?year=`), sans limite de news. Filtre de domaine à côté (`?domain=`) | API `/api/editions/latest`, `/api/editions/period` |
-| Fiche d'une news ✅ | Article complet + colonne Fiabilité (éditeur, affirmation, preuve, corroboration), actions, éditions | API `/api/items/<id>` |
-| Archives ✅ | Retrouver une édition par date (calendrier + liste) ; rechercher une news par mot-clé, domaine, source ou fiabilité (résultats surlignés, pagination, adresse partageable) | API `/api/editions`, `/api/search` |
-| Préférences ✅ | Abonnés (ajout, suppression), langue, thèmes, sources, rythme, niveau de détail (bref / complet), importance, infos non confirmées, limite, offre affichée ; aperçu de l'e-mail dans un cadre sans script ; statut de chaque lecteur (en attente, confirmé, désinscrit), envoi du lien de confirmation, journal des envois | API `/api/subscribers`, `/api/subscribers/<id>/preview` (local) |
-| Sources ✅ | Onglet Sources : santé (chiffres clés, volume par run), sources configurées par domaine ou par type, domaine affiché sur chaque source : activer, ajouter, modifier, tester, supprimer. Onglet Domaines : couverture des 12 catégories, lacunes, domaines suivis, sources recommandées | API `/api/sources`, `/api/coverage`, `/api/catalog`, `/api/sources/config`, `/api/sources/test` (local) |
+| Écran               | Rôle                                                                                                                                                                                                                                                                                                                       | Données existantes côté moteur                                                                          |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Édition du jour ✅  | Lire le digest : sections, score, fiabilité. Filtre de date : dernière édition, ou toutes les éditions d'un jour, d'un mois ou d'une année (adresse `?day=`, `?month=`, `?year=`), sans limite de news. Filtre de domaine à côté (`?domain=`)                                                                              | API `/api/editions/latest`, `/api/editions/period`                                                      |
+| Fiche d'une news ✅ | Article complet + colonne Fiabilité (éditeur, affirmation, preuve, corroboration), actions, éditions                                                                                                                                                                                                                       | API `/api/items/<id>`                                                                                   |
+| Archives ✅         | Retrouver une édition par date (calendrier + liste) ; rechercher une news par mot-clé, domaine, source ou fiabilité (résultats surlignés, pagination, adresse partageable)                                                                                                                                                 | API `/api/editions`, `/api/search`                                                                      |
+| Préférences ✅      | Abonnés (ajout, suppression), langue, thèmes, sources, rythme, niveau de détail (bref / complet), importance, infos non confirmées, limite, offre affichée ; aperçu de l'e-mail dans un cadre sans script ; statut de chaque lecteur (en attente, confirmé, désinscrit), envoi du lien de confirmation, journal des envois | API `/api/subscribers`, `/api/subscribers/<id>/preview` (local)                                         |
+| Sources ✅          | Onglet Sources : santé (chiffres clés, volume par run), sources configurées par domaine ou par type, domaine affiché sur chaque source : activer, ajouter, modifier, tester, supprimer. Onglet Domaines : couverture des 12 catégories, lacunes, domaines suivis, sources recommandées                                     | API `/api/sources`, `/api/coverage`, `/api/catalog`, `/api/sources/config`, `/api/sources/test` (local) |
 
 | Qualité ✅ | Vue d'ensemble de la veille (couverture, diversité, santé, fraîcheur, doublons, filtrage, fiabilité), annotation à l'aveugle, résultats | API `/api/quality/overview`, `/api/eval/*` (local), voir `docs/evaluation.md` |
-| Réglages ✅ | Runs (lancer, suivre, planifier, historique), clés API (jamais réaffichées), IA, collecte, sélection, fiabilité, archive, versions précédentes | API `/api/runs`, `/api/schedule`, `/api/settings`, `/api/secrets` (local) |
+| Réglages ✅ | Runs (lancer, suivre, planifier, historique), case « Activer l'analyse par IA », IA, collecte, sélection, fiabilité, archive, versions précédentes | API `/api/runs`, `/api/schedule`, `/api/settings`, `/api/secrets` (local) |
 
 Pas de paiement, pas de paywall : l'offre Premium est seulement affichée.
 
@@ -65,20 +65,20 @@ Commande `lucidnews-api` : lit l'archive SQLite sans jamais l'écrire, écoute s
 localhost. Aucune dépendance Python ajoutée (serveur HTTP de la bibliothèque standard).
 Ce qui s'écrit, en local seulement : les préférences des abonnés (`data/subscribers.json`),
 les annotations, la configuration (`data/config.json`, avec copie dans `data/backups/`)
-et les clés API (`.env` du projet).
+(`.env` n'est jamais écrit : les clés se fournissent hors de l'interface).
 
-| Route | Contenu |
-|---|---|
-| `GET /api/editions?limit=30` | Runs ayant publié une édition (jusqu'à 2000) |
-| `GET /api/search?q=&category=&source=&label=&limit=&offset=` | Recherche plein texte de l'archive (FTS5) : résultats, compteurs des filtres |
-| `GET /api/sources/domains?days=90` | Domaine de chaque source (archive, sinon catalogue) |
-| `GET /api/editions/period?since=&until=&lang=` | Les news de toutes les éditions commencées dans la période (instants ISO), sans doublon  ; toutes sont listées |
-| `GET /api/editions/latest?lang=fr` | Dernière édition, dans une langue |
-| `GET /api/editions/<id>?lang=fr` | Une édition précise |
-| `GET /api/items/<id>?lang=fr` | Une news : contenu, fiabilité détaillée, éditions qui l'ont publiée |
-| `GET /api/sources?days=14` | Santé des sources configurées (1 à 90 jours) et volume par run |
-| `GET /api/coverage?days=14` | Couverture des 12 catégories d'après l'archive, domaines suivis, seuils de lacune |
-| `GET /api/catalog?category=ai` | Sources recommandées absentes de la config |
+| Route                                                        | Contenu                                                                                                       |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| `GET /api/editions?limit=30`                                 | Runs ayant publié une édition (jusqu'à 2000)                                                                  |
+| `GET /api/search?q=&category=&source=&label=&limit=&offset=` | Recherche plein texte de l'archive (FTS5) : résultats, compteurs des filtres                                  |
+| `GET /api/sources/domains?days=90`                           | Domaine de chaque source (archive, sinon catalogue)                                                           |
+| `GET /api/editions/period?since=&until=&lang=`               | Les news de toutes les éditions commencées dans la période (instants ISO), sans doublon ; toutes sont listées |
+| `GET /api/editions/latest?lang=fr`                           | Dernière édition, dans une langue                                                                             |
+| `GET /api/editions/<id>?lang=fr`                             | Une édition précise                                                                                           |
+| `GET /api/items/<id>?lang=fr`                                | Une news : contenu, fiabilité détaillée, éditions qui l'ont publiée                                           |
+| `GET /api/sources?days=14`                                   | Santé des sources configurées (1 à 90 jours) et volume par run                                                |
+| `GET /api/coverage?days=14`                                  | Couverture des 12 catégories d'après l'archive, domaines suivis, seuils de lacune                             |
+| `GET /api/catalog?category=ai`                               | Sources recommandées absentes de la config                                                                    |
 
 | `GET /api/preferences/options` | Langues, thèmes, sources filtrables, offres |
 | `GET /api/subscribers` | Abonnés et leurs préférences |
@@ -102,7 +102,7 @@ et les clés API (`.env` du projet).
 | `GET /api/schedule` · `PUT /api/schedule` | Planification launchd · l'écrire (`{enabled, hour, minute, weekdays}`) ou la retirer (`{enabled: false}`) |
 | `POST /api/sources/test` | Tester une source enregistrée (`{key}`) ou un brouillon (`{kind, values}`), sans IA ni écriture |
 
-### Réglages et clés API
+### Réglages et état des clés
 
 - Mêmes protections que les préférences : localhost seulement, Host et Origin vérifiés, JSON seulement.
 - La config est modifiée **brute** : seuls les champs changés sont écrits, les `${VARIABLE}`
@@ -110,17 +110,18 @@ et les clés API (`.env` du projet).
 - Chaque écriture est vérifiée par le modèle `Config`, faite de façon atomique, et précédée
   d'une copie horodatée (les 10 dernières sont gardées). Si le fichier a changé depuis sa
   lecture, l'écriture est refusée (409).
-- Les clés vont dans `.env` (non versionné, droits 600). Seuls les noms de variables cités
-  par la config sont acceptés. Une valeur n'est jamais renvoyée, journalisée ni répétée
-  dans un message d'erreur. Une clé collée par erreur dans le champ « Variable de la clé »
-  est refusée.
-- Une variable déjà définie dans le terminal qui a lancé LucidNews est prioritaire sur
-  `.env` : l'écran le signale.
+- Aucune clé n'est saisie, écrite ni renvoyée par l'interface : `GET /api/secrets` dit seulement,
+  pour chaque variable citée par la config, si elle est définie (dans `.env` ou dans le terminal).
+  Il n'existe plus de route pour écrire ou supprimer une clé. Une clé collée par erreur dans le
+  champ « Variable de la clé » est refusée.
+- `ai.enabled` (case à cocher) est désactivé par défaut. Désactivé, le run ne crée aucun client
+  d'IA : les news sont listées sans analyse. Les champs fournisseur, modèle et limites ne
+  s'affichent que lorsque l'IA est activée.
 
 ### Runs et planification
 
 - « Lancer un run » démarre le pipeline dans un processus séparé, avec la même commande
-  qu'en terminal (`python -m src.main --data-dir …`) : même édition. Sortie dans
+  qu'en terminal (`python -m lucidnews.main --data-dir …`) : même édition. Sortie dans
   `data/runs/` (ignoré par Git).
 - Un seul run à la fois, quelle que soit son origine (interface, terminal, planification) :
   le pipeline tient un verrou (`data/run.lock`) pendant tout le run ; un second lancement
@@ -200,8 +201,30 @@ locale du 6 octobre 2026 (`src/test/fixtures/`).
 
 - Un fichier JS par écran : les graphiques (≈ 107 Ko compressé) ne se chargent que
   sur Santé des sources, le calendrier que sur Archives.
-- Le socle commun pèse encore ≈ 160 Ko compressé (React, routeur, animations,
-  validation). Piste : version allégée de `motion` et de `zod`.
-- Sur téléphone, la navigation passe dans une barre flottante en bas.
-- Les couleurs du graphique ont été validées (daltonisme, contraste). La couleur
-  claire est sous 3:1 de contraste : la légende et la vue Tableau compensent.
+- Le socle commun pèse ≈ 146 Ko compressé (React, routeur, validation). Le moteur
+  d'animation est chargé après le premier affichage (`LazyMotion`).
+- Sous 1024 px (téléphone, tablette), la navigation passe dans une barre flottante
+  en bas ; au-dessus, le menu reste dans la barre du haut.
+- Les couleurs du graphique ont été validées (daltonisme, contraste, 3:1 minimum
+  sur la surface dans les deux thèmes).
+
+## Thème clair et sombre
+
+- Clair par défaut. Le bouton soleil/lune de la barre du haut bascule ; le choix est
+  gardé dans le navigateur (`lucidnews.theme`) et appliqué par `index.html` avant le
+  premier affichage.
+- Les couleurs sont des jetons (`src/styles.css`) redéfinis sous
+  `html[data-theme='dark']`. Dans le code, on n'écrit jamais `white` : `bg-surface`
+  pour une surface, `text-on-fill` pour du texte sur un fond plein.
+- `src/design/contrast.test.ts` vérifie les contrastes AA des deux thèmes à partir
+  de `styles.css` : changer une couleur sans casser la lisibilité est contrôlé.
+
+## Qualité du code
+
+```bash
+npm run lint          # oxlint
+npm run format:check  # prettier (npm run format pour corriger)
+npm test              # vitest
+```
+
+`eslint` n'est pas utilisé : `typescript-eslint` n'accepte pas encore TypeScript 7.

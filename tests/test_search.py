@@ -5,9 +5,9 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from src.archive import ItemArchive
-from src.archive.search import SearchQueryError, match_expression, search_terms
-from src.models import (
+from lucidnews.archive import ItemArchive
+from lucidnews.archive.search import SearchQueryError, match_expression, search_terms
+from lucidnews.models import (
     ClassificationResult,
     ContentAnalysis,
     ContentArtifact,
@@ -16,8 +16,8 @@ from src.models import (
     ProcessingResult,
     SourceType,
 )
-from src.reliability import ReliabilityAssessment
-from src.web_api import ApiContext, resolve
+from lucidnews.reliability import ReliabilityAssessment
+from lucidnews.web_api import ApiContext, resolve
 
 NOW = datetime(2026, 10, 11, 9, 0, tzinfo=timezone.utc)
 

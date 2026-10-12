@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, ArrowUpRight, Check, CircleCheck, Eraser, EyeOff, MessageSquare } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, m } from 'motion/react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import { Chip } from '../../design/Chip'
@@ -58,7 +58,7 @@ function Annotator({ items }: { items: EvalItem[] }) {
           <div className="min-w-0 flex-1">
             <p className="text-[15px] font-semibold">{t('quality.progress', { done, total: items.length })}</p>
             <span className="mt-2.5 block h-2 overflow-hidden rounded-full bg-accent-soft" aria-hidden>
-              <motion.span
+              <m.span
                 className="block h-full rounded-full bg-accent"
                 initial={false}
                 animate={{ width: `${(done / items.length) * 100}%` }}
@@ -95,7 +95,7 @@ function Annotator({ items }: { items: EvalItem[] }) {
                       onClick={() => select(item.id)}
                       aria-current={active ? 'true' : undefined}
                       className={`flex w-full items-start gap-2.5 rounded-control px-3 py-2.5 text-left transition-all duration-150 ${
-                        active ? 'bg-white shadow-card ring-1 ring-accent/25' : 'hover:bg-white/70'
+                        active ? 'bg-surface shadow-card ring-1 ring-accent/25' : 'hover:bg-surface/70'
                       }`}
                     >
                       {item.annotation ? (
@@ -132,9 +132,7 @@ function Annotator({ items }: { items: EvalItem[] }) {
 function AnnotationCard({ item, onDone }: { item: EvalItem; onDone: () => void }) {
   const { language, t } = useLanguage()
   const queryClient = useQueryClient()
-  const [draft, setDraft] = useState<Draft>(() =>
-    item.annotation ? { ...item.annotation } : emptyDraft(),
-  )
+  const [draft, setDraft] = useState<Draft>(() => (item.annotation ? { ...item.annotation } : emptyDraft()))
   const [missing, setMissing] = useState(false)
   const [saved, setSaved] = useState(false)
   const complete = draft.relevant !== undefined && draft.importance !== undefined && draft.claim_status !== undefined
@@ -265,7 +263,7 @@ function AnnotationCard({ item, onDone }: { item: EvalItem; onDone: () => void }
                   aria-checked={checked}
                   onClick={() => setDraft((current) => ({ ...current, claim_status: status as ClaimStatus }))}
                   className={`flex items-center gap-2.5 rounded-control px-4 py-3 text-left text-[14px] font-medium ring-1 transition-all duration-150 ${
-                    checked ? 'bg-accent-soft text-accent ring-accent/40' : 'bg-white ring-ink/10 hover:ring-accent/30'
+                    checked ? 'bg-accent-soft text-accent ring-accent/40' : 'bg-surface ring-ink/10 hover:ring-accent/30'
                   }`}
                 >
                   <span
@@ -289,7 +287,7 @@ function AnnotationCard({ item, onDone }: { item: EvalItem; onDone: () => void }
             value={draft.notes}
             placeholder={t('quality.notesPlaceholder')}
             onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))}
-            className="w-full resize-y rounded-control border border-ink/10 bg-white px-3.5 py-2.5 text-[14px] outline-none transition-shadow duration-150 placeholder:text-faint focus:border-accent/50 focus:ring-3 focus:ring-accent/15"
+            className="w-full resize-y rounded-control border border-ink/10 bg-surface px-3.5 py-2.5 text-[14px] outline-none transition-shadow duration-150 placeholder:text-faint focus:border-accent/50 focus:ring-3 focus:ring-accent/15"
           />
         </Question>
       </div>
@@ -298,14 +296,20 @@ function AnnotationCard({ item, onDone }: { item: EvalItem; onDone: () => void }
         <p role="status" aria-live="polite" className="text-[13.5px]">
           <AnimatePresence mode="wait">
             {missing ? (
-              <motion.span key="missing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-rumor">
+              <m.span key="missing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-rumor">
                 {t('quality.required')}
-              </motion.span>
+              </m.span>
             ) : saved ? (
-              <motion.span key="saved" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-1.5 font-medium text-confirmed">
+              <m.span
+                key="saved"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center gap-1.5 font-medium text-confirmed"
+              >
                 <Check size={15} aria-hidden />
                 {t('quality.saved')}
-              </motion.span>
+              </m.span>
             ) : save.isError || clear.isError ? (
               <span className="text-rumor">{t('error.save')}</span>
             ) : null}
@@ -326,7 +330,7 @@ function AnnotationCard({ item, onDone }: { item: EvalItem; onDone: () => void }
             type="button"
             onClick={() => submit(false)}
             disabled={save.isPending}
-            className="rounded-control bg-accent-soft px-4 py-2.5 text-[14px] font-semibold text-accent transition-colors duration-150 hover:bg-accent hover:text-white disabled:opacity-60"
+            className="rounded-control bg-accent-soft px-4 py-2.5 text-[14px] font-semibold text-accent transition-colors duration-150 hover:bg-accent hover:text-on-fill disabled:opacity-60"
           >
             {t('quality.save')}
           </button>
@@ -334,7 +338,7 @@ function AnnotationCard({ item, onDone }: { item: EvalItem; onDone: () => void }
             type="button"
             onClick={() => submit(true)}
             disabled={save.isPending}
-            className="group flex items-center gap-1.5 rounded-control bg-accent px-5 py-2.5 text-[14px] font-semibold text-white shadow-accent transition-all duration-150 ease-soft hover:-translate-y-0.5 hover:bg-accent-deep active:translate-y-0 disabled:opacity-60"
+            className="group flex items-center gap-1.5 rounded-control bg-accent px-5 py-2.5 text-[14px] font-semibold text-on-fill shadow-accent transition-all duration-150 ease-soft hover:-translate-y-0.5 hover:bg-accent-deep active:translate-y-0 disabled:opacity-60"
           >
             {t('quality.saveNext')}
             <ArrowRight size={15} aria-hidden className="transition-transform duration-150 ease-soft group-hover:translate-x-0.5" />

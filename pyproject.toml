@@ -34,25 +34,25 @@ twitter = [
     "playwright-stealth>=1.0.0",
 ]
 [project.scripts]
-lucidnews = "src.main:main"
-lucidnews-mcp = "src.mcp.server:main"
-lucidnews-wizard = "src.setup.wizard:main"
-lucidnews-webhook = "src.services.webhook_cli:main"
-lucidnews-sources = "src.sources_cli:main"
-lucidnews-api = "src.web_api:main"
-lucidnews-public = "src.public_api:main"
-lucidnews-eval = "src.evaluation.cli:main"
-lucidnews-reassess = "src.reassess_cli:main"
+lucidnews = "lucidnews.main:main"
+lucidnews-mcp = "lucidnews.mcp.server:main"
+lucidnews-wizard = "lucidnews.setup.wizard:main"
+lucidnews-webhook = "lucidnews.services.webhook_cli:main"
+lucidnews-sources = "lucidnews.sources_cli:main"
+lucidnews-api = "lucidnews.web_api:main"
+lucidnews-public = "lucidnews.public_api:main"
+lucidnews-eval = "lucidnews.evaluation.cli:main"
+lucidnews-reassess = "lucidnews.reassess_cli:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src"]
+packages = ["lucidnews"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"profiles" = "src/_builtin_profiles"
+"profiles" = "lucidnews/_builtin_profiles"
 
 [tool.pytest.ini_options]
 minversion = "8.0"

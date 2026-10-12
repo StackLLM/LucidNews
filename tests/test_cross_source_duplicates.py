@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
-from src.models import ContentItem, SourceType
-from src.orchestrator import PipelineOrchestrator
+from lucidnews.models import ContentItem, SourceType
+from lucidnews.orchestrator import PipelineOrchestrator
 
 
 NOW = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -167,3 +167,26 @@ def test_candidate_profile_routes_are_hashable_and_preserve_route_distinctions()
     assert len(result) == 2
     assert result[0].metadata["merged_sources"] == ["rss", "telegram"]
     assert result[1].id == "different-order"
+
+
+def test_merge_never_borrows_the_source_identity_of_another_item() -> None:
+    hacker_news = item(
+        "hn",
+        "https://example.com/story",
+        source_type=SourceType.HACKERNEWS,
+        content="long enough content from Hacker News",
+        metadata={"score": 120},
+    )
+    lobsters = item(
+        "lobsters",
+        "https://example.com/story",
+        content="short",
+        metadata={"feed_name": "Lobsters", "source_key": "rss:lobsters", "comment_count": 14},
+    )
+
+    (merged,) = merge([hacker_news, lobsters])
+
+    assert merged.id == "hn"
+    assert "feed_name" not in merged.metadata and "source_key" not in merged.metadata
+    assert merged.metadata["comment_count"] == 14  # engagement is still combined
+    assert merged.metadata["score"] == 120

@@ -1,4 +1,4 @@
-from src.processing.content import select_content, split_content
+from lucidnews.processing.content import select_content, split_content
 
 
 def test_split_content_separates_appended_comments() -> None:

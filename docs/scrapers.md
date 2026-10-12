@@ -9,7 +9,7 @@ LucidNews fetches content from multiple source types. All scrapers inherit from 
 
 ## Hacker News
 
-**File**: `src/scrapers/hackernews.py`
+**File**: `lucidnews/scrapers/hackernews.py`
 
 Uses the [Firebase HN API](https://hacker-news.firebaseio.com/v0):
 
@@ -37,7 +37,7 @@ Stories and their comments are fetched concurrently. For each story, the top 5 c
 
 ## GitHub
 
-**File**: `src/scrapers/github.py`
+**File**: `lucidnews/scrapers/github.py`
 
 Uses the [GitHub REST API](https://api.github.com):
 
@@ -76,7 +76,7 @@ Two source types are supported:
 
 ## RSS
 
-**File**: `src/scrapers/rss.py`
+**File**: `lucidnews/scrapers/rss.py`
 
 Fetches any Atom/RSS feed using the `feedparser` library. Tries multiple date fields (`published`, `updated`, `created`) with fallback parsing.
 
@@ -99,7 +99,7 @@ Fetches any Atom/RSS feed using the `feedparser` library. Tries multiple date fi
 
 ## Reddit
 
-**File**: `src/scrapers/reddit.py`
+**File**: `lucidnews/scrapers/reddit.py`
 
 Uses public, no-key Reddit endpoints. Subreddit listings and comments prefer `old.reddit.com` HTML because Reddit's unauthenticated JSON and RSS endpoints can intermittently block or fail:
 
@@ -149,7 +149,7 @@ Subreddits and users are fetched concurrently. Comments are sorted by score, lim
 
 ## Twitter
 
-**File**: `src/scrapers/twitter.py`
+**File**: `lucidnews/scrapers/twitter.py`
 
 Uses the [Apify](https://apify.com) platform to bypass Twitter's anti-scraping measures. The actor `altimis~scweet` is called via the Apify REST API.
 

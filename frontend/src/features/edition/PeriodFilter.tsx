@@ -85,7 +85,7 @@ export function PeriodFilter({
             <button
               type="button"
               aria-label={t('filter.pickDay')}
-              className="flex items-center gap-2 rounded-control border border-ink/10 bg-white px-3.5 py-2 text-[14px] font-semibold transition-shadow duration-150 hover:border-accent/40 focus-visible:ring-3 focus-visible:ring-accent/20"
+              className="flex items-center gap-2 rounded-control border border-ink/10 bg-surface px-3.5 py-2 text-[14px] font-semibold transition-shadow duration-150 hover:border-accent/40 focus-visible:ring-3 focus-visible:ring-accent/20"
             >
               {capitalize(formatPeriod('day', choice.value, language))}
               <ChevronDown size={14} aria-hidden className="text-muted" />
@@ -119,7 +119,7 @@ export function PeriodFilter({
           aria-label={t(choice.kind === 'month' ? 'filter.pickMonth' : 'filter.pickYear')}
           value={choice.value}
           onChange={(event) => onChange({ kind: choice.kind, value: event.target.value })}
-          className="rounded-control border border-ink/10 bg-white px-3.5 py-2 text-[14px] font-semibold outline-none transition-shadow duration-150 hover:border-accent/40 focus-visible:ring-3 focus-visible:ring-accent/20"
+          className="rounded-control border border-ink/10 bg-surface px-3.5 py-2 text-[14px] font-semibold outline-none transition-shadow duration-150 hover:border-accent/40 focus-visible:ring-3 focus-visible:ring-accent/20"
         >
           {options[choice.kind].map((value) => (
             <option key={value} value={value}>
@@ -134,7 +134,7 @@ export function PeriodFilter({
         <select
           value={domain ?? ''}
           onChange={(event) => onDomainChange(event.target.value || null)}
-          className="rounded-control border border-ink/10 bg-white px-3.5 py-2 text-[14px] font-semibold outline-none transition-shadow duration-150 hover:border-accent/40 focus-visible:ring-3 focus-visible:ring-accent/20"
+          className="rounded-control border border-ink/10 bg-surface px-3.5 py-2 text-[14px] font-semibold outline-none transition-shadow duration-150 hover:border-accent/40 focus-visible:ring-3 focus-visible:ring-accent/20"
         >
           <option value="">{t('filter.domainAll')}</option>
           {domainOptions.map(({ category, count }) => (

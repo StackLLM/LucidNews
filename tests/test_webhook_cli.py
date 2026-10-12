@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.services import webhook_cli
+from lucidnews.services import webhook_cli
 
 
 def _fake_config(webhook=None, languages=("en",), icon_style="emoji"):

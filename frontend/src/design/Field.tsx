@@ -9,8 +9,8 @@ export const labelClass = 'text-[13.5px] font-semibold text-ink/85'
 export const hintClass = 'mt-0.5 text-[12.5px] leading-snug text-muted'
 export const errorClass = 'mt-1.5 text-[12.5px] font-medium text-rumor'
 export const primaryButton =
-  'flex items-center gap-1.5 rounded-control bg-accent px-4 py-2.5 text-[14px] font-semibold text-white shadow-accent transition-all duration-150 ease-soft hover:-translate-y-px hover:bg-accent-deep disabled:opacity-60'
-export const ghostButton = 'rounded-control px-4 py-2.5 text-[14px] font-semibold text-ink/70 transition-colors duration-150 hover:bg-white'
+  'flex items-center gap-1.5 rounded-control bg-accent px-4 py-2.5 text-[14px] font-semibold text-on-fill shadow-accent transition-all duration-150 ease-soft hover:-translate-y-px hover:bg-accent-deep disabled:opacity-60'
+export const ghostButton = 'rounded-control px-4 py-2.5 text-[14px] font-semibold text-ink/70 transition-colors duration-150 hover:bg-surface'
 
 export function Field({
   label,

@@ -33,7 +33,7 @@ Collecter → Filtrer → Vérifier → Classer → Résumer → Prioriser → D
 | **Fiabilité** | Niveau de confiance de l'éditeur (officiel, reconnu, communautaire, inconnu) + vérification de l'affirmation par l'IA (confirmée, rapportée, non vérifiée, rumeur) → étiquette **Confirmé / Fiable / Non vérifié / Rumeur**. Une info non confirmée est toujours signalée comme telle. |
 | **Classification** | Routage par profil éditorial (`tech-news`, `tech-blog`, `ai-creator`) et attribution de 1 à 3 catégories parmi 12 catégories IT. |
 | **Résumé** | Enrichissement IA par blocs (résumé, contexte, impact, discussion), recherche web et recherche dans l'historique des digests, sources citées. |
-| **Langues** | Anglais et français (le chinois reste disponible). Architecture extensible : une langue = une entrée dans `src/i18n.py`. |
+| **Langues** | Anglais et français (le chinois reste disponible). Architecture extensible : une langue = une entrée dans `lucidnews/i18n.py`. |
 | **Distribution** | Digest Markdown quotidien, email personnalisé par abonné (langue, catégories, sources, importance, fiabilité), webhooks (Slack, Discord, Feishu/Lark, DingTalk, générique), serveur MCP. |
 | **Newsletter** | Abonnés, préférences, plans Free/Premium préparés (sans paiement), une version du digest par jeu de préférences. |
 
@@ -77,7 +77,7 @@ cp data/config.example.json data/config.json
 Règle importante : `ai.api_key_env` contient le **nom** d'une variable d'environnement, jamais la clé elle-même.
 
 ```json
-"ai": { "provider": "gemini", "model": "gemini-2.5-flash", "api_key_env": "GOOGLE_API_KEY", "languages": ["en", "fr"] }
+"ai": { "enabled": false, "provider": "gemini", "model": "gemini-2.5-flash", "api_key_env": "GOOGLE_API_KEY", "languages": ["en", "fr"] }
 ```
 
 Un assistant interactif peut aussi générer la configuration :
@@ -88,11 +88,36 @@ uv run lucidnews-wizard
 
 Détails : [docs/configuration.md](docs/configuration.md) (référence complète) et [docs/architecture.md](docs/architecture.md#configuration).
 
+### Activer l'analyse IA (facultatif)
+
+LucidNews fonctionne **sans IA et sans aucune clé** : l'analyse est désactivée par défaut (`"ai": { "enabled": false }`). Le run collecte vos sources, fusionne les doublons, applique la fiabilité de l'éditeur, puis liste les news **sans analyse** (ni résumé, ni score, ni vérification de l'affirmation). Rien n'est envoyé à un fournisseur d'IA.
+
+Pour activer l'analyse, deux étapes. Aucun fournisseur n'est imposé : prenez celui que vous voulez parmi `anthropic`, `openai`, `azure`, `gemini`, `deepseek`, `ali`, `doubao`, `minimax` ou `ollama` (local, sans clé).
+
+1. **Activer.** Dans l'écran Réglages, cochez « Activer l'analyse par IA », ou mettez `"enabled": true` dans `data/config.json`. Choisissez le fournisseur et le modèle (`ai.provider`, `ai.model`) et le **nom** de la variable de la clé (`ai.api_key_env`).
+2. **Fournir votre propre clé, hors de l'interface.** Elle ne se saisit jamais dans l'application web : celle-ci ne l'écrit pas, ne la lit pas et ne l'affiche pas. Elle indique seulement si la variable est détectée.
+
+| Où lancez-vous LucidNews ? | Où mettre la clé |
+|---|---|
+| Sur votre machine | Dans le fichier `.env` (copié depuis `.env.example`, ignoré par git), par exemple `GOOGLE_API_KEY=...`, ou exportée dans le terminal. |
+| GitHub Codespaces | Un secret Codespaces (GitHub › Settings › Codespaces › Secrets) : il devient une variable d'environnement du même nom. |
+| GitHub Actions | Un secret du dépôt (Settings › Secrets and variables › Actions), transmis au pas qui lance LucidNews : `env: { GOOGLE_API_KEY: "${{ secrets.GOOGLE_API_KEY }}" }`. Le dépôt ne fournit pas de workflow : écrivez le vôtre. |
+| Docker | `docker compose run -e GOOGLE_API_KEY …`, ou un fichier `.env` à côté de `docker-compose.yml`. |
+
+Règles de sécurité :
+
+- une clé ne va ni dans `data/config.json`, ni dans le code, ni dans un commit, ni dans le frontend ;
+- une clé collée par erreur dans `ai.api_key_env` est refusée par l'écran Réglages ;
+- une clé n'est jamais renvoyée par l'API, ni écrite dans les journaux ;
+- sans clé détectée, l'analyse activée échoue proprement : les news restent listées sans analyse, le run ne plante pas.
+
+Un quota épuisé ou un budget de tokens atteint produit le même résultat que « désactivée » pour la fin du run : les news restantes sont listées sans analyse.
+
 ### Variables d'environnement
 
 | Variable | Utilisation |
 |---|---|
-| `GOOGLE_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `AZURE_OPENAI_API_KEY` + `AZURE_OPENAI_ENDPOINT`, `DEEPSEEK_API_KEY`, `DASHSCOPE_API_KEY`, `DOUBAO_API_KEY`, `MINIMAX_API_KEY` | Clé du fournisseur IA choisi (une seule suffit) |
+| `GOOGLE_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `AZURE_OPENAI_API_KEY` + `AZURE_OPENAI_ENDPOINT`, `DEEPSEEK_API_KEY`, `DASHSCOPE_API_KEY`, `DOUBAO_API_KEY`, `MINIMAX_API_KEY` | Clé du fournisseur IA choisi, **seulement si l'analyse IA est activée** (une seule suffit) |
 | `LUCIDNEWS_OLLAMA_BASE_URL` | Adresse d'un serveur Ollama local (optionnel) |
 | `GITHUB_TOKEN` | Relève la limite de l'API GitHub de 60 à 5000 requêtes/heure (recommandé) |
 | `APIFY_TOKEN` | X/Twitter en mode Apify |
@@ -181,7 +206,7 @@ Avant de livrer, faire aussi un vrai cycle : `uv run lucidnews --hours 6`, puis 
 ## Structure du dépôt
 
 ```
-src/
+lucidnews/
   main.py              point d'entrée CLI
   orchestrator.py      pipeline complet (collecte → distribution)
   models.py            modèles de données et schéma de configuration
@@ -213,7 +238,7 @@ tests/                 tests automatisés (pytest)
 | [Catégories et langues](docs/categories-et-langues.md) | Taxonomie IT, importance, langues, ajout d'une langue |
 | [Newsletter](docs/newsletter.md) | Abonnés, préférences, plans, envoi |
 | [Roadmap technique](docs/roadmap.md) | Prochaines étapes |
-| Références (en anglais) | [configuration](docs/configuration.md), [profils](docs/profiles.md), [score](docs/scoring.md), [scrapers](docs/scrapers.md), [extracteurs](docs/extractors.md), [cookies X](docs/twitter-cookies.md), [MCP](src/mcp/README.md) |
+| Références (en anglais) | [configuration](docs/configuration.md), [profils](docs/profiles.md), [score](docs/scoring.md), [scrapers](docs/scrapers.md), [extracteurs](docs/extractors.md), [cookies X](docs/twitter-cookies.md), [MCP](lucidnews/mcp/README.md) |
 
 ## Origine et licence
 

@@ -1,19 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Inbox, UserPlus } from 'lucide-react'
-import { motion } from 'motion/react'
+import { m } from 'motion/react'
 import { useForm } from 'react-hook-form'
 import { NavLink, useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
 import { ApiErrorCard, PageHeader, PageSkeleton } from '../../design/PageState'
-import {
-  ApiError,
-  createSubscriber,
-  fetchPreferenceOptions,
-  fetchSubscribers,
-  type PreferenceOptions,
-  type Subscriber,
-} from '../../lib/api'
+import { ApiError, createSubscriber, fetchPreferenceOptions, fetchSubscribers, type PreferenceOptions, type Subscriber } from '../../lib/api'
 import { useLanguage, type MessageKey } from '../../lib/i18n'
 import { listStagger, riseIn, useMotionPreference } from '../../lib/motion'
 import { DeliveryLog } from './DeliveryLog'
@@ -39,16 +32,16 @@ function PreferencesView({ options, subscribers }: { options: PreferenceOptions;
   const selected = subscribers.find((subscriber) => subscriber.id === subscriberId)
 
   return (
-    <motion.div variants={listStagger} initial={enabled ? 'hidden' : false} animate="visible" className="space-y-8">
+    <m.div variants={listStagger} initial={enabled ? 'hidden' : false} animate="visible" className="space-y-8">
       <PageHeader title={t('prefs.title')} subtitle={t('prefs.subtitle')} />
 
       {/* DOM order = phone order (list, form, plan); the grid puts the plan under the list on desktop. */}
       <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)] lg:grid-rows-[auto_1fr] lg:gap-x-8">
-        <motion.div variants={riseIn} className="self-start lg:col-start-1 lg:row-start-1">
+        <m.div variants={riseIn} className="self-start lg:col-start-1 lg:row-start-1">
           <SubscriberList subscribers={subscribers} selectedId={selected?.id} />
-        </motion.div>
+        </m.div>
 
-        <motion.div variants={riseIn} className="min-w-0 space-y-6 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+        <m.div variants={riseIn} className="min-w-0 space-y-6 lg:col-start-2 lg:row-span-2 lg:row-start-1">
           {selected ? (
             <>
               <SubscriptionStatus key={`status-${selected.id}-${selected.status}`} subscriber={selected} />
@@ -63,21 +56,19 @@ function PreferencesView({ options, subscribers }: { options: PreferenceOptions;
                   <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-accent-soft text-accent">
                     <Inbox size={24} aria-hidden />
                   </span>
-                  <p className="mx-auto mt-4 max-w-sm text-[15px] text-muted">
-                    {subscriberId ? t('prefs.notFound') : t('prefs.pick')}
-                  </p>
+                  <p className="mx-auto mt-4 max-w-sm text-[15px] text-muted">{subscriberId ? t('prefs.notFound') : t('prefs.pick')}</p>
                 </div>
               </div>
               <DeliveryLog />
             </>
           )}
-        </motion.div>
+        </m.div>
 
-        <motion.div variants={riseIn} className="self-start lg:col-start-1 lg:row-start-2">
+        <m.div variants={riseIn} className="self-start lg:col-start-1 lg:row-start-2">
           <PlanCard plans={options.plans} current={selected?.plan} />
-        </motion.div>
+        </m.div>
       </div>
-    </motion.div>
+    </m.div>
   )
 }
 
@@ -102,7 +93,7 @@ function SubscriberList({ subscribers, selectedId }: { subscribers: Subscriber[]
                   to={{ pathname: `/preferences/${subscriber.id}`, search: `?lang=${language}` }}
                   aria-current={active ? 'page' : undefined}
                   className={`flex items-center gap-3 rounded-control px-3 py-2.5 transition-all duration-150 ${
-                    active ? 'bg-white shadow-card ring-1 ring-accent/25' : 'hover:bg-white/70'
+                    active ? 'bg-surface shadow-card ring-1 ring-accent/25' : 'hover:bg-surface/70'
                   }`}
                 >
                   <span
@@ -162,11 +153,7 @@ function AddSubscriber() {
   const error = form.formState.errors.email
 
   return (
-    <form
-      noValidate
-      onSubmit={form.handleSubmit(({ email }) => mutation.mutate(email.trim()))}
-      className="mt-4 border-t border-ink/[0.06] pt-4"
-    >
+    <form noValidate onSubmit={form.handleSubmit(({ email }) => mutation.mutate(email.trim()))} className="mt-4 border-t border-ink/[0.06] pt-4">
       <label htmlFor="new-subscriber" className="px-1 text-[12px] font-semibold uppercase tracking-[0.08em] text-faint">
         {t('prefs.addLabel')}
       </label>
@@ -179,12 +166,12 @@ function AddSubscriber() {
           aria-invalid={!!error}
           aria-describedby={error ? 'new-subscriber-error' : undefined}
           {...form.register('email')}
-          className="min-w-0 flex-1 rounded-control border border-ink/10 bg-white px-3.5 py-2.5 text-[14px] outline-none transition-shadow duration-150 placeholder:text-faint focus:border-accent/50 focus:ring-3 focus:ring-accent/15 aria-invalid:border-rumor/50"
+          className="min-w-0 flex-1 rounded-control border border-ink/10 bg-surface px-3.5 py-2.5 text-[14px] outline-none transition-shadow duration-150 placeholder:text-faint focus:border-accent/50 focus:ring-3 focus:ring-accent/15 aria-invalid:border-rumor/50"
         />
         <button
           type="submit"
           disabled={mutation.isPending}
-          className="flex items-center gap-1.5 rounded-control bg-accent-soft px-3.5 text-[14px] font-semibold text-accent transition-colors duration-150 hover:bg-accent hover:text-white disabled:opacity-60"
+          className="flex items-center gap-1.5 rounded-control bg-accent-soft px-3.5 text-[14px] font-semibold text-accent transition-colors duration-150 hover:bg-accent hover:text-on-fill disabled:opacity-60"
         >
           <UserPlus size={16} aria-hidden />
           {t('prefs.add')}

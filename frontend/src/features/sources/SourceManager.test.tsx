@@ -20,7 +20,14 @@ const testResult = {
 
 // Real output of the API on config.example.json, health from the local archive.
 const domains = {
-  'rss/OpenAI News': { category: 'ai', origin: 'archive', categories: [{ category: 'ai', items: 12 }, { category: 'web', items: 2 }] },
+  'rss/OpenAI News': {
+    category: 'ai',
+    origin: 'archive',
+    categories: [
+      { category: 'ai', items: 12 },
+      { category: 'web', items: 2 },
+    ],
+  },
   'rss/AWS News Blog': { category: 'cloud', origin: 'catalog', categories: [] },
   hackernews: { category: 'software-development', origin: 'archive', categories: [{ category: 'software-development', items: 1 }] },
 }
@@ -115,9 +122,7 @@ test('a refused address is shown on its field', async () => {
   fireEvent.change(within(panel).getByLabelText('Adresse du flux'), { target: { value: 'http://10.0.0.1/rss' } })
   fireEvent.click(within(panel).getByRole('button', { name: 'Ajouter' }))
 
-  expect(
-    await within(panel).findByText('Refusé par le serveur : Destination resolves to a non-public address: 10.0.0.1'),
-  ).toBeInTheDocument()
+  expect(await within(panel).findByText('Refusé par le serveur : Destination resolves to a non-public address: 10.0.0.1')).toBeInTheDocument()
   expect(within(panel).getByLabelText('Adresse du flux')).toHaveAttribute('aria-invalid', 'true')
 })
 
@@ -129,9 +134,7 @@ test('a saved source is tested by key and the result is shown', async () => {
   const panel = await screen.findByRole('dialog')
   fireEvent.click(within(panel).getByRole('button', { name: 'Tester' }))
 
-  expect(
-    await within(panel).findByText('12 contenus sur 7 jours, dont 3 dans la fenêtre de collecte (24 h).'),
-  ).toBeInTheDocument()
+  expect(await within(panel).findByText('12 contenus sur 7 jours, dont 3 dans la fenêtre de collecte (24 h).')).toBeInTheDocument()
   expect(within(panel).getByRole('link', { name: 'Introducing a new model' })).toHaveAttribute('href', testResult.sample[0].url)
   expect(calls.find((call) => call.path === '/api/sources/test')?.body).toEqual({ key: 'rss/OpenAI News' })
   expect(calls.some((call) => call.method === 'PUT')).toBe(false) // a test writes nothing
