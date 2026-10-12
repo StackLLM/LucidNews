@@ -113,12 +113,60 @@ Règles de sécurité :
 
 Un quota épuisé ou un budget de tokens atteint produit le même résultat que « désactivée » pour la fin du run : les news restantes sont listées sans analyse.
 
+### Comptes et connexion (facultatif)
+
+Par défaut l'application web est ouverte, comme avant. Pour la protéger par des comptes (inscription et connexion par e-mail et mot de passe, ou avec Google), ajoutez dans `data/config.json` :
+
+```json
+"auth": { "enabled": true }
+```
+
+Redémarrez `uv run lucidnews-api`. Toute l'API (sauf `/api/auth/*`) exige alors une session, et l'interface renvoie vers la page de connexion. **Aucune vérification d'e-mail** n'est demandée : le compte est utilisable tout de suite après l'inscription.
+
+| Réglage (`auth.*`) | Défaut | Rôle |
+|---|---|---|
+| `enabled` | `false` | Active les comptes. |
+| `allow_signup` | `true` | `false` ferme les inscriptions (e-mail et Google) : seuls les comptes existants se connectent. |
+| `session_days` | `30` | Durée d'une session ; chaque utilisation la prolonge. |
+| `public_url` | aucun | Adresse par laquelle le navigateur atteint l'application, par exemple `https://veille.example.com`. **Obligatoire derrière un reverse proxy et pour Google en dehors de localhost.** Avec `https`, le cookie de session devient `Secure`. |
+| `google_client_id_env` | `GOOGLE_CLIENT_ID` | **Nom** de la variable qui contient l'identifiant client Google. |
+| `google_client_secret_env` | `GOOGLE_CLIENT_SECRET` | **Nom** de la variable qui contient le secret client Google. |
+
+Variables d'environnement (dans `.env`, jamais dans `config.json`) :
+
+| Variable | Utilisation |
+|---|---|
+| `GOOGLE_CLIENT_ID` | Identifiant du client OAuth Google. Sans lui, le bouton « Continuer avec Google » n'apparaît pas : l'e-mail et le mot de passe fonctionnent seuls. |
+| `GOOGLE_CLIENT_SECRET` | Secret du client OAuth Google (côté serveur uniquement : il n'est jamais envoyé au navigateur). |
+
+Il n'y a pas d'autre secret à créer : les sessions sont gardées côté serveur (`data/auth.sqlite3`, droits 600), le navigateur ne reçoit qu'un identifiant aléatoire dans un cookie `HttpOnly`.
+
+#### Configurer Google OAuth
+
+1. Ouvrez la [console Google Cloud](https://console.cloud.google.com/), créez ou choisissez un projet.
+2. **Google Auth Platform › Branding** (ou « Écran de consentement OAuth ») : renseignez le nom de l'application et une adresse d'assistance. **Audience** : « Externe ». Tant que l'application est en mode « Test », seuls les comptes ajoutés comme utilisateurs de test peuvent se connecter ; passez en production pour tout le monde. Les seules autorisations demandées sont `openid`, `email` et `profile` (non sensibles : aucune validation Google n'est requise).
+3. **Clients › Créer un client** : type **Application Web**. Dans **URI de redirection autorisés**, ajoutez l'adresse **exacte** de retour :
+   - développement avec Vite : `http://localhost:5173/api/auth/google/callback` ;
+   - production : `https://VOTRE-DOMAINE/api/auth/google/callback` (la valeur de `public_url` + `/api/auth/google/callback`).
+   Les « origines JavaScript autorisées » ne sont pas utilisées (le flux passe par le serveur).
+4. Copiez l'identifiant et le secret dans `.env` :
+   ```bash
+   GOOGLE_CLIENT_ID=123456-abc.apps.googleusercontent.com
+   GOOGLE_CLIENT_SECRET=GOCSPX-...
+   ```
+5. Redémarrez `uv run lucidnews-api`. Le bouton Google apparaît sur la page de connexion.
+
+Pièges fréquents : `localhost` et `127.0.0.1` sont deux adresses différentes pour Google (utilisez celle de la barre d'adresse) ; le `http` n'est accepté que pour `localhost` ; l'erreur `redirect_uri_mismatch` signifie que l'adresse de l'étape 3 n'est pas identique à celle utilisée.
+
+Sécurité, en bref : flux « code d'autorisation » avec PKCE, `state` à usage unique lié au navigateur, `nonce` vérifié dans le jeton, adresse e-mail Google obligatoirement vérifiée ; mots de passe hachés (scrypt, sel aléatoire) ; limitation des tentatives ; requêtes d'écriture refusées si leur origine n'est pas le site. Comme l'inscription par e-mail n'est pas vérifiée, un compte à mot de passe dont l'adresse se connecte ensuite avec Google **devient un compte Google** (son mot de passe est supprimé et ses autres sessions sont fermées) : sinon la personne qui s'est inscrite en premier avec l'adresse d'un autre garderait l'accès. Ne protège pas les routes de `lucidnews-public` (liens de confirmation et de désabonnement des newsletters), qui restent publiques par conception.
+
 ### Variables d'environnement
 
 | Variable | Utilisation |
 |---|---|
 | `GOOGLE_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `AZURE_OPENAI_API_KEY` + `AZURE_OPENAI_ENDPOINT`, `DEEPSEEK_API_KEY`, `DASHSCOPE_API_KEY`, `DOUBAO_API_KEY`, `MINIMAX_API_KEY` | Clé du fournisseur IA choisi, **seulement si l'analyse IA est activée** (une seule suffit) |
 | `LUCIDNEWS_OLLAMA_BASE_URL` | Adresse d'un serveur Ollama local (optionnel) |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Connexion avec Google, seulement si `auth.enabled` (voir « Comptes et connexion ») |
 | `GITHUB_TOKEN` | Relève la limite de l'API GitHub de 60 à 5000 requêtes/heure (recommandé) |
 | `APIFY_TOKEN` | X/Twitter en mode Apify |
 | `LWN_KEY` | Flux LWN en texte intégral (abonnés) |

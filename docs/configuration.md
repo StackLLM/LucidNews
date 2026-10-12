@@ -599,6 +599,35 @@ launchd agent (`~/Library/LaunchAgents/com.lucidnews.pipeline.plist`) that runs
 the pipeline at the chosen times; it holds no key, logs to `data/runs/scheduled.log`,
 and is removed from the same screen.
 
+## Accounts (`auth`)
+
+Optional sign-up and sign-in for the web app (`lucidnews-api`). Off by default.
+
+```json
+"auth": {
+  "enabled": true,
+  "allow_signup": true,
+  "session_days": 30,
+  "public_url": "https://news.example.com",
+  "google_client_id_env": "GOOGLE_CLIENT_ID",
+  "google_client_secret_env": "GOOGLE_CLIENT_SECRET"
+}
+```
+
+- `enabled`: every `/api/*` route except `/api/auth/*` then needs a session cookie (401 otherwise); the
+  web app redirects to `/sign-in`. No e-mail verification step.
+- `allow_signup`: `false` refuses new accounts, by e-mail and by Google.
+- `session_days`: 1 to 365. A session in use is extended at most every 12 hours.
+- `public_url`: an origin (`http(s)://host[:port]`, no path). The address the browser uses; required behind a
+  reverse proxy and for Google off localhost. `https` makes the session cookie `Secure`. Without it, the
+  `Host` header is trusted only when it is `localhost`, `127.0.0.1` or `::1`.
+- `google_client_id_env`, `google_client_secret_env`: names of the variables holding the Google OAuth
+  client (never the values). Google sign-in is offered only when both are set. Setup steps: README,
+  "Comptes et connexion".
+
+Accounts are stored in `data/auth.sqlite3` (mode 600, git-ignored): password hashes (scrypt), and
+sessions as SHA-256 of a random token. These settings are not editable from the web app.
+
 ## Editing settings from the web app
 
 The **Settings** screen (`/settings`, local API only) edits the common settings

@@ -118,6 +118,19 @@ les annotations, la configuration (`data/config.json`, avec copie dans `data/bac
   d'IA : les news sont listées sans analyse. Les champs fournisseur, modèle et limites ne
   s'affichent que lorsque l'IA est activée.
 
+### Comptes (facultatif, `auth.enabled`)
+
+- `GET /api/auth/session` dit toujours qui est connecté (ou `{enabled: false}` quand les comptes sont
+  désactivés : l'application reste ouverte). `POST /api/auth/sign-up`, `/sign-in`, `/sign-out`.
+  `GET /api/auth/google/start` et `/google/callback` font le flux OAuth (redirections).
+- Avec les comptes, toute autre route `/api/*` répond 401 sans session. L'interface écoute cet échec et
+  renvoie vers `/sign-in?next=…`, puis revient à la page demandée.
+- Le serveur de développement Vite relaie `/api` **sans changer l'en-tête Host** (`changeOrigin: false`) :
+  le contrôle d'origine des POST et l'adresse de retour Google (`http://localhost:5173/api/auth/google/callback`)
+  en dépendent.
+- Écran : `src/features/auth/AuthPage.tsx` (connexion et inscription, bouton Google seulement si le serveur
+  l'a configuré), `src/app/UserMenu.tsx` (avatar et déconnexion), `src/lib/auth.tsx` (session et garde).
+
 ### Runs et planification
 
 - « Lancer un run » démarre le pipeline dans un processus séparé, avec la même commande

@@ -4,6 +4,7 @@ import { Link, NavLink, useLocation } from 'react-router'
 import { languages, useLanguage, type MessageKey } from '../lib/i18n'
 import { useMotionPreference } from '../lib/motion'
 import { useTheme } from '../lib/theme'
+import { useAuth } from '../lib/auth'
 import { UserMenu } from './UserMenu'
 
 // shortKey: label of the phone and tablet bar, where six entries share the width.
@@ -26,6 +27,8 @@ export function TopBar() {
   const { language, setLanguage, t } = useLanguage()
   const motionPref = useMotionPreference()
   const theme = useTheme()
+  // With accounts on, the account button needs room: on a phone the wordmark gives way to the logo.
+  const hasAccount = Boolean(useAuth().session?.user)
   const { pathname } = useLocation()
   const search = `?lang=${language}`
 
@@ -33,9 +36,9 @@ export function TopBar() {
     <>
       <header className="sticky top-3 z-30 mx-auto w-full max-w-6xl px-4 sm:top-5 sm:px-6">
         <div className="glass flex h-16 items-center gap-2 rounded-full pl-5 xl:gap-4 pr-2.5">
-          <Link to={{ pathname: '/', search }} className="flex items-center gap-2.5">
+          <Link to={{ pathname: '/', search }} aria-label="LucidNews" className="flex items-center gap-2.5">
             <LogoMark />
-            <span className="text-[17px] font-bold tracking-tight">LucidNews</span>
+            <span className={`text-[17px] font-bold tracking-tight ${hasAccount ? 'hidden sm:inline' : ''}`}>LucidNews</span>
           </Link>
 
           <nav className="ml-2 hidden xl:ml-6  items-center gap-0.5 lg:flex xl:gap-1" aria-label={t('nav.main')}>

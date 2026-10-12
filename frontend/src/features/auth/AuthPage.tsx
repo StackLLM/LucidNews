@@ -105,7 +105,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
       <Controls />
       <BrandPanel />
 
-      <main className="flex items-center justify-center py-6 lg:py-0">
+      <main className="flex items-center justify-center py-6 lg:pt-16 lg:pb-0">
         <m.div
           initial={motionOn ? { opacity: 0, y: 24 } : false}
           animate={{ opacity: 1, y: 0 }}
@@ -261,6 +261,8 @@ export function AuthPage({ mode }: { mode: Mode }) {
                 )}
               </AnimatePresence>
 
+              {/* The label is inside the animated span below. */}
+              {/* oxlint-disable-next-line jsx-a11y/control-has-associated-label */}
               <button
                 type="submit"
                 disabled={busy || closed}
@@ -380,7 +382,7 @@ function Tabs({ mode, switchSearch }: { mode: Mode; switchSearch: string }) {
             aria-selected={active}
             replace
             to={{ pathname: item.to, search: switchSearch }}
-            className={`relative rounded-full px-4 py-2.5 text-center text-[14px] font-semibold transition-colors duration-150 ${active ? 'text-ink' : 'text-muted hover:text-ink'}`}
+            className={`relative rounded-full px-2 py-2.5 text-center text-[13.5px] font-semibold whitespace-nowrap sm:px-4 sm:text-[14px] transition-colors duration-150 ${active ? 'text-ink' : 'text-muted hover:text-ink'}`}
           >
             {active && (
               <m.span

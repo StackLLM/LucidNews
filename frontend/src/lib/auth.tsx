@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logOut = useCallback(async () => {
     const session = await signOut()
     // Whatever was loaded for the previous reader must not outlive the session.
-    queryClient.clear()
+    queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== SESSION_KEY[0] })
     queryClient.setQueryData(SESSION_KEY, session)
   }, [queryClient])
 

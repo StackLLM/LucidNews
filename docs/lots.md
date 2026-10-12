@@ -630,7 +630,7 @@ Plan revu le 9 octobre 2026 pour intégrer le besoin « interface complète et g
 | ✅ | 24 — Finitions de l'interface | 15 à 23 | Clôturé. |
 | ✅ | 25 — Dette technique | — | Clôturé. |
 | ✅ | 25 bis — IA facultative | — | Clôturé. |
-| 3 | 26 — Comptes et SaaS | 22, 25 | Hors périmètre actuel. |
+| 3 | 26 — Comptes et SaaS | 22, 25 | Authentification faite ; rôles, offres et paiement hors périmètre actuel. |
 | En parallèle | 12 — Annoter au moins 30 news | — | Action humaine ; donne les chiffres de filtrage du lot 19. |
 
 **Correspondance avec l'ancien plan** : ancien 15 (finitions) → 24 · ancien 16 (newsletter) → 21 et 22 · ancien 17 (comptes et SaaS) → 26 · ancien 18 (dette technique) → 25.
@@ -705,11 +705,20 @@ On garde les écrans existants et on n'ajoute qu'**une** page : Réglages.
 
 ## Lot 26 — Comptes et SaaS (phase 4)
 
-📋  Planifié, hors périmètre actuel. Ancien lot 17.
+🟡 Commencé : l'authentification est faite (demande explicite). Rôles, limites d'offre et paiement restent non commencés.
 
-- Comptes utilisateurs et authentification. Les pages Préférences et Réglages passeront alors d'un usage local à un usage par compte, avec des rôles (administrateur, abonné).
-- Activation des limites de l'offre Free et de l'offre Premium.
-- Paiement, seulement après validation du produit.
+**Réalisé : authentification facultative** (`auth.enabled`, désactivée par défaut : l'application reste ouverte).
+
+- **Inscription et connexion par e-mail et mot de passe**, sans vérification d'e-mail. Mots de passe hachés avec scrypt (sel aléatoire), 8 à 128 caractères. Réponse identique pour « adresse inconnue » et « mauvais mot de passe », avec un temps de calcul identique. Limitation des tentatives (8 par adresse et 20 par IP par 15 min ; 10 inscriptions par IP et par heure).
+- **Connexion Google réelle (OAuth 2.0)** : flux « code d'autorisation » avec PKCE, `state` à usage unique lié au navigateur par un cookie, `nonce`, adresse vérifiée par Google exigée. Le bouton n'apparaît que si `GOOGLE_CLIENT_ID` et `GOOGLE_CLIENT_SECRET` sont définis. Procédure Google Cloud : README.
+- **Session persistante** côté serveur : cookie aléatoire `HttpOnly`, `SameSite=Lax`, `Secure` si `public_url` est en https ; seul son SHA-256 est stocké ; 30 jours glissants. **Déconnexion** qui invalide la session côté serveur (un cookie volé avant ne marche plus).
+- **Routes privées** : avec les comptes, toute l'API sauf `/api/auth/*` répond 401 sans session ; l'interface renvoie vers `/sign-in?next=…` et revient à la page demandée, y compris quand une session se termine pendant l'usage.
+- **Interface** : page `/sign-in` et `/sign-up` (panneau de marque avec exemples d'étiquettes de fiabilité, bascule animée entre les deux onglets, indicateur de solidité du mot de passe, états de chargement et de réussite, messages d'erreur précis, FR/EN, thème clair et sombre) ; avatar et déconnexion dans la barre du haut. Sur téléphone, le nom « LucidNews » cède la place au logo seul quand un compte est connecté, pour que le bouton du compte tienne.
+- **Sans vérification d'e-mail, deux conséquences traitées** : une adresse inscrite avec mot de passe devenant ensuite un compte Google perd son mot de passe et ses autres sessions (sinon la personne inscrite en premier avec l'adresse d'un autre garderait l'accès) ; l'inscription révèle si une adresse est déjà utilisée.
+- **Vérifié** : inscription, connexion persistante après rechargement, déconnexion, et page de connexion sur téléphone (375 px) en clair et en sombre, sur une copie des données, avec le vrai serveur. L'adresse de redirection Google construite est la bonne (`http://localhost:5173/api/auth/google/callback`).
+- **Pas vérifié** : un vrai aller-retour avec Google (aucun identifiant client dans cet environnement). Le flux est testé contre un faux point d'accès « token » local qui répond comme Google ; le code appelé est le vrai.
+- **Tests** : 36 Python (`tests/test_auth.py`), 10 interface (`AuthPage.test.tsx`).
+- **Reste du lot** : rôles (administrateur, abonné), limites des offres Gratuit et Premium, paiement (seulement après validation du produit).
 
 ---
 

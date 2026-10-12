@@ -8,7 +8,9 @@ export default defineConfig({
   server: {
     port: 5173,
     // Read-only Python API: `uv run lucidnews-api` (override with LUCIDNEWS_API)
-    proxy: { '/api': process.env.LUCIDNEWS_API ?? 'http://127.0.0.1:8765' },
+    // The browser's Host header is kept (changeOrigin off): sign-in checks that the Origin of a POST is the
+    // host it was sent to, and Google must come back to the address the browser used (localhost:5173).
+    proxy: { '/api': { target: process.env.LUCIDNEWS_API ?? 'http://127.0.0.1:8765', changeOrigin: false } },
   },
   test: {
     environment: 'jsdom',

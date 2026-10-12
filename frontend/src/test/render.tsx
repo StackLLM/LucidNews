@@ -42,14 +42,17 @@ export function mockApi(overrides: Routes = {}, status = 200) {
  * are off", whatever API double the test installed for its own routes.
  */
 export function answerSession(session: unknown = noAccounts) {
-  const inner = globalThis.fetch
-  vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) =>
+  const original = globalThis.fetch
+  const spy = vi.spyOn(globalThis, 'fetch')
+  const inner = spy.getMockImplementation() ?? original // the test's own API double, if it installed one
+  spy.mockImplementation(async (input, init) =>
     new URL(String(input), 'http://localhost').pathname === '/api/auth/session' ? new Response(JSON.stringify(session), { status: 200 }) : inner(input, init),
   )
 }
 
+/** ``session``: what the API answers about the reader; ``null`` when the test's own API double answers it. */
 export function renderAt(path: string, session: unknown = noAccounts) {
-  answerSession(session)
+  if (session !== null) answerSession(session)
   window.history.pushState({}, '', path)
   const queryClient = createQueryClient()
   queryClient.setDefaultOptions({ queries: { retry: false } })
