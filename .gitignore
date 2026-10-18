@@ -84,3 +84,8 @@ Templates/
 
 # Evaluation reports are machine output; annotations (data/eval/annotations.json) are versioned
 data/eval/reports/
+
+# Personal notes of the owner (business plan, market study): never part of this repository.
+# The technical route is docs/roadmap.md.
+Plan.md
+docs/etude-marche/

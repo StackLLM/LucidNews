@@ -351,9 +351,10 @@ tests/                 tests automatisés (pytest)
 | [Fiabilité](docs/fiabilite.md) | Niveaux de confiance, vérification des affirmations, étiquettes, réglages |
 | [Catégories et langues](docs/categories-et-langues.md) | Taxonomie IT, importance, langues, ajout d'une langue |
 | [Newsletter](docs/newsletter.md) | Abonnés, préférences, plans, envoi |
-| [Plan de lancement](Plan.md) | Lots restants jusqu'à la commercialisation, dépendances, critères mesurables |
-| [Étude de marché](docs/etude-marche/rapport-lucidnews-2026-10.html) | Benchmark concurrentiel, besoins, audit, priorités, hébergement (octobre 2026) |
-| [Roadmap technique](docs/roadmap.md) | Prochaines étapes |
+| [Roadmap technique](docs/roadmap.md) | La route : ce qui est fait, ce qui reste (lots 33 à 46), dépendances, décisions techniques |
+| [Journal des lots](docs/lots.md) | Chaque lot réalisé : ce qui a été fait, comment c'est vérifié, ce qui reste |
+| [Sécurité](docs/securite/) | Audit, modèle de menaces, liste OWASP ASVS niveau 1 |
+| [CLAUDE.md](CLAUDE.md) | Pour reprendre le travail : commandes, règles à ne pas casser, où est quoi |
 | Références (en anglais) | [configuration](docs/configuration.md), [profils](docs/profiles.md), [score](docs/scoring.md), [scrapers](docs/scrapers.md), [extracteurs](docs/extractors.md), [cookies X](docs/twitter-cookies.md), [MCP](lucidnews/mcp/README.md) |
 
 ## Origine et licence

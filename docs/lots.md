@@ -3,9 +3,9 @@
 Ce document regroupe tous les lots : ceux qui sont **clôturés** et ceux qui
 **restent à faire**. Il complète la [roadmap](roadmap.md), qui donne les priorités.
 
-État au 17 octobre 2026. Dernier lot clôturé : lot 30 (sécurité applicative).
+État au 18 octobre 2026. Dernier lot clôturé : lot 32 (exécution serveur).
 
-**Suite du plan** : depuis l'étude de marché du 13 octobre 2026, les lots 27 à 46 sont décrits dans [Plan.md](../Plan.md), avec leurs critères mesurables. Ce fichier garde l'historique et les lots en cours.
+**Suite du plan** : les lots 27 à 46 sont décrits dans la [roadmap technique](roadmap.md), avec leurs critères mesurables. Ce fichier garde l'historique et les lots en cours.
 
 Légende : ✅ clôturé · 🟡 outil livré, action humaine attendue · ⏳ proposé, en attente de décision · 📋 planifié.
 
@@ -646,7 +646,7 @@ Plan revu le 9 octobre 2026 pour intégrer le besoin « interface complète et g
 | ✅ | 28 — Compte en libre-service, sans e-mail | 27 | Clôturé. |
 | ✅ | 29 — Préférences du lecteur et veille personnelle | 27, 28 | Clôturé. |
 | ✅ | 30 — Sécurité applicative | 27 | Clôturé. |
-| 1 | 28 à 46 — Plan de lancement | 27 | Voir [Plan.md](../Plan.md). |
+| 1 | 28 à 46 — Plan de lancement | 27 | Voir [roadmap.md](roadmap.md). |
 | En parallèle | 12 — Annoter au moins 30 news | — | Action humaine ; donne les chiffres de filtrage du lot 19. |
 
 **Correspondance avec l'ancien plan** : ancien 15 (finitions) → 24 · ancien 16 (newsletter) → 21 et 22 · ancien 17 (comptes et SaaS) → 26 · ancien 18 (dette technique) → 25.
@@ -741,7 +741,7 @@ On garde les écrans existants et on n'ajoute qu'**une** page : Réglages.
 
 ## Lot 27 — Rôles et isolation des comptes
 
-✅ Clôturé le 17 octobre 2026. Phase A du [plan de lancement](../Plan.md).
+✅ Clôturé le 17 octobre 2026. Phase A de la [roadmap](roadmap.md).
 
 **Problème** : avec les comptes activés, n'importe quel compte connecté voyait tout. Les écrans d'administration n'étaient protégés que par l'écoute en local (`is_loopback` et en-tête `Host`) : derrière un reverse proxy, soit ils ne marchaient plus, soit ils s'ouvraient à tous.
 
@@ -852,9 +852,8 @@ On garde les écrans existants et on n'ajoute qu'**une** page : Réglages.
 
 ## Lots 27 à 46 — Plan de lancement
 
-📋 Planifiés le 13 octobre 2026 après l'étude de marché et l'audit
-([rapport](etude-marche/rapport-lucidnews-2026-10.html)). Détail, dépendances et critères :
-[Plan.md](../Plan.md).
+📋 Planifiés le 13 octobre 2026 après un audit du code et une étude de marché. Détail,
+dépendances et critères : [roadmap.md](roadmap.md).
 
 | Phase | Lots | Objet |
 |---|---|---|

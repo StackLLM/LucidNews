@@ -40,30 +40,76 @@ Objectif : utiliser LucidNews sans terminal pour les opérations courantes. Dét
 - Envoi fiable : double opt-in, désinscription signée, fournisseur transactionnel, journal des envois, abonnés en base, fuseau horaire (lot 22).
 - Recherche dans l'archive (lot 23), puis finitions de l'interface : mode sombre, contrastes, socle allégé (lot 24).
 
-## Phase 4 — Comptes et SaaS (hors périmètre actuel)
+## Où on en est (18 octobre 2026)
 
-- Comptes utilisateurs, authentification et rôles (lot 26).
-- Activation des limites du plan Free et de l'offre Premium (`PLAN_LIMITS`), puis paiement.
+Lots 0 à 32 et 12 bis (outil) clôturés. Le détail de chacun, avec ses vérifications, est dans [lots.md](lots.md).
 
-## Dette technique identifiée (lot 25)
+| Domaine | État |
+|---|---|
+| Collecte, doublons, sélection, fiabilité, IA facultative | ✅ opérationnel |
+| Application web : édition par domaine, archive, recherche, sources, qualité, réglages | ✅ opérationnel |
+| Comptes : e-mail + mot de passe, Google OAuth, rôles `admin` / `reader`, page Mon compte, préférences et « Ma sélection » | ✅ sans e-mail |
+| Sécurité : ASVS niveau 1, limite de requêtes, proxy de confiance, CSP, audit des dépendances | ✅ [docs/securite/](securite/) |
+| Tests : 920 Python, 174 interface, 5 parcours Playwright ; CI GitHub Actions (API, interface, parcours, pile Docker) | ✅ |
+| Exécution serveur : `docker compose up -d --build` (init, api, scheduler, Caddy), planificateur serveur, SQLite en WAL | ✅ vérifié en local |
+| Newsletter par e-mail (envoi réel, vérification d'adresse, mot de passe oublié) | ⏳ code prêt, **reporté** (lot 33) |
+| Sauvegardes, observabilité | ❌ lots 34 et 35 |
+| Mesure de la fiabilité | 🟡 outil prêt (`lucidnews-eval`) ; il manque 100 news annotées (action humaine, lot 12 bis) |
 
-- Le paquet Python s'appelle `src` (héritage) ; le renommer en `lucidnews` demandera de mettre à jour tous les imports et les points d'entrée.
-- `orchestrator.py` concentre beaucoup de responsabilités (≈ 1 100 lignes). À découper en étapes (`collect`, `select`, `deliver`) quand l'archive d'items arrivera.
-- L'email HTML est un gabarit minimal ; il sera refait avec la phase UI.
-- Les métadonnées fusionnées entre sources peuvent mélanger les auteurs (par exemple « Lobsters » affiché sur un item Hacker News).
+## La route
 
-## Phase 4 — Lancement commercial (plan du 13 octobre 2026)
+Ordre conseillé. Chaque lot garde ses critères dans [lots.md](lots.md) une fois clôturé.
 
-Étude de marché, benchmark et audit : [rapport](etude-marche/rapport-lucidnews-2026-10.html).
-Plan détaillé avec critères : [Plan.md](../Plan.md).
+### Lot 12 bis — Preuve de qualité *(action humaine)*
+Annoter au moins 100 news dans l'écran Qualité, puis `lucidnews-eval`. Objectif : taux de « faux fiables » < 5 %, publié sur une page « Méthode ». Il n'y a aujourd'hui que 81 news analysées par l'IA (l'IA est désactivée dans la configuration locale) : il faut d'abord en produire.
 
-- **A. Finalisation fonctionnelle** : rôles et isolation (27), cycle de vie du compte avec
-  vérification de l'e-mail (28), newsletter gérée par le lecteur (29).
-- **B. Tests et sécurité** : ASVS niveau 1 (30), bout en bout et CI (31), preuve de qualité sur
-  100 news annotées (12 bis).
-- **C. Production** : exécution serveur hors macOS (32), e-mail authentifié et rebonds (33),
-  sauvegardes (34), observabilité et coûts (35), conformité et CNDP (36).
-- **D. Hébergement** : VPS + Docker Compose + Caddy (37), bêta privée de 20 à 50 lecteurs (38).
-- **E. Après le lancement** : fil d'un événement, tendances, alertes, offres et paiement,
-  équipes, sources personnelles, arabe, PostgreSQL (39 à 46).
+### Lot 33 — E-mail en production *(reporté)*
+Vérification de l'adresse, mot de passe oublié par e-mail, envoi réel de la newsletter. Domaine d'envoi authentifié (SPF, DKIM, DMARC), webhooks du fournisseur (rebonds et plaintes désinscrivent), service public de confirmation et de désinscription (`lucidnews-public`, déjà écrit, hors de la pile Docker tant que l'e-mail est reporté).
+*Critères* : premier envoi reçu chez Gmail et Outlook ; un rebond simulé désactive l'adresse (test).
 
+### Lot 34 — Données
+Sauvegarde à chaud, chiffrée et quotidienne des trois bases SQLite (archive, newsletter, comptes), conservée hors du serveur ; restauration documentée.
+*Critères* : restauration testée de bout en bout en moins de 30 minutes ; 7 sauvegardes quotidiennes et 4 hebdomadaires gardées.
+
+### Lot 35 — Observabilité et coûts
+Suivi d'erreurs, sonde de disponibilité externe (le point de contrôle `GET /api/healthz` existe), coût IA par mois à partir des tokens archivés, alerte de budget.
+*Critères* : une erreur provoquée remonte en moins de 5 minutes ; alerte si le coût IA du mois dépasse le budget fixé.
+
+### Lot 36 — Conformité
+Politique de confidentialité, conditions d'utilisation, page « Sources et attribution », procédure de retrait pour un éditeur. L'export et la suppression de compte existent déjà (lot 28).
+
+### Lots 37 et 38 — Hébergement et bêta privée
+Un VPS avec Docker Compose et Caddy (la pile existe), déploiement et retour arrière en une commande depuis la CI, puis une bêta sur invitation (`auth.allow_signup` fermé). À décider après la fin de l'application.
+
+### Après le lancement *(à confirmer par les résultats)*
+39 fil d'un événement (une page par histoire : sources, chronologie, évolution de l'étiquette) · 40 synthèse hebdomadaire des tendances · 41 alertes et suivi d'entités · 42 limites par plan et paiement · 43 équipes · 44 sources personnelles par utilisateur · 45 arabe · 46 PostgreSQL et plusieurs instances.
+
+## Dépendances
+
+```
+27 Rôles ──► 28 Compte ──► 29 Veille personnelle ──► 30 Sécurité ──► 31 E2E + CI ──► 32 Serveur
+                                                                                      │
+   33 E-mail (reporté) ───────────────────────────────────────────────────────────────┤
+   34 Données ──► 37 Hébergement ──► 38 Bêta ──► lots 39 à 46
+   35 Observabilité, 36 Conformité ──► 38
+   12 bis Preuve de qualité ──► toute communication sur la fiabilité
+```
+
+## Décisions techniques en vigueur
+
+| Sujet | Décision | Raison |
+|---|---|---|
+| Modèle | Une veille éditée et partagée ; chaque lecteur règle sa sélection | Le coût IA ne dépend pas du nombre de lecteurs (environ 3 000 tokens par news) |
+| Base de données | SQLite en mode WAL, un seul serveur, sauvegardes (lot 34) | Peu d'écritures concurrentes ; PostgreSQL seulement avec plusieurs instances ou sans disque local (lot 46) |
+| Comptes | Rôles `admin` / `reader`, tout ce qui n'est pas dans `READER_ROUTES` est réservé à l'admin (refus par défaut) | Les routes d'administration ne dépendent plus de l'écoute en local |
+| Mot de passe oublié | Sans e-mail : l'admin le réinitialise (`lucidnews-users passwd`) | L'e-mail est reporté (lot 33) |
+| Planification | `launchd` sur Mac, `lucidnews-scheduler` sur un serveur (`LUCIDNEWS_SCHEDULER=server`) | Un conteneur n'a pas launchd |
+| Reverse proxy | Caddy, adresse fixe déclarée dans `server.trusted_proxies` | La limite de requêtes doit voir le vrai visiteur |
+| E-mail | Fournisseur transactionnel déjà intégré (Resend) | Voir lot 33 |
+| Langues | FR + EN ; l'arabe seulement si la demande le justifie | Aucune preuve de demande aujourd'hui |
+
+## À vérifier avant de s'y fier
+
+- Les métadonnées fusionnées entre sources peuvent mélanger les auteurs (par exemple « Lobsters » affiché sur une news Hacker News).
+- `orchestrator.py` concentre encore beaucoup de responsabilités ; à découper en étapes si on y touche en profondeur.
+- L'e-mail HTML de la newsletter n'a jamais été envoyé pour de vrai.

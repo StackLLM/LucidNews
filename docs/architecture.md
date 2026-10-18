@@ -50,12 +50,15 @@ LucidNews est une application Python asynchrone en ligne de commande. Elle n'a n
 | `lucidnews/quality_overview.py` | Indicateurs de la page Qualité : couverture, diversité, santé, fraîcheur, doublons, filtrage, fiabilité publiée |
 | `lucidnews/source_health.py`, `lucidnews/sources_cli.py` | Identifiants de source, résultat par run, classement de santé, commande `lucidnews-sources` |
 | `lucidnews/source_quality.py` | Score de qualité par source (départage des news de même score) |
-| `lucidnews/auth/` | Comptes facultatifs : `service.py` (routes `/api/auth/*`, sessions, limitation), `store.py` (SQLite `data/auth.sqlite3`), `passwords.py` (scrypt), `google.py` (OAuth 2.0 + PKCE) |
+| `lucidnews/auth/` | Comptes facultatifs : `service.py` (routes `/api/auth/*`, compte en libre-service, sessions, limitation), `store.py` (SQLite `data/auth.sqlite3` : utilisateurs avec rôle, sessions avec appareil, préférences du lecteur), `passwords.py` (scrypt, refus des mots de passe courants via `common_passwords.txt`), `preferences.py` (domaines suivis, seuil d'importance, niveau de confiance, détail des cartes), `google.py` (OAuth 2.0 + PKCE), `cli.py` (`lucidnews-users`) |
 | `lucidnews/settings_api.py` | Réglages depuis l'interface : édition brute de `config.json`, copies de sauvegarde ; état (présente ou non, jamais la valeur) des variables de clés. Aucune clé n'est écrite |
 | `lucidnews/coverage.py` | Couverture des 12 catégories par les sources, calculée sur l'archive ; lacunes des domaines suivis |
 | `lucidnews/source_catalog.py` | Catalogue des sources recommandées (config d'exemple et catalogue de l'assistant), sans les sources déjà configurées |
 | `lucidnews/run_lock.py` | Verrou d'un run à la fois (terminal, interface, planification) |
-| `lucidnews/runs_api.py` | Lancer le pipeline depuis l'interface, suivre son journal, planification launchd |
+| `lucidnews/runs_api.py` | Lancer le pipeline depuis l'interface, suivre son journal ; planification : `ScheduleService` (launchd, Mac) ou `ServerScheduleService` (`schedule.json`, serveur) |
+| `lucidnews/scheduler.py` | Processus `lucidnews-scheduler` (serveur) : lit `schedule.json`, lance le pipeline à l'heure, jamais deux fois le même créneau, rattrape un créneau manqué de moins de 6 h, battement pour la sonde de santé |
+| `lucidnews/server_init.py` | `lucidnews-init` : premier démarrage d'un serveur (configuration fermée, archive vide), sans jamais écraser |
+| `lucidnews/sqlite_util.py` | Ouverture commune des trois bases : mode WAL, attente de 30 s |
 | `lucidnews/sources_api.py` | Sources depuis l'interface : liste avec la clé de santé, ajout, modification, suppression, test d'une source sans IA |
 | `lucidnews/reassess_cli.py` | Commande `lucidnews-reassess` : recalcul des étiquettes de l'archive avec le registre actuel |
 | `lucidnews/evaluation/` | Annotations humaines, calcul des scores (sélection, importance, thèmes, affirmation, faux fiables), commande `lucidnews-eval` |
@@ -147,3 +150,13 @@ Ces parties portent la qualité et la fiabilité du produit. Toute modification 
 - **Fiabilité** : les règles de `reliability/assess.py` sont conservatrices par conception ; ne pas les assouplir sans décision produit.
 - **Quotas IA** : régler `ai.max_requests_per_minute` selon l'offre du fournisseur, sinon les erreurs 429 font perdre des items (non notés, donc exclus). Le quota épuisé (journalier ou budget du run) est géré à part par `ai/budget.py` : un appel refusé échoue tout de suite, sans attente ni nouvelle tentative.
 - **News sans analyse** : elles ne sont publiées que si le quota est épuisé, jamais pour une autre erreur. Elles portent toujours l'étiquette « Non vérifié » et n'affichent que des données de la source.
+
+## Application web, comptes et sécurité
+
+- **Routes de lecture** (`READER_ROUTES` dans `web_api.py`) : santé, recherche, éditions, news. Tout le reste est réservé au rôle `admin` ; une route nouvelle est donc fermée tant qu'on ne l'ouvre pas à dessein (test `tests/test_roles.py`).
+- **Sans comptes** (`auth.enabled = false`, défaut), l'API n'accepte les écritures que depuis la machine locale. **Avec comptes**, le rôle décide, et toute écriture doit venir du même site (`Origin`).
+- **Client réel** : `X-Forwarded-For` n'est lu que depuis une adresse de `server.trusted_proxies`. La limite de requêtes (`server.requests_per_minute`, un cinquième pour la recherche et la période) s'applique par client.
+- **Chaque réponse** porte des en-têtes de sécurité ; l'interface compilée porte une politique de contenu (CSP) posée à la compilation (`contentSecurityPolicy()` dans `frontend/vite.config.ts`).
+- **Édition par domaine** : une news est rangée dans son premier domaine (`categories[0]`) ; « Ma sélection » filtre l'édition par les préférences du lecteur (`frontend/src/features/edition/selection.ts`).
+- **Serveur** : `docker-compose.yml` (init, api, scheduler, web), `Dockerfile`, `Dockerfile.web`, `deploy/Caddyfile`. Sonde : `GET /api/healthz`.
+- **Tests de bout en bout** : `frontend/e2e/` (Playwright) devant `scripts/e2e_server.py`, une API jetable (ports 8766 et 5174).
