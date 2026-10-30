@@ -8,7 +8,7 @@ LucidNews surveille les sources importantes de l'écosystème IT, écarte le bru
 Collecter → Filtrer → Vérifier → Classer → Résumer → Prioriser → Distribuer
 ```
 
-> Statut : **Phase 1 — fondations techniques**. Pas encore d'interface : le produit tourne en ligne de commande et produit des digests Markdown et des emails.
+> Statut : **application web opérationnelle, en préparation de la mise en production** (lots 0 à 32 clôturés au 18 octobre 2026). Collecte, fiabilité, comptes, sécurité et pile Docker sont en place. Restent l'envoi d'e-mails en production, les sauvegardes et l'observabilité : voir la [roadmap](docs/roadmap.md).
 
 ---
 
